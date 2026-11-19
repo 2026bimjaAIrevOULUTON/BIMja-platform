@@ -1,0 +1,22 @@
+{
+  "name": "bimja-platform",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "node tests/run.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "three": "^0.187.0",
+    "web-ifc": "^0.0.79"
+  },
+  "devDependencies": {
+    "vite": "^8.3.8"
+  },
+  "type": "module"
+}

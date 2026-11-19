@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BIMja — open BIM in your browser</title>
+<meta name="description" content="Open-source, browser-based BIM: open an IFC model, inspect it, run a handover data check and export the issues. Runs fully in your browser; your model never leaves your device.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%226%22 fill=%22%230b0d10%22/%3E%3Cpath d=%22M6 24V10l10-5 10 5v14z%22 fill=%22none%22 stroke=%22%23ff7a1a%22 stroke-width=%223%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+<header>
+  <div class="brand">BIM<span>ja</span> <small>open BIM · v0</small></div>
+  <nav id="tabs">
+    <button data-tab="model" class="on">Model</button>
+    <button data-tab="check">Handover check</button>
+    <button data-tab="qto">5D Quantities</button>
+    <button data-tab="coord">Coordination</button>
+    <button data-tab="4d">4D</button>
+    <button data-tab="twin">Twin</button>
+  </nav>
+  <div class="actions">
+    <select id="sample" title="Sample models">
+      <option value="models/AC20-FZK-Haus.ifc.txt">Sample: FZK-Haus (KIT)</option>
+      <option value="models/Ifc4_SampleHouse.ifc.txt">Sample: IFC4 Sample House</option>
+    </select>
+    <label class="btn primary">Open IFC<input type="file" id="file" accept=".ifc" hidden></label>
+  </div>
+</header>
+<main>
+  <section id="panel">
+    <div data-pane="model" class="pane on">
+      <div class="meta" id="meta">No model loaded.</div>
+      <div class="row"><input id="search" placeholder="Search name, class, GlobalId…"></div>
+      <div id="tree"></div>
+    </div>
+    <div data-pane="check" class="pane">
+      <div class="score" id="score"></div>
+      <div class="row">
+        <button class="btn" id="runCheck">Run check</button>
+        <button class="btn" id="csvIssues">Issues CSV</button>
+        <button class="btn" id="jsonReport">Report JSON</button>
+        <button class="btn" id="htmlReport">Client report</button>
+      </div>
+      <div id="rules"></div>
+      <div id="issues"></div>
+    </div>
+    <div data-pane="qto" class="pane">
+      <p class="note">Counts and base quantities read from the model's quantity sets (Qto_*). Add rates to turn this into a cost estimate.</p>
+      <div class="row"><button class="btn" id="csvQto">Quantities CSV</button></div>
+      <div id="qto"></div>
+    </div>
+    <div data-pane="coord" class="pane"><div class="soon"><b>Coordination: next phase</b><p>Clash detection between disciplines with BCF issues. It will use IfcOpenShell IfcClash for authoritative runs.</p></div></div>
+    <div data-pane="4d" class="pane"><div class="soon"><b>4D: planned</b><p>Import a P6 / MS Project schedule, link tasks to elements, and play the build sequence.</p></div></div>
+    <div data-pane="twin" class="pane"><div class="soon"><b>Digital twin: planned</b><p>Map sensor IDs to IFC GlobalIds and colour elements by live readings.</p></div></div>
+  </section>
+  <section id="view">
+    <div id="canvas"></div>
+    <div id="tools">
+      <button class="btn" id="fit" title="Fit">Fit</button>
+      <button class="btn" id="xray" title="X-ray">X-ray</button>
+      <button class="btn" id="spaces" title="Show spaces">Spaces</button>
+      <button class="btn" id="showAll" title="Show all">Show all</button>
+      <label class="slider" title="Horizontal section">Section <input type="range" id="section" min="0" max="1" step="0.01" value="1"></label>
+      <button class="btn" id="shot" title="Screenshot">PNG</button>
+    </div>
+    <aside id="props" hidden></aside>
+    <div id="loading" hidden><div class="spinner"></div><span id="loadingText">Loading…</span></div>
+    <div id="drop" hidden>Drop an .ifc file</div>
+  </section>
+</main>
+<footer>Runs in your browser: your model is not uploaded anywhere. Built on web-ifc (MPL-2.0) and three.js (MIT). <a href="https://github.com/2026bimjaAIrevOULUTON/bimja-platform" id="gh">Source</a> · Agents: <code>window.bimja</code></footer>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
