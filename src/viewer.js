@@ -10,19 +10,19 @@ export class Viewer {
     this.renderer.localClippingEnabled = true;
     container.appendChild(this.renderer.domElement);
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color("#0c0f13");
+    this.scene.background = new THREE.Color("#3a3d42");
     this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 5000);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.scene.add(new THREE.HemisphereLight(0xe8f0ff, 0x1a2230, 1.4));
     const sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(30, 60, 20); this.scene.add(sun);
-    this.grid = new THREE.GridHelper(200, 100, 0x263040, 0x161c24); this.scene.add(this.grid);
+    this.grid = new THREE.GridHelper(200, 100, 0x4a4e55, 0x43464c); this.scene.add(this.grid);
     this.section = new THREE.Plane(new THREE.Vector3(0, -1, 0), 1e6);
     this.root = new THREE.Group(); this.scene.add(this.root);
     this.auth = new THREE.Group(); this.scene.add(this.auth);
     this.fed = new Map(); // federated models: fid -> group
     this.byId = new Map(); // expressID -> [mesh]
-    this.hl = new THREE.MeshStandardMaterial({ color: 0xff7a1a, emissive: 0x552200, side: THREE.DoubleSide, clippingPlanes: [this.section] });
+    this.hl = new THREE.MeshStandardMaterial({ color: 0x3aa0ff, emissive: 0x0b2a4a, side: THREE.DoubleSide, clippingPlanes: [this.section] });
     this.ray = new THREE.Raycaster();
     this.onPick = () => {};
     new ResizeObserver(() => this.resize()).observe(container);

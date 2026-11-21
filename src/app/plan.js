@@ -75,7 +75,7 @@ export function initPlan({ bus, run, toast, container, onSelect }) {
     if (!st.on) return;
     const r = cv.getBoundingClientRect(); const dpr = Math.min(devicePixelRatio, 2);
     if (cv.width !== Math.round(r.width * dpr)) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); }
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.fillStyle = "#0c0f13"; ctx.fillRect(0, 0, r.width, r.height);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.fillStyle = "#26282c"; ctx.fillRect(0, 0, r.width, r.height);
     // grid (1 m)
     const step = 1000 * st.scale; if (step > 6) { ctx.strokeStyle = "#161c24"; ctx.lineWidth = 1; ctx.beginPath();
       for (let x = st.off[0] % step; x < r.width; x += step) { ctx.moveTo(x, 0); ctx.lineTo(x, r.height); }
@@ -83,7 +83,7 @@ export function initPlan({ bus, run, toast, container, onSelect }) {
     const lv = level();
     // rooms
     for (const rm of bus.model.elements.filter((e) => e.kind === "room" && e.level === lv)) {
-      ctx.fillStyle = st.sel === rm.id ? "#ff7a1a33" : "#5adcff14"; poly(rm.boundary); ctx.fill();
+      ctx.fillStyle = st.sel === rm.id ? "#3aa0ff33" : "#5adcff14"; poly(rm.boundary); ctx.fill();
       const c = rm.boundary.reduce((a, p) => add(a, p), [0, 0]).map((v) => v / rm.boundary.length); const s = w2s(c);
       ctx.fillStyle = "#cfe8f3"; ctx.font = "600 13px Inter, system-ui"; ctx.textAlign = "center"; ctx.fillText(rm.name, s[0], s[1]);
       ctx.font = "11px Inter, system-ui"; ctx.fillStyle = "#8e99a8"; ctx.fillText(`${rm.number} · ${(Math.abs(polygonArea(rm.boundary)) / 1e6).toFixed(1)} m²`, s[0], s[1] + 15);
@@ -92,11 +92,11 @@ export function initPlan({ bus, run, toast, container, onSelect }) {
     for (const w of bus.model.elements.filter((e) => e.kind === "wall" && e.level === lv)) {
       const t = bus.model.type("wall", w.type); const dir = norm(sub(w.b, w.a)), n = mul(perp(dir), t.thickness / 2); const { ea, eb } = bus.model.wallExtents(w);
       const A = add(w.a, mul(dir, -ea)), B = add(w.b, mul(dir, eb));
-      ctx.fillStyle = st.sel === w.id ? "#ff7a1a" : t.isExternal ? "#d9dde3" : "#9aa4b2"; poly([add(A, n), add(B, n), sub(B, n), sub(A, n)]); ctx.fill();
+      ctx.fillStyle = st.sel === w.id ? "#3aa0ff" : t.isExternal ? "#d9dde3" : "#9aa4b2"; poly([add(A, n), add(B, n), sub(B, n), sub(A, n)]); ctx.fill();
       for (const o of bus.model.hosted(w.id)) {
         const sp = bus.model.openingSpan(o); const p0 = add(w.a, mul(dir, sp.from)), p1 = add(w.a, mul(dir, sp.to));
-        ctx.fillStyle = "#0c0f13"; poly([add(p0, n), add(p1, n), sub(p1, n), sub(p0, n)]); ctx.fill();
-        ctx.strokeStyle = st.sel === o.id ? "#ff7a1a" : o.kind === "door" ? "#c48a52" : "#7cc4ff"; ctx.lineWidth = 2; ctx.beginPath();
+        ctx.fillStyle = "#26282c"; poly([add(p0, n), add(p1, n), sub(p1, n), sub(p0, n)]); ctx.fill();
+        ctx.strokeStyle = st.sel === o.id ? "#3aa0ff" : o.kind === "door" ? "#c48a52" : "#7cc4ff"; ctx.lineWidth = 2; ctx.beginPath();
         if (o.kind === "door") { const s0 = w2s(p0), s1 = w2s(add(p0, mul(perp(dir), sp.width))); ctx.moveTo(...w2s(p0)); ctx.lineTo(...s1); const rr = Math.hypot(s1[0] - s0[0], s1[1] - s0[1]);
           const a0 = Math.atan2(s1[1] - s0[1], s1[0] - s0[0]), e1 = w2s(p1), a1 = Math.atan2(e1[1] - s0[1], e1[0] - s0[0]); ctx.arc(s0[0], s0[1], rr, a0, a1, a1 > a0 ? false : true); }
         else { ctx.moveTo(...w2s(p0)); ctx.lineTo(...w2s(p1)); }

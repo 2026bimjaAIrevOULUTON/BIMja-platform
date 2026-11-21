@@ -193,8 +193,14 @@ $("#spaces").onclick = (e) => { spaces = !spaces; viewer.setVisible((u) => !u.is
 $("#showAll").onclick = () => { viewer.setVisible((u) => !u.isSpace || spaces); viewer.highlight([]); state.ruleFilter = null; state.check && renderCheck(); viewer.fit(); };
 $("#section").oninput = (e) => run("section", { height: +e.target.value });
 $("#shot").onclick = () => { if (embedded) return toast("Screenshots download from the GitHub/Cloudflare version"); const a = document.createElement("a"); a.href = viewer.screenshot(); a.download = `${stem()}.png`; a.click(); };
+document.body.dataset.ws = "model";
 $("#tabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return;
-  document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("on", x === b));
+  // clicking the open workspace again folds the panel away (more room for the model); any other opens it
+  if (e.isTrusted && b.classList.contains("on") && document.body.dataset.ws === b.dataset.tab) { document.body.classList.toggle("panel-off"); return; }
+  document.body.classList.remove("panel-off");
+  if (document.body.dataset.ws === "4d" && b.dataset.tab !== "4d" && timeUI.date) timeUI.off(); // the 4D view belongs to the 4D workspace
+  document.body.dataset.ws = b.dataset.tab;
+  document.querySelectorAll("#tabs button").forEach((x) => { x.classList.toggle("on", x === b); x.setAttribute("aria-current", x === b ? "page" : "false"); });
   document.querySelectorAll(".pane").forEach((p) => p.classList.toggle("on", p.dataset.pane === b.dataset.tab)); });
 $("#file").onchange = async (e) => { const f = e.target.files[0]; if (f) await loadBytes(await f.arrayBuffer(), f.name); e.target.value = ""; };
 $("#sample").onchange = (e) => e.target.value && loadUrl(BASE + e.target.value);

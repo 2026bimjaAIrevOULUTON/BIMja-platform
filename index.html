@@ -9,41 +9,44 @@
 <link rel="stylesheet" href="./src/style.css">
 </head>
 <body>
-<header>
-  <div class="brand">BIM<span>ja</span> <small>open BIM · v0.9</small></div>
-  <nav id="tabs">
-    <button data-tab="model" class="on">Model</button>
-    <button data-tab="create">Create</button>
-    <button data-tab="check">Handover check</button>
-    <button data-tab="qto">5D Quantities</button>
-    <button data-tab="coord">Coordination</button>
-    <button data-tab="4d">4D</button>
-    <button data-tab="twin">Twin</button>
-    <button data-tab="log" id="logTab">Log <span id="propCount" class="badge" hidden></span></button>
-  </nav>
+<header id="top">
+  <div class="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V9l8-5 8 5v11z"/><path d="M9 20v-6h6v6"/></svg>BIMja <small>v1.0</small></div>
+  <button class="search" id="paletteBtn" title="Command palette (Ctrl/⌘+K)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 18a7 7 0 110-14 7 7 0 010 14zM16 16l4 4"/></svg><span>Search commands, run anything</span><kbd>⌘K</kbd></button>
   <div class="actions">
-    <button class="btn" id="undo" title="Undo (Ctrl+Z)">↶</button>
-    <button class="btn" id="redo" title="Redo (Ctrl+Y)">↷</button>
-    <button class="btn" id="pauseAgents" title="Pause agents (P)">Agents: on</button>
-    <button class="btn" id="paletteBtn" title="Command palette (Ctrl/⌘+K)">⌘K</button>
+    <button class="btn icon" id="undo" title="Undo (Ctrl+Z)" aria-label="Undo"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 010 12h-3"/></svg></button>
+    <button class="btn icon" id="redo" title="Redo (Ctrl+Y)" aria-label="Redo"><svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5M20 9H10a6 6 0 000 12h3"/></svg></button>
+    <button class="btn agents" id="pauseAgents" title="Pause agents (P)">Agents: on</button>
+    <span class="sep"></span>
     <button class="btn" id="saveProject" title="Save project (.bimja.json)">Save</button>
     <label class="btn" id="openProject" title="Open project (.bimja.json)">Open<input type="file" id="projectFile" accept=".json" hidden></label>
     <select id="sample" title="Sample models">
-      <option value="">Samples…</option>
-      <option value="models/AC20-FZK-Haus.ifc.txt">Sample: FZK-Haus (KIT)</option>
-      <option value="models/Ifc4_SampleHouse.ifc.txt">Sample: IFC4 Sample House</option>
+      <option value="">Samples</option>
+      <option value="models/AC20-FZK-Haus.ifc.txt">FZK-Haus (KIT)</option>
+      <option value="models/Ifc4_SampleHouse.ifc.txt">IFC4 Sample House</option>
     </select>
     <label class="btn primary">Open IFC<input type="file" id="file" accept=".ifc" hidden></label>
   </div>
 </header>
-<main>
+<main id="app">
+  <nav id="tabs" class="rail" aria-label="Workspaces">
+    <button data-tab="model" class="on" title="Model"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l8-4 8 4v8l-8 4-8-4zM4 8l8 4 8-4M12 12v8"/></svg><span>Model</span></button>
+    <button data-tab="create" title="Create"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13 7l4 4"/></svg><span>Create</span></button>
+    <button data-tab="check" title="Handover check"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10M4 4h9M4 20h16"/></svg><span>Check</span></button>
+    <button data-tab="coord" title="Coordination"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4v10M16 10v10M4 8h8M12 16h8M14 4l-4 4M10 20l4-4"/></svg><span>Clash</span></button>
+    <button data-tab="4d" title="4D schedule"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h6M17 14v6M14 17h6"/></svg><span>4D</span></button>
+    <button data-tab="qto" title="5D: quantities and cost"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12M6 9h12M9 9c3 0 5 2 5 4s-2 3-5 3l7 5M6 14h3"/></svg><span>5D</span></button>
+    <button data-tab="twin" title="Geo and twin"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6-7-11a7 7 0 0114 0c0 5-7 11-7 11zM12 12a2 2 0 100-4 2 2 0 000 4z"/></svg><span>Twin</span></button>
+    <button data-tab="log" id="logTab" title="Activity"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v5l3 3M12 21a9 9 0 110-18 9 9 0 010 18z"/></svg><span>Activity</span><span id="propCount" class="badge" hidden></span></button>
+  </nav>
   <section id="panel">
     <div data-pane="model" class="pane on">
+      <h2 class="pane-title">Model</h2>
       <div class="meta" id="meta">No model loaded.</div>
       <div class="row"><input id="search" placeholder="Search name, class, GlobalId…"></div>
       <div id="tree"></div>
     </div>
     <div data-pane="create" class="pane">
+      <h2 class="pane-title">Create</h2>
       <div class="row"><button class="btn primary" id="viewMode" title="Toggle plan / 3D (Tab)">Draw in plan</button>
         <select id="planLevel" title="Level"></select></div>
       <div class="row tools" id="planTools">
@@ -70,11 +73,13 @@
       <div id="schedule"></div>
     </div>
     <div data-pane="log" class="pane">
+      <h2 class="pane-title">Activity</h2>
       <div id="proposals"></div>
       <div class="row"><button class="btn" id="exportLog">Export log</button></div>
       <div id="log"></div>
     </div>
     <div data-pane="check" class="pane">
+      <h2 class="pane-title">Handover check</h2>
       <div class="score" id="score"></div>
       <div class="row">
         <button class="btn" id="runCheck">Run check</button>
@@ -86,6 +91,7 @@
       <div id="issues"></div>
     </div>
     <div data-pane="qto" class="pane">
+      <h2 class="pane-title">5D: quantities and cost</h2>
       <p class="note">Counts and base quantities read from the model's quantity sets (Qto_*). Rates below turn them into a cost estimate.</p>
       <div class="row"><button class="btn" id="csvQto">Quantities CSV</button></div>
       <div id="qto"></div>
@@ -101,6 +107,7 @@
       <div class="note" id="assetSummary"></div>
     </div>
     <div data-pane="coord" class="pane">
+      <h2 class="pane-title">Coordination</h2>
       <h4 class="sec">Models</h4>
       <div id="fedModels"></div>
       <div class="row"><label class="btn" title="Add structure, MEP or other models">Federate IFC…<input type="file" id="fedFile" accept=".ifc" multiple hidden></label></div>
@@ -115,6 +122,7 @@
       <div id="issueList"></div>
     </div>
     <div data-pane="4d" class="pane">
+      <h2 class="pane-title">4D schedule</h2>
       <h4 class="sec">Schedule</h4>
       <div class="row"><label class="btn" title="Primavera P6 XML or MS Project XML (MSPDI)">Import P6 / MS Project XML…<input type="file" id="schedFile" accept=".xml" hidden></label><button class="btn" id="sampleSched">Sample P6</button><button class="btn primary" id="auto4d" title="Per level: slab, walls, openings, fit-out, then roof">Auto sequence</button></div>
       <div class="note" id="schedSummary">No schedule yet.</div>
@@ -123,13 +131,10 @@
       <h4 class="sec">Link elements</h4>
       <div class="row"><select id="actPick" style="flex:1"></select><button class="btn" id="linkSel" title="Link the element selected in the view">Link selected</button></div>
       <div class="row"><input id="linkRuleText" placeholder="Rule: wall@Level 1 · door · IfcWall@Level 2"><button class="btn" id="linkRule">Link by rule</button></div>
-      <h4 class="sec">Timeline</h4>
-      <div class="row"><input type="range" id="timeSlider" min="0" max="0" value="0" style="flex:1"><span class="note" id="timeLabel">4D off</span></div>
-      <div class="row"><button class="btn primary" id="playTime">▶ Play</button><label class="note">Step days <input id="timeStep" type="number" value="3" min="1" style="width:56px"></label><button class="btn" id="time4dOff">4D off</button></div>
-      <div class="note">Orange = in progress · hidden = not started · built = done</div>
-      <div id="ganttList"></div>
+      <p class="note">The timeline and Gantt are in the bottom dock.</p>
     </div>
     <div data-pane="twin" class="pane">
+      <h2 class="pane-title">Geo and twin</h2>
       <div id="geoWarn" class="warnbox">⚠ No CRS: the model sits at a local origin, not on a real location. Set a CRS and an anchor to place it on the map.</div>
       <h4 class="sec">Georeference</h4>
       <div class="row"><input id="crsCode" placeholder="EPSG:32643" value="EPSG:32643"><button class="btn" id="setCrs">Set CRS</button></div>
@@ -150,6 +155,7 @@
       <div id="alertList"></div>
     </div>
   </section>
+  <div id="center">
   <section id="view">
     <div id="canvas"></div>
     <div id="tools">
@@ -160,7 +166,6 @@
       <label class="slider" title="Horizontal section">Section <input type="range" id="section" min="0" max="1" step="0.01" value="1"></label>
       <button class="btn" id="shot" title="Screenshot">PNG</button>
     </div>
-    <aside id="props" hidden></aside>
     <div id="loading" hidden><div class="spinner"></div><span id="loadingText">Loading…</span></div>
     <div id="drop" hidden>Drop an .ifc file</div>
     <div id="ghosts"></div>
@@ -173,6 +178,19 @@
       </div>
     </div>
   </section>
+    <section id="dock" aria-label="4D timeline">
+      <div class="dock-bar">
+        <button class="btn primary" id="playTime">▶ Play</button>
+        <input type="range" id="timeSlider" min="0" max="0" value="0" aria-label="Schedule date">
+        <span class="date" id="timeLabel">4D off</span>
+        <label class="note">Step <input id="timeStep" type="number" value="3" min="1" style="width:52px"> days</label>
+        <button class="btn" id="time4dOff">4D off</button>
+        <span class="legend"><i class="lg act"></i>In progress <i class="lg done"></i>Built <i class="lg plan"></i>Not started</span>
+      </div>
+      <div id="ganttList"></div>
+    </section>
+  </div>
+  <aside id="props" hidden aria-label="Inspector"></aside>
 </main>
 <dialog id="palette">
   <form method="dialog" id="paletteForm">
@@ -186,7 +204,7 @@
     </div>
   </form>
 </dialog>
-<footer>Runs in your browser: your model is not uploaded anywhere. Built on web-ifc (MPL-2.0) and three.js (MIT). <a href="https://github.com/2026bimjaAIrevOULUTON/BIMja-platform" id="gh">Source (MIT)</a> · Agents: <code>window.bimja</code> or MCP (<code>node mcp/bimja-mcp.mjs</code>) · <span id="crsBadge" class="warn">No CRS · local origin</span> · <span id="rev">rev 0</span></footer>
+<footer id="status"><span class="local">Runs in your browser. Nothing is uploaded.</span><span id="crsBadge" class="warn">No CRS · local origin</span><span id="rev">rev 0</span><span class="grow"></span><span class="hint">Agents: <code>window.bimja</code> or MCP</span><a href="https://github.com/2026bimjaAIrevOULUTON/BIMja-platform" id="gh">Source (MIT)</a></footer>
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>

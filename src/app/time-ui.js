@@ -54,8 +54,8 @@ export function installTime({ bus, viewer, run, toast, resolveElement, selectIds
     box.innerHTML = acts.map((a) => {
       const l = pct(toMs(a.start)), w = Math.max(0.6, pct(toMs(a.finish)) - l); const done = now != null && now >= toMs(a.finish);
       return `<div class="g-row${active.has(a.id) ? " act" : ""}${done ? " done" : ""}" data-id="${esc(a.id)}" title="${esc(a.start.slice(0, 10))} → ${esc(a.finish.slice(0, 10))} · ${a.elements.length} elements">
-        <span class="g-name">${esc(a.name)} <small>${a.elements.length || "—"}</small></span><span class="g-track"><i style="left:${l}%;width:${w}%"></i></span></div>`;
-    }).join("") + (now != null ? `<div class="g-now" style="left:calc(42% + ${pct(now)} * 0.58%)"></div>` : "");
+        <span class="g-name">${esc(a.name)} <small>${a.elements.length || "—"}</small></span><span class="g-track"><i style="left:${l}%;width:${w}%"></i>${now != null ? `<b class="g-now" style="left:${pct(now)}%"></b>` : ""}</span></div>`;
+    }).join("");
     box.querySelectorAll(".g-row").forEach((r) => (r.onclick = () => { const a = s.activities[r.dataset.id]; $("#actPick").value = a.id;
       const ids = a.elements.map(resolveElement).filter((x) => x != null); run("timeline", { date: isoDate(Math.min(toMs(a.finish) - 1, toMs(a.start) + DAY / 2)) }); if (ids.length) selectIds(ids, false); }));
   }

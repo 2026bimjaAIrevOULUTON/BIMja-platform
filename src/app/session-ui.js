@@ -67,8 +67,9 @@ export function initSessionUI({ bus, viewer, run, toast, download, onAuthoredCha
   const renderLog = () => {
     const props = [...bus.proposals.values()];
     $("#propCount").hidden = !props.length; $("#propCount").textContent = props.length;
-    $("#proposals").innerHTML = props.map((p) => `<div class="prop"><b>${esc(p.cmd.actor)}</b> proposes <b>${esc(p.cmd.name)}</b> <small class="note">${esc(JSON.stringify(p.cmd.args).slice(0, 160))}</small>
-      <div class="note">+${p.diff.added.length} ~${p.diff.modified.length} −${p.diff.removed.length}</div>
+    $("#proposals").innerHTML = props.map((p) => `<div class="prop"><div class="prop-head"><span class="who">${esc(p.cmd.actor)}</span> wants to run <b>${esc(p.cmd.name)}</b></div>
+      <code class="args">${esc(JSON.stringify(p.cmd.args).slice(0, 220))}</code>
+      <div class="note">${p.diff.added.length + p.diff.modified.length + p.diff.removed.length ? `Adds ${p.diff.added.length} · changes ${p.diff.modified.length} · removes ${p.diff.removed.length} elements` : "No element changes (schedule, cost or settings data)"}. Nothing changes until you apply.</div>
       <div class="row"><button class="btn primary" data-apply="${p.id}">Apply</button><button class="btn" data-reject="${p.id}">Reject</button></div></div>`).join("");
     $("#log").innerHTML = bus.log.slice(-200).reverse().map((e) => `<div class="logrow ${e.actor.startsWith("agent") ? "agent" : "human"}"><b>${esc(e.name)}</b> · ${esc(e.actor)}${e.approvedBy ? ` (applied by ${esc(e.approvedBy)})` : ""} <small>rev ${e.rev} · ${e.changed.length} changed</small><br><small>${esc(JSON.stringify(e.args).slice(0, 200))}</small></div>`).join("") || `<p class="note">No changes yet.</p>`;
     $("#rev").textContent = `rev ${bus.rev}`;
@@ -91,7 +92,7 @@ export function initSessionUI({ bus, viewer, run, toast, download, onAuthoredCha
 
   bus.on((ev) => {
     if (ev.type === "applied") { onAuthoredChange(); renderSchedule(); if (ev.entry.actor.startsWith("agent")) setTimeout(() => ghost(ev.entry.actor, ev.entry.changed), 50); }
-    if (ev.type === "proposal") { toast(`${ev.cmd.actor} proposes ${ev.cmd.name}. See Log to apply.`); }
+    if (ev.type === "proposal") { toast(`${ev.cmd.actor} proposed ${ev.cmd.name}. Review it in Activity.`); }
     if (ev.type === "refused" && ev.cmd?.actor === "human") toast(ev.result.refusals[0].message);
     renderLog();
   });
