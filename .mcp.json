@@ -1,0 +1,1 @@
+{ "mcpServers": { "bimja": { "command": "node", "args": ["mcp/bimja-mcp.mjs", "--open"] } } }

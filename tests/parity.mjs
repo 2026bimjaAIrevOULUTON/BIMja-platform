@@ -15,8 +15,9 @@ for (const c of REGISTRY) {
   if (c.headless_only) { if (String(c.headless_only).length < 20) problems.push(`${c.name}: headless_only needs a real reason`); }
   else if (!c.ui_path) problems.push(`${c.name}: no ui_path and no headless_only reason`);
   else { const id = c.ui_path.replace(/^#/, ""); if (!new RegExp(`id="${id}"`).test(html)) problems.push(`${c.name}: ui_path ${c.ui_path} not found in index.html`); }
-  if (!new RegExp(`\\b${c.name}\\b\\s*[:,]`).test(api)) problems.push(`${c.name}: not exposed on window.bimja`);
+
 }
+if (!/for \(const r of REGISTRY\) window\.bimja\[r\.name\]/.test(main)) problems.push("window.bimja is not generated from the registry");
 const by = (s) => REGISTRY.filter((c) => c.status === s).length;
 if (problems.length) { console.error("PARITY FAIL\n" + problems.join("\n")); process.exit(1); }
 console.log(`ok parity: ${by("live")} live (all reachable from UI and window.bimja), ${by("spec")} spec, ${by("stub")} stub, ${REGISTRY.length} registered`);

@@ -19,6 +19,7 @@ export class Viewer {
     this.grid = new THREE.GridHelper(200, 100, 0x263040, 0x161c24); this.scene.add(this.grid);
     this.section = new THREE.Plane(new THREE.Vector3(0, -1, 0), 1e6);
     this.root = new THREE.Group(); this.scene.add(this.root);
+    this.auth = new THREE.Group(); this.scene.add(this.auth);
     this.byId = new Map(); // expressID -> [mesh]
     this.hl = new THREE.MeshStandardMaterial({ color: 0xff7a1a, emissive: 0x552200, side: THREE.DoubleSide, clippingPlanes: [this.section] });
     this.ray = new THREE.Raycaster();
@@ -29,11 +30,18 @@ export class Viewer {
       if (!this._down || Math.hypot(e.clientX - this._down[0], e.clientY - this._down[1]) > 4) return;
       const r = this.renderer.domElement.getBoundingClientRect();
       this.ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), this.camera);
-      const hit = this.ray.intersectObjects(this.root.children, false).find((h) => h.object.visible && this._inSection(h.point));
+      const hit = this.ray.intersectObjects(this.meshes(), false).find((h) => h.object.visible && this._inSection(h.point));
       this.onPick(hit ? hit.object.userData.expressID : null);
     });
     const loop = () => { requestAnimationFrame(loop); this.controls.update(); this.renderer.render(this.scene, this.camera); };
     loop(); this.resize();
+  }
+  meshes() { return [...this.root.children, ...this.auth.children]; }
+  setAuthored(group) {
+    this.auth.children.slice().forEach((c) => { c.geometry.dispose(); this.auth.remove(c); });
+    for (const [id, list] of [...this.byId]) if (typeof id === "string") this.byId.delete(id);
+    for (const c of group.children.slice()) { c.material = c.userData.baseMat; this.auth.add(c); (this.byId.get(c.userData.authoredId) || this.byId.set(c.userData.authoredId, []).get(c.userData.authoredId)).push(c); }
+    this.highlight(this._hl || [], this._ghost);
   }
   _inSection(p) { return this.section.distanceToPoint(p) >= -1e-6; }
   resize() { const { clientWidth: w, clientHeight: h } = this.el; if (!w || !h) return; this.renderer.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); }
@@ -67,7 +75,7 @@ export class Viewer {
   clear() { this.root.children.slice().forEach((c) => { c.geometry.dispose(); this.root.remove(c); }); this.byId.clear(); }
   box(ids) {
     const b = new THREE.Box3();
-    (ids ? ids.flatMap((i) => this.byId.get(i) || []) : this.root.children.filter((c) => c.visible)).forEach((m) => b.expandByObject(m));
+    (ids ? ids.flatMap((i) => this.byId.get(i) || []) : this.meshes().filter((c) => c.visible)).forEach((m) => b.expandByObject(m));
     return b;
   }
   fit(ids) {
@@ -82,13 +90,14 @@ export class Viewer {
   }
   highlight(ids = [], ghost = false) {
     this.ghost ||= new THREE.MeshStandardMaterial({ color: 0x8090a0, transparent: true, opacity: 0.1, depthWrite: false, side: THREE.DoubleSide, clippingPlanes: [this.section] });
-    this.root.children.forEach((m) => (m.material = ghost && ids.length ? this.ghost : m.userData.baseMat));
+    this._hl = ids; this._ghost = ghost;
+    this.meshes().forEach((m) => (m.material = ghost && ids.length ? this.ghost : m.userData.baseMat));
     for (const i of ids) (this.byId.get(i) || []).forEach((m) => (m.material = this.hl));
   }
-  setVisible(pred) { this.root.children.forEach((m) => (m.visible = pred(m.userData))); }
+  setVisible(pred) { this.meshes().forEach((m) => (m.visible = pred(m.userData))); }
   xray(on) {
     const seen = new Set();
-    this.root.children.forEach((m) => { const mt = m.userData.baseMat; if (seen.has(mt)) return; seen.add(mt);
+    this.meshes().forEach((m) => { const mt = m.userData.baseMat; if (seen.has(mt)) return; seen.add(mt);
       if (on) { mt.userData.o ??= [mt.transparent, mt.opacity, mt.depthWrite]; mt.transparent = true; mt.opacity = Math.min(mt.opacity, 0.18); mt.depthWrite = false; }
       else if (mt.userData.o) { [mt.transparent, mt.opacity, mt.depthWrite] = mt.userData.o; }
       mt.needsUpdate = true; });
@@ -98,5 +107,15 @@ export class Viewer {
     const b = this.modelBox; if (!b) return;
     this.section.constant = t >= 1 ? 1e6 : b.min.y + (b.max.y - b.min.y) * t;
   }
-  screenshot() { this.renderer.render(this.scene, this.camera); return this.renderer.domElement.toDataURL("image/png"); }
+  screenshot(maxWidth = 1600) {
+    this.renderer.render(this.scene, this.camera); const c = this.renderer.domElement;
+    if (c.width <= maxWidth) return c.toDataURL("image/png");
+    const k = maxWidth / c.width, o = document.createElement("canvas"); o.width = maxWidth; o.height = Math.round(c.height * k);
+    o.getContext("2d").drawImage(c, 0, 0, o.width, o.height); return o.toDataURL("image/png");
+  }
+  /** Screen position of an element's centre (for agent ghost cursors), or null. */
+  screenPos(id) {
+    const b = this.box([id]); if (b.isEmpty()) return null; const v = b.getCenter(new THREE.Vector3()).project(this.camera);
+    const r = this.renderer.domElement.getBoundingClientRect(); return { x: (v.x + 1) / 2 * r.width, y: (1 - v.y) / 2 * r.height };
+  }
 }

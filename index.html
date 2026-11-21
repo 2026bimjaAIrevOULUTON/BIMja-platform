@@ -10,16 +10,24 @@
 </head>
 <body>
 <header>
-  <div class="brand">BIM<span>ja</span> <small>open BIM · v0.2</small></div>
+  <div class="brand">BIM<span>ja</span> <small>open BIM · v0.3</small></div>
   <nav id="tabs">
     <button data-tab="model" class="on">Model</button>
+    <button data-tab="create">Create</button>
     <button data-tab="check">Handover check</button>
     <button data-tab="qto">5D Quantities</button>
     <button data-tab="coord">Coordination</button>
     <button data-tab="4d">4D</button>
     <button data-tab="twin">Twin</button>
+    <button data-tab="log" id="logTab">Log <span id="propCount" class="badge" hidden></span></button>
   </nav>
   <div class="actions">
+    <button class="btn" id="undo" title="Undo (Ctrl+Z)">↶</button>
+    <button class="btn" id="redo" title="Redo (Ctrl+Y)">↷</button>
+    <button class="btn" id="pauseAgents" title="Pause agents (P)">Agents: on</button>
+    <button class="btn" id="paletteBtn" title="Command palette (Ctrl/⌘+K)">⌘K</button>
+    <button class="btn" id="saveProject" title="Save project (.bimja.json)">Save</button>
+    <label class="btn" id="openProject" title="Open project (.bimja.json)">Open<input type="file" id="projectFile" accept=".json" hidden></label>
     <select id="sample" title="Sample models">
       <option value="">Samples…</option>
       <option value="models/AC20-FZK-Haus.ifc.txt">Sample: FZK-Haus (KIT)</option>
@@ -34,6 +42,26 @@
       <div class="meta" id="meta">No model loaded.</div>
       <div class="row"><input id="search" placeholder="Search name, class, GlobalId…"></div>
       <div id="tree"></div>
+    </div>
+    <div data-pane="create" class="pane">
+      <p class="note">Model in millimetres. Each tool opens its command with an example you can edit; agents use the same commands.</p>
+      <div class="row tools">
+        <button class="btn" id="toolWall" data-cmd="walls">Walls</button>
+        <button class="btn" id="toolDoor" data-cmd="door">Door</button>
+        <button class="btn" id="toolWindow" data-cmd="window">Window</button>
+        <button class="btn" id="toolFloor" data-cmd="floor">Floor</button>
+        <button class="btn" id="toolRoom" data-cmd="room">Room</button>
+        <button class="btn" id="toolRoof" data-cmd="roof">Roof</button>
+        <button class="btn" id="deleteSel" title="Delete selected (Del)">Delete</button>
+      </div>
+      <div class="row"><button class="btn primary" id="demoHouse">Build a sample house</button></div>
+      <div class="row"><select id="scheduleKind"><option value="wall">Wall schedule</option><option value="door">Door schedule</option><option value="window">Window schedule</option><option value="room">Room schedule</option><option value="floor">Floor schedule</option><option value="roof">Roof schedule</option></select></div>
+      <div id="schedule"></div>
+    </div>
+    <div data-pane="log" class="pane">
+      <div id="proposals"></div>
+      <div class="row"><button class="btn" id="exportLog">Export log</button></div>
+      <div id="log"></div>
     </div>
     <div data-pane="check" class="pane">
       <div class="score" id="score"></div>
@@ -68,6 +96,7 @@
     <aside id="props" hidden></aside>
     <div id="loading" hidden><div class="spinner"></div><span id="loadingText">Loading…</span></div>
     <div id="drop" hidden>Drop an .ifc file</div>
+    <div id="ghosts"></div>
     <div id="welcome">
       <h2>Open a BIM model</h2>
       <p>Drop an <b>.ifc</b> file here, use <b>Open IFC</b>, or try a sample. Everything runs in your browser and nothing is uploaded.</p>
@@ -78,7 +107,19 @@
     </div>
   </section>
 </main>
-<footer>Runs in your browser: your model is not uploaded anywhere. Built on web-ifc (MPL-2.0) and three.js (MIT). <a href="https://github.com/2026bimjaAIrevOULUTON/BIMja-platform" id="gh">Source (MIT)</a> · Agents: <code>window.bimja</code></footer>
+<dialog id="palette">
+  <form method="dialog" id="paletteForm">
+    <input id="paletteSearch" placeholder="Type a command… (Esc to close)" autocomplete="off">
+    <div id="paletteList"></div>
+    <div id="paletteEdit" hidden>
+      <div class="pal-head"><b id="palName"></b> <span id="palHelp" class="note"></span></div>
+      <textarea id="palArgs" spellcheck="false"></textarea>
+      <div class="row"><button class="btn" id="palDry" value="dry">Dry run</button><button class="btn primary" id="palRun" value="run">Run</button><button class="btn" value="cancel">Close</button></div>
+      <pre id="palOut"></pre>
+    </div>
+  </form>
+</dialog>
+<footer>Runs in your browser: your model is not uploaded anywhere. Built on web-ifc (MPL-2.0) and three.js (MIT). <a href="https://github.com/2026bimjaAIrevOULUTON/BIMja-platform" id="gh">Source (MIT)</a> · Agents: <code>window.bimja</code> or MCP (<code>node mcp/bimja-mcp.mjs</code>) · <span id="rev">rev 0</span></footer>
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>

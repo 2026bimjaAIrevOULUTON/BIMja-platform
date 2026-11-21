@@ -54,3 +54,18 @@ footer{border-top:1px solid var(--line);padding:6px 14px;color:var(--muted);font
 
 #welcome{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);width:min(520px,calc(100% - 32px));background:#0f1216f2;border:1px solid var(--line);border-radius:16px;padding:22px;text-align:center}
 #welcome h2{margin:0 0 6px;font-size:20px}#welcome p{color:var(--muted);margin:0 0 10px}#welcome .row{justify-content:center}
+
+.badge{background:var(--accent);color:#111;border-radius:999px;padding:0 6px;font-size:11px;font-weight:700;margin-left:4px}
+#palette{background:#12161b;color:var(--text);border:1px solid var(--line);border-radius:14px;width:min(640px,94vw);padding:12px}
+#palette::backdrop{background:#0008}
+#paletteSearch{width:100%}#paletteList{max-height:50vh;overflow:auto;margin-top:8px}
+.pal-item{padding:6px 8px;border-radius:8px;cursor:pointer;display:flex;justify-content:space-between;gap:8px;font-size:13px}
+.pal-item:hover,.pal-item.on{background:#1b2129}.pal-item small{color:var(--muted)}.pal-item .st{font-size:11px;color:var(--muted)}
+#palArgs{width:100%;min-height:120px;background:#0f1216;color:var(--text);border:1px solid var(--line);border-radius:8px;font:12px ui-monospace,monospace;padding:8px}
+#palOut{white-space:pre-wrap;font-size:12px;max-height:30vh;overflow:auto;color:var(--muted)}
+.logrow{font-size:12px;padding:5px 8px;border-left:3px solid var(--line);margin:3px 0;background:#10141a;border-radius:0 6px 6px 0}
+.logrow.human{border-color:#3ecf8e}.logrow.agent{border-color:#b18cff}.logrow small{color:var(--muted)}
+.prop{border:1px solid #4b3a7a;background:#17132a;border-radius:10px;padding:8px;margin:6px 0;font-size:13px}
+.ghost-cursor{position:absolute;pointer-events:none;background:#b18cff;color:#111;font-size:11px;font-weight:700;padding:2px 7px;border-radius:999px;transform:translate(-50%,-140%);transition:opacity .4s;white-space:nowrap}
+#ghosts{position:absolute;inset:0;pointer-events:none}
+#agentBar{position:absolute;right:12px;bottom:12px;background:#17132af2;border:1px solid #4b3a7a;border-radius:10px;padding:6px 10px;font-size:12px}

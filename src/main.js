@@ -1,7 +1,11 @@
 import { createApi, openModel } from "./ifc.js";
 import { DEFAULT_RULES, runCheck, quantities, toCSV } from "./rules.js";
 import { Viewer } from "./viewer.js";
-import { commandsSummary } from "./commands/registry.js";
+import { REGISTRY } from "./commands/registry.js";
+import { Bus } from "./core/bus.js";
+import { installCore, describeModel } from "./core/handlers.js";
+import { buildAuthored } from "./author/build3d.js";
+import { initSessionUI } from "./app/session-ui.js";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -67,6 +71,8 @@ $("#tree").addEventListener("click", (e) => { const it = e.target.closest(".item
 
 // ---------- selection & properties ----------
 function select(id, fly = false) {
+  if (typeof id === "string") return selectAuthored(id, fly);
+  window.__bimjaSelectedAuthored = null;
   state.selected = id;
   viewer.highlight(id ? [id] : [], fly);
   if (id && fly) viewer.fit([id]);
@@ -75,6 +81,21 @@ function select(id, fly = false) {
   if (id) document.querySelector(`#tree .item[data-id="${id}"]`)?.classList.add("sel");
 }
 viewer.onPick = (id) => select(id);
+function selectAuthored(id, fly) {
+  window.__bimjaSelectedAuthored = id; state.selected = null;
+  viewer.highlight([id], fly); if (fly) viewer.fit([id]);
+  bus.lock([id], "human"); // a person touching an element soft-locks it for 3 s against agent writes
+  const e = bus.model.data.elements[id]; const box = $("#props"); if (!e) { box.hidden = true; return; }
+  const kv = (o) => `<div class="kv">${Object.entries(o).map(([k, v]) => `<b>${esc(k)}</b><span>${esc(typeof v === "object" ? JSON.stringify(v) : v)}</span>`).join("")}</div>`;
+  const level = bus.model.data.levels.find((l) => l.id === e.level);
+  box.innerHTML = `<span class="x" id="closeProps">✕</span><div class="cls">${esc(e.kind)} · authored</div><h3>${esc(e.name || e.mark || e.id)}</h3>
+    ${kv({ Id: e.id, Level: level ? level.name : e.level, ...(e.type ? { Type: e.type } : {}), ...(e.mark ? { Mark: e.mark } : {}), ...(e.host ? { Host: e.host } : {}), ...(e.number ? { Number: e.number } : {}) })}
+    <div class="row"><button class="btn" id="propEdit">Edit (set)</button><button class="btn" id="propDelete">Delete</button></div>`;
+  box.hidden = false;
+  $("#closeProps").onclick = () => select(null);
+  $("#propDelete").onclick = () => run("delete", { ids: [id] });
+  $("#propEdit").onclick = () => ui.openPalette("set") || setTimeout(() => ($("#palArgs").value = JSON.stringify({ id, name: e.name }, null, 2)), 0);
+}
 function showProps(id) {
   const e = id && state.model?.index.elements.get(id); const box = $("#props");
   if (!e) { box.hidden = true; return; }
@@ -108,7 +129,7 @@ $("#rules").addEventListener("click", (e) => {
   viewer.highlight(state.ruleFilter ? ids : [], !!state.ruleFilter);
 });
 $("#issues").addEventListener("click", (e) => { const it = e.target.closest(".issue"); if (it) select(+it.dataset.id, true); });
-$("#runCheck").onclick = () => { if (!state.model) return; state.check = runCheck(state.model.index.elements); renderCheck(); };
+$("#runCheck").onclick = () => run("check_handover", {});
 
 // ---------- quantities ----------
 function renderQto() {
@@ -151,11 +172,11 @@ function clientReport() {
 
 // ---------- tools ----------
 let xr = false, spaces = false;
-$("#fit").onclick = () => viewer.fit();
+$("#fit").onclick = () => run("camera", {});
 $("#xray").onclick = (e) => { xr = !xr; viewer.xray(xr); e.target.classList.toggle("on", xr); };
 $("#spaces").onclick = (e) => { spaces = !spaces; viewer.setVisible((u) => !u.isSpace || spaces); e.target.classList.toggle("on", spaces); };
 $("#showAll").onclick = () => { viewer.setVisible((u) => !u.isSpace || spaces); viewer.highlight([]); state.ruleFilter = null; state.check && renderCheck(); viewer.fit(); };
-$("#section").oninput = (e) => viewer.setSection(+e.target.value);
+$("#section").oninput = (e) => run("section", { height: +e.target.value });
 $("#shot").onclick = () => { if (embedded) return toast("Screenshots download from the GitHub/Cloudflare version"); const a = document.createElement("a"); a.href = viewer.screenshot(); a.download = `${stem()}.png`; a.click(); };
 $("#tabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return;
   document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("on", x === b));
@@ -169,36 +190,49 @@ addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; $("
 addEventListener("dragover", (e) => e.preventDefault());
 addEventListener("drop", async (e) => { e.preventDefault(); dragDepth = 0; $("#drop").hidden = true; const f = e.dataTransfer.files[0]; if (f) await loadBytes(await f.arrayBuffer(), f.name); });
 
-// ---------- agent API ----------
-// Names follow the command registry (src/commands/registry.js). M1 replaces these with one command bus.
-function describe() {
-  if (!state.model) return { loaded: false, note: "No model loaded. Call load({url}) or ask the user to open an IFC." };
-  const b = viewer.modelBox; const r = (v) => +v.toFixed(3);
-  return { loaded: true, ...summary(), issues: { high: state.check.high, medium: state.check.medium, low: state.check.low },
+// ---------- command bus: the one path for people, agents and replays ----------
+const bus = installCore(new Bus());
+window.__bimjaBus = bus;
+const ifcSummary = () => state.model && (() => { const b = viewer.modelBox; const r = (v) => +v.toFixed(3);
+  return { ...summary(), issues: { high: state.check.high, medium: state.check.medium, low: state.check.low },
     classes: Object.fromEntries(state.qto.map((q) => [q.ifcClass, q.count])),
-    bbox: b ? { min: [r(b.min.x), r(b.min.y), r(b.min.z)], max: [r(b.max.x), r(b.max.y), r(b.max.z)] } : null,
-    crs: null, crs_note: "Georeferencing arrives in M5; models load at a local origin." };
+    bbox: b ? { min: [r(b.min.x), r(b.min.y), r(b.min.z)], max: [r(b.max.x), r(b.max.y), r(b.max.z)] } : null }; })();
+const need = () => { if (!state.model) throw Object.assign(new Error("No IFC model is open. Use load first."), { code: "bad_arg" }); };
+bus.register("describe", () => ({ ...describeModel(bus), ifc: ifcSummary() || null,
+  crs_note: bus.extra.geo?.crs ? undefined : "No CRS: models sit at a local origin (georeferencing arrives in M5)." }), { kind: "read" });
+bus.register("load", (a) => (a.url ? loadUrl(new URL(a.url, BASE).href) : loadBytes(a.bytes, a.name || "model.ifc")).then(() => ifcSummary()), { kind: "view" });
+bus.register("check_handover", (a) => { need(); state.check = runCheck(state.model.index.elements, a.rules || DEFAULT_RULES); renderCheck(); return state.check; }, { kind: "read" });
+bus.register("export_issues", () => { need(); return toCSV(state.check.issues); }, { kind: "read" });
+bus.register("export_report", (a) => { need(); return a.format === "html" ? clientReport() : report(); }, { kind: "read" });
+bus.register("quantity", () => { need(); return state.qto; }, { kind: "read" });
+bus.register("select", (a) => { const e = typeof a.id === "string" && bus.model.data.elements[a.id] ? a.id : window.bimja.get(a.id)?.id; select(e ?? null, true); return { selected: e ?? null }; }, { kind: "view" });
+bus.register("isolate", (a) => { const ids = a.ids || []; viewer.highlight(ids, ids.length > 0); if (ids.length) viewer.fit(ids); return { isolated: ids.length }; }, { kind: "view" });
+bus.register("section", (a) => { const t = Math.max(0, Math.min(1, Number(a.height ?? 1))); $("#section").value = t; viewer.setSection(t); return { section: t }; }, { kind: "view" });
+bus.register("camera", (a) => { viewer.fit(a.fit); return { ok: true }; }, { kind: "view" });
+bus.register("render", (a) => viewer.screenshot(Math.min(1600, a.width || 1600)), { kind: "view" });
+
+async function run(name, args = {}, opts = {}) {
+  const r = bus.execute({ name, args, actor: opts.actor || "human", dry_run: opts.dry_run, apply: opts.apply, rev: opts.rev, session: opts.session, id: opts.id });
+  if (r.ok && r.data && typeof r.data.then === "function") { try { r.data = await r.data; } catch (e) { return { ok: false, rev: bus.rev, changed: [], refusals: [{ code: "bad_arg", message: e.message }] }; } }
+  return r;
 }
-window.bimja = {
-  version: "0.2.0-m0",
-  commands: commandsSummary,
-  describe,
-  load: (src, name = "model.ifc") => (typeof src === "string" ? loadUrl(src) : loadBytes(src, name)),
+let authoredDirty = true;
+function refreshAuthored() {
+  const g = buildAuthored(bus.model); const hasAuth = g.children.length > 0;
+  viewer.setAuthored(g);
+  if (hasAuth) $("#welcome").hidden = true;
+  if (hasAuth && authoredDirty && !state.model) { viewer.fit(); authoredDirty = false; }
+}
+const ui = initSessionUI({ bus, viewer, run, toast, download, onAuthoredChange: refreshAuthored });
+
+// window.bimja: one function per registered command (same names, args, refusals as MCP), plus run() and helpers
+window.bimja = { version: "0.3.0", run: (name, args, opts = {}) => run(name, args, { actor: "agent:console", ...opts }) };
+for (const r of REGISTRY) window.bimja[r.name] = (args = {}, opts = {}) => window.bimja.run(r.name, args, opts);
+Object.assign(window.bimja, {
   summary,
   elements: (filter = {}) => [...(state.model?.index.elements.values() || [])].filter((e) => Object.entries(filter).every(([k, v]) => e[k] === v)),
   get: (idOrGuid) => [...(state.model?.index.elements.values() || [])].find((e) => e.id === idOrGuid || e.globalId === idOrGuid) || null,
-  check_handover: (rules) => { state.check = runCheck(state.model.index.elements, rules || DEFAULT_RULES); renderCheck(); return state.check; },
-  quantity: () => state.qto,
-  select: (idOrGuid) => { const e = window.bimja.get(idOrGuid); select(e ? e.id : null, true); return e; },
-  export_report: () => report(),
-  export_issues: () => toCSV(state.check?.issues || []),
-  isolate: (ids = []) => { viewer.highlight(ids, ids.length > 0); if (ids.length) viewer.fit(ids); return { isolated: ids.length }; },
-  section: (height = 1) => { const t = Math.max(0, Math.min(1, Number(height))); $("#section").value = t; viewer.setSection(t); return { section: t }; },
-  camera: ({ fit } = {}) => { viewer.fit(fit); return { ok: true }; },
-  render: () => viewer.screenshot(),
-};
-// older names kept for anything already scripted against v0
-Object.assign(window.bimja, { check: window.bimja.check_handover, quantities: window.bimja.quantity, report: window.bimja.export_report, screenshot: window.bimja.render });
+});
 
 const q = new URLSearchParams(location.search).get("model");
 if (q) loadUrl(q).catch((err) => ($("#meta").textContent = err.message));

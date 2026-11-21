@@ -4,8 +4,8 @@
 import { add, dist, mul, norm, perp, sub, near, polygonArea, polygonPerimeter, pointInPolygon, projectToSegment, planarFaces } from "./geom.js";
 
 const clone = (x) => JSON.parse(JSON.stringify(x));
-export class CommandError extends Error {}
-const fail = (msg) => { throw new CommandError(msg); };
+export class CommandError extends Error { constructor(msg, code = "bad_arg") { super(msg); this.code = code; } }
+const fail = (msg, code) => { throw new CommandError(msg, code); };
 const num = (v, name, { min = -Infinity, max = Infinity } = {}) => {
   const n = Number(v); if (!Number.isFinite(n)) fail(`${name} must be a number`); if (n < min || n > max) fail(`${name} must be between ${min} and ${max}`); return n;
 };
@@ -42,7 +42,7 @@ export class Model {
   on(fn) { this.listeners.add(fn); return () => this.listeners.delete(fn); }
   emit() { for (const fn of this.listeners) fn(this); }
   get elements() { return Object.values(this.data.elements); }
-  el(id) { return this.data.elements[id] || fail(`no element ${id}`); }
+  el(id) { return this.data.elements[id] || fail(`no element ${id}`, "no_such_element"); }
   level(idOrName) {
     const l = this.data.levels.find((x) => x.id === idOrName || x.name === idOrName); return l || fail(`no level ${idOrName}`);
   }
@@ -54,7 +54,7 @@ export class Model {
   /** Run one command. {dry_run} validates and reports without changing the model. */
   execute(cmd, { dry_run = false, record = true } = {}) {
     if (!cmd || typeof cmd !== "object" || !cmd.cmd) fail('a command is {"cmd": "<name>", ...args}');
-    const fn = COMMANDS[cmd.cmd]; if (!fn) fail(`unknown command "${cmd.cmd}". Try list_commands`);
+    const fn = COMMANDS[cmd.cmd]; if (!fn) fail(`unknown command "${cmd.cmd}". Try list_commands`, "unknown_command");
     if (fn.read) return fn.run(this, cmd);
     const before = JSON.stringify(this.data);
     try {
@@ -105,11 +105,11 @@ export class Model {
   openingSpan(o) { const t = this.type(o.kind, o.type); return { from: o.offset - t.width / 2, to: o.offset + t.width / 2, sill: o.kind === "window" ? (o.sill ?? t.sill) : 0, height: t.height, width: t.width }; }
   checkOpeningFits(host, o, ignoreId) {
     const L = this.wallLength(host), s = this.openingSpan(o), H = this.wallHeight(host);
-    if (s.from < 50 || s.to > L - 50) fail(`${o.kind} (${s.width} mm wide) does not fit wall ${host.id} at offset ${Math.round(o.offset)} (wall is ${Math.round(L)} mm)`);
-    if (s.sill + s.height > H) fail(`${o.kind} is taller than wall ${host.id} (${H} mm)`);
+    if (s.from < 50 || s.to > L - 50) fail(`${o.kind} (${s.width} mm wide) does not fit wall ${host.id} at offset ${Math.round(o.offset)} (wall is ${Math.round(L)} mm)`, "out_of_bounds");
+    if (s.sill + s.height > H) fail(`${o.kind} is taller than wall ${host.id} (${H} mm)`, "out_of_bounds");
     for (const x of this.hosted(host.id)) {
       if (x.id === ignoreId) continue; const r = this.openingSpan(x);
-      if (s.from < r.to + 50 && r.from < s.to + 50) fail(`${o.kind} overlaps ${x.id} (${x.mark}) on wall ${host.id}`);
+      if (s.from < r.to + 50 && r.from < s.to + 50) fail(`${o.kind} overlaps ${x.id} (${x.mark}) on wall ${host.id}`, "would_overlap");
     }
   }
   /** Closed outlines formed by the walls on a level (centre lines). */
@@ -189,7 +189,7 @@ def("room", "Add a room: {name, number?, at:[x,y] (inside walls) | boundary, lev
   }
   if (polygonArea(boundary) < 0) boundary = boundary.slice().reverse();
   for (const r of m.elements.filter((e) => e.kind === "room" && e.level === level)) {
-    const ctr = centroid(boundary); if (pointInPolygon(ctr, r.boundary)) fail(`that space already has room ${r.number} ${r.name}`);
+    const ctr = centroid(boundary); if (pointInPolygon(ctr, r.boundary)) fail(`that space already has room ${r.number} ${r.name}`, "would_overlap");
   }
   const n = m.elements.filter((e) => e.kind === "room").length + 1;
   const id = m.newId("S"); m.data.elements[id] = { id, kind: "room", level, boundary, name: String(c.name || `Room ${n}`), number: String(c.number || n), at: c.at || centroid(boundary) };
