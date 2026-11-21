@@ -1,3 +1,4 @@
+import { solidOf } from "../author/solids.js";
 // 4D: schedules (activities, WBS, links), P6 XML and MS Project XML (MSPDI) import, and the state of every linked
 // element at a date. Pure and headless: the same functions drive the browser timeline, MCP and the tests.
 // Parsing follows IfcOpenShell's ifc4d readers (p62ifc, msp2ifc) so task counts match them; see ci/ifc4d_ref.py.
@@ -152,19 +153,35 @@ export { fnv, DAY };
  * A construction sequence for an authored model: per level, floor → walls → openings → rooms (fit-out), then the roof.
  * Returns script steps (activity + link commands), so it runs through the bus like anything else.
  */
-export function autoSequence(model, { start = "2026-01-05", days = { floor: 10, wall: 15, door: 5, window: 5, room: 10, roof: 10 } } = {}) {
+export function autoSequence(model, { start = "2026-01-05", finish = null, days = { floor: 10, wall: 15, door: 5, window: 5, room: 10, roof: 10 } } = {}) {
   const els = Object.values(model.data.elements); const levels = [...model.data.levels].sort((a, b) => a.elevation - b.elevation);
-  const steps = []; let t = toMs(start); let n = 0; let prev = null;
-  const add = (name, kind, ids, d) => {
-    if (!ids.length) return; const id = `A${String(++n).padStart(2, "0")}`; const s = isoDate(t), f = isoDate(t + d * DAY);
-    steps.push({ name: "activity", args: { id, name, start: s, finish: f } }, { name: "link", args: { activity: id, elements: ids } });
-    if (prev) steps.push({ name: "activity", args: { id, after: prev } }); prev = id; t += d * DAY;
-  };
+  const plan = []; const add = (name, ids, d) => { if (ids.length) plan.push({ name, ids, d }); };
   for (const L of levels) {
     const on = (k) => els.filter((e) => e.kind === k && e.level === L.id).map((e) => e.id).sort();
-    add(`${L.name}: slab`, "floor", on("floor"), days.floor); add(`${L.name}: walls`, "wall", on("wall"), days.wall);
-    add(`${L.name}: doors & windows`, "opening", [...on("door"), ...on("window")].sort(), days.door + days.window);
-    add(`${L.name}: rooms fit-out`, "room", on("room"), days.room); add(`${L.name}: roof`, "roof", on("roof"), days.roof);
+    add(`${L.name}: slab`, on("floor"), days.floor); add(`${L.name}: walls`, on("wall"), days.wall);
+    add(`${L.name}: doors & windows`, [...on("door"), ...on("window")].sort(), days.door + days.window);
+    add(`${L.name}: rooms fit-out`, on("room"), days.room); add(`${L.name}: roof`, on("roof"), days.roof);
   }
+  // free-form solids (landmarks, infrastructure): site works, then rise by rise from the ground up, structure before
+  // envelope in each rise; durations follow volume. Heights include the level elevation.
+  const masses = els.filter((e) => e.kind === "mass").map((e) => { const s = solidOf(e); const z = model.data.levels.find((l) => l.id === e.level)?.elevation || 0; return { e, z0: s.zmin + z, z1: s.zmax + z, v: s.volume / 1e9 }; });
+  if (masses.length) {
+    const dur = (list) => Math.max(5, Math.round(6 * Math.sqrt(list.reduce((t, m) => t + m.v, 0) + 1)));
+    const site = masses.filter((m) => m.e.ifc_class === "IfcGeographicElement"); add("Site works and landscape", site.map((m) => m.e.id).sort(), dur(site));
+    const rest = masses.filter((m) => m.e.ifc_class !== "IfcGeographicElement"); const zlo = Math.min(...rest.map((m) => m.z0)), zhi = Math.max(...rest.map((m) => m.z0));
+    const n = Math.max(1, Math.min(10, Math.ceil((zhi - zlo) / 6000))); const band = (zhi - zlo) / n || 1;
+    const structural = (m) => ["IfcColumn", "IfcBeam", "IfcSlab", "IfcFooting", "IfcMember", "IfcPile"].includes(m.e.ifc_class);
+    for (let k = 0; k < n; k++) {
+      const inBand = rest.filter((m) => { const b = Math.min(n - 1, Math.floor((m.z0 - zlo) / band)); return b === k; }); const lo = ((zlo + k * band) / 1000).toFixed(0), hi = ((zlo + (k + 1) * band) / 1000).toFixed(0);
+      const S = inBand.filter(structural), A = inBand.filter((m) => !structural(m)); const label = n > 1 ? `Rise ${k + 1} (+${lo} to +${hi} m)` : "Main works";
+      add(`${label}: structure`, S.map((m) => m.e.id).sort(), dur(S)); add(`${label}: envelope and ornament`, A.map((m) => m.e.id).sort(), dur(A));
+    }
+  }
+  // dates: back to back from start; with a finish date every duration is scaled to fit the programme
+  const total = plan.reduce((t, p) => t + p.d, 0); const scale = finish && total ? (toMs(finish) - toMs(start)) / (total * DAY) : 1;
+  const steps = []; let t = toMs(start); let prev = null;
+  plan.forEach((p, i) => { const id = `A${String(i + 1).padStart(2, "0")}`; const d = p.d * scale * DAY; const s = isoDate(t), f = isoDate(t + d);
+    steps.push({ name: "activity", args: { id, name: p.name, start: s, finish: f } }, { name: "link", args: { activity: id, elements: p.ids } });
+    if (prev) steps.push({ name: "activity", args: { id, after: prev } }); prev = id; t += d; });
   return steps;
 }

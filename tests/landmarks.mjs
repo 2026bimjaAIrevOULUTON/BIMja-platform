@@ -5,7 +5,7 @@ import { writeFileSync, mkdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { Bus } from "../src/core/bus.js";
 import { installCore } from "../src/core/handlers.js";
-import { LANDMARKS, landmarkProject } from "../src/app/landmarks.js";
+import { LANDMARKS, landmarkProject, landmarkStages, STAGES } from "../src/app/landmarks.js";
 import { solidOf } from "../src/author/solids.js";
 import { loadKernel } from "../src/author/kernel.js";
 await loadKernel();
@@ -20,7 +20,17 @@ for (const l of LANDMARKS) {
   const els = Object.values(bus.model.data.elements); assert.ok(els.length >= l.commands.filter((x) => ["mass", "revolve", "sweep", "place"].includes(x.name)).length, `${l.id}: every solid built`);
   let zmax = -Infinity, top = null, vol = 0;
   for (const e of els) { const s = solidOf(e); vol += s.volume / 1e9; for (const v of s.verts) if (v[2] > zmax) { zmax = v[2]; top = v; } }
-  const ifc = bus.execute({ name: "export_ifc", args: {}, actor: "human" }).data;
+  // every stage: location, 5D, 4D, drawings, then coordination and the sun
+  const st = bus.execute({ name: "script", args: { commands: landmarkStages(l.id) }, actor: "agent:landmark", apply: true }); assert.ok(st.ok, `${l.id} stages: ${JSON.stringify(st.refusals)}`);
+  const est = bus.execute({ name: "estimate", args: {}, actor: "human" }).data; assert.ok(est.total > 0 && !Object.keys(est.unpriced).length, `${l.id}: every class priced (${JSON.stringify(est.unpriced)})`);
+  const tl = bus.execute({ name: "timeline", args: {}, actor: "human" }).data; const P = STAGES[l.id].program;
+  assert.ok(String(tl.span?.start ?? tl.start).startsWith(P[0]) && String(tl.span?.finish ?? tl.finish).startsWith(P[1].slice(0, 7)), `${l.id}: programme ${JSON.stringify(tl.span ?? tl)} matches ${P}`);
+  const linked = new Set(Object.values(bus.extra.time.links || {}).flat()); assert.ok(els.every((e) => linked.has(e.id) || Object.values(bus.extra.time.activities).some((a) => (a.elements || []).includes(e.id))), `${l.id}: every element is in the 4D programme`);
+  assert.ok(bus.extra.docs.sheets.length >= 5, `${l.id}: drawing set`);
+  const cl = bus.execute({ name: "clash_model", args: { a: "all", min_volume_m3: 0.01 }, actor: "human" }); assert.ok(cl.ok && cl.data.unchecked_elements === 0, `${l.id}: clash ran on every solid (${JSON.stringify(cl.refusals || cl.data.unchecked_elements)})`);
+  const sun = bus.execute({ name: "solar_study", args: { date: "2026-06-21", step_min: 120 }, actor: "human" }); assert.ok(sun.ok && sun.data.steps.length >= 5, `${l.id}: solar study`);
+  const ifc = bus.execute({ name: "export_ifc", args: {}, actor: "human" }).data; assert.ok(ifc.includes("IFCMAPCONVERSION("), `${l.id}: georeferenced IFC`);
+  console.log(`   ${l.id} stages: ${est.currency} ${Math.round(est.total).toLocaleString("en")} (illustrative), ${Object.keys(bus.extra.time.activities).length} activities ${P[0]}→${P[1]}, ${bus.extra.docs.sheets.length} sheets, ${cl.data.total} clashes ${JSON.stringify(cl.data.by_discipline_pair)}, sunrise ${sun.data.sunrise} sunset ${sun.data.sunset} local`);
   assert.equal(bus.execute({ name: "export_ifc", args: {}, actor: "human" }).data, ifc, `${l.id}: deterministic export`);
   assert.ok(ifc.includes(l.credit.slice(0, 30).replace(/'/g, "''").replace(/[^\x20-\x7e]/g, "")) || ifc.includes("IFCPROJECT("), "credit in project description");
   const path = `dist-test/landmark-${l.id}.ifc`; writeFileSync(path, ifc); files.push(path);

@@ -26,12 +26,14 @@ export function exportIFC(model, { projectName, geo, site } = {}) {
   // context, units
   const origin = add("IFCCARTESIANPOINT((0.,0.,0.))"), zDir = add("IFCDIRECTION((0.,0.,1.))"), xDir = add("IFCDIRECTION((1.,0.,0.))");
   const wcs = add(`IFCAXIS2PLACEMENT3D(${origin},${zDir},${xDir})`);
-  const ctx = add(`IFCGEOMETRICREPRESENTATIONCONTEXT($,'Model',3,1.E-05,${wcs},$)`);
+  const tn = geo?.location ? (() => { const o = ((geo.location.orient_deg || 0) * Math.PI) / 180; return add(`IFCDIRECTION((${f(Math.sin(o))},${f(Math.cos(o))}))`); })() : "$"; // true north in project axes
+  const ctx = add(`IFCGEOMETRICREPRESENTATIONCONTEXT($,'Model',3,1.E-05,${wcs},${tn})`);
   const body = add(`IFCGEOMETRICREPRESENTATIONSUBCONTEXT('Body','Model',*,*,*,*,${ctx},$,.MODEL_VIEW.,$)`);
   const units = add(`IFCUNITASSIGNMENT((${add("IFCSIUNIT(*,.LENGTHUNIT.,$,.METRE.)")},${add("IFCSIUNIT(*,.AREAUNIT.,$,.SQUARE_METRE.)")},${add("IFCSIUNIT(*,.VOLUMEUNIT.,$,.CUBIC_METRE.)")},${add("IFCSIUNIT(*,.PLANEANGLEUNIT.,$,.RADIAN.)")}))`);
   const project = add(`IFCPROJECT(${g("project")},$,${str(projectName || pid)},${str(model.data.description || null)},$,$,$,(${ctx}),${units})`);
   if (geo?.crs) {
-    const crs = add(`IFCPROJECTEDCRS(${str(geo.crs)},${str(geo.description || null)},$,$,$,$,$)`);
+    const utm = /^EPSG:32[67]\d\d$/.test(geo.crs) ? +geo.crs.slice(5) : 0;
+    const crs = add(`IFCPROJECTEDCRS(${str(geo.crs)},${str(geo.description || null)},${utm ? "'WGS84'" : "$"},$,${utm ? "'UTM'" : "$"},${utm ? str(`${utm % 100}${utm > 32700 ? "S" : "N"}`) : "$"},$)`);
     const a = geo.anchor || {}; const rot = ((a.rotation_deg || 0) * Math.PI) / 180;
     add(`IFCMAPCONVERSION(${ctx},${crs},${fx(a.easting || 0)},${fx(a.northing || 0)},${fx(a.height || 0)},${fx(Math.cos(rot))},${fx(Math.sin(rot))},${fx(a.scale || 1)})`);
   }

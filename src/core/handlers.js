@@ -8,6 +8,9 @@ import { runCheck } from "../rules.js";
 import { installTime } from "../time/commands.js";
 import { installCost } from "../cost/commands.js";
 import { installDocs } from "../docs/commands.js";
+import { installGeo } from "../geo/commands.js";
+import { installSimTwin } from "../twin/commands.js";
+import { clashModel } from "../coord/model-clash.js";
 import { installSite, siteForIfc } from "../site/commands.js";
 
 const AUTHOR = ["level", "wall", "walls", "door", "window", "floor", "room", "roof", "mass", "revolve", "sweep", "boolean", "opening", "array", "family", "place", "delete", "move", "set", "type"];
@@ -51,6 +54,9 @@ export function installCore(bus) {
   installTime(bus);
   installCost(bus);
   installDocs(bus);
+  installGeo(bus);
+  installSimTwin(bus);
+  bus.register("clash_model", (a) => { const r = clashModel(bus.model, { a: a.a ?? "all", b: a.b ?? "all", min_volume_m3: a.min_volume_m3 ?? 0.001, ignore_same_discipline: !!a.ignore_same_discipline, ignore_same_class: !!a.ignore_same_class, limit: Math.min(2000, +a.limit || 200) }); bus.lastModelClash = r; return r; }, { kind: "read" });
   installSite(bus);
   return bus;
 }

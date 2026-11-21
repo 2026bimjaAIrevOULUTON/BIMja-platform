@@ -170,7 +170,8 @@ Updated 21 Nov 2026, after D3.
 | Platform repo and GitHub Pages | Done | `2026bimjaAIrevOULUTON/BIMja-platform`; live at https://2026bimjaairevouluton.github.io/BIMja-platform/. CI deploys on every push to `main`. |
 | Keep the app private (optional) | **User** | Pages on a public repo is public. Options: Cloudflare Pages plus Cloudflare Access (free up to 50 users), or GitHub Enterprise private Pages. |
 | A test `.rvt` file the user owns | **User** | For the RVT → BIMja milestone. |
-| Burj Khalifa LOD 350 (fins, spire setbacks) | Claude | The tools exist (sweep, array, family); only the model script is left. |
+| Data centre from scratch, multi-model federation (A/S/M/E/P), MIDP/TIDP and federation strategy | Claude | Next. Disciplines and MEP classes are in place. |
+| Weather-file solar (EPW), wind | Claude | The solar study is clear-sky only. |
 | Unrolled facades, spool sheets + BOM, shop and millwork details, O&M cut sheets | Claude | New sheet kinds on the same drawing engine. |
 | LOIN / federation strategy / MIDP-TIDP documents from the model | Claude | ISO 19650 naming and the MIDP register exist; the strategy documents are next. |
 | Retaining walls, roads and drainage falls on the site | Claude | Grading is one platform today. |

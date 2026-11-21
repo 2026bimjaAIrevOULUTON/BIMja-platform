@@ -23,7 +23,6 @@ function pisa() {
   c.push(rev({ as: "drum", name: "Base drum", center: [0, 0], profile: cyl(7700, 11000), material: M, color: stone, segments: 60, ifc_class: "IfcWall", ...L }));
   const portal = { shape: "opening", at: [0, -7700, 0], dir_deg: 0, width: 1800, height: 4200, depth: 3400, arch: "semi", ...L }; // entrance portal through the drum
   c.push({ name: "boolean", args: { base: "$drum", op: "difference", tools: [...[...Array(15).keys()].map((k) => { const b = between(7700, 15, 0, k); return { shape: "opening", at: [...b.p, 400], dir_deg: b.dir, width: 2600, height: 9000, depth: 800, arch: "semi", ...L }; }), portal] } });
-  c.push(mass({ name: "Piazza dei Miracoli lawn", outline: rect(-60000, -45000, 60000, 45000), base: -700, height: 100, material: "Grass", color: "#7a9a5a", ifc_class: "IfcGeographicElement" }));
   c.push(rev({ name: "Stylobate", center: [0, 0], profile: cyl(8600, 600), base: -600, material: M, color: "#e4dccb", segments: 48, ifc_class: "IfcSlab", ...L }));
   for (const [k, a] of ring(7820, 15).entries()) c.push(rev({ name: `Blind arcade column G${k + 1}`, center: a, profile: cyl(300, 9200), base: 400, material: M, color: stone, segments: 10, ifc_class: "IfcColumn", ...L }));
   let z = 11000;
@@ -47,7 +46,7 @@ function pisa() {
   for (const [k, a] of ring(2600, 6).entries()) c.push({ name: "place", args: { family: "Church bell", at: [a[0], a[1], z + 2200], rotation_deg: k * 60, mark: `BELL-0${k + 1}`, ...L } });
   c.push({ name: "place", args: { family: "Church bell", at: [0, 0, z + 2500], mark: "BELL-07", ...L } });
   for (const [k, a] of ring(5450, 12).entries()) c.push(rev({ name: `Belfry column ${k + 1}`, center: a, profile: cyl(200, 3600), base: z + 900, material: M, color: "#f6f2ea", segments: 8, ifc_class: "IfcColumn", ...L }));
-  return { id: "pisa", plans: [{ title: "Ground storey plan", cut_z: 1200 }, { title: "Gallery plan, third storey", cut_z: 26000 }, { title: "Belfry plan", cut_z: 53500 }], name: "Leaning Tower of Pisa", credit: "Campanile of Pisa Cathedral, begun 1173 (attributed to Bonanno Pisano; completed by Tommaso di Andrea Pisano, 1372). LOD 350 study built from BIMja commands: 8 storeys, ~56 m, 3.97° lean, blind arcade on the base drum, six open loggias of 30 columns carrying round-arched arcades, gallery doorways, entrance portal, hollow belfry with arched openings and its seven bells as a family, on the Piazza dei Miracoli lawn.", commands: c };
+  return { id: "pisa", plans: [{ title: "Ground storey plan", cut_z: 1200 }, { title: "Gallery plan, third storey", cut_z: 26000 }, { title: "Belfry plan", cut_z: 53500 }], name: "Leaning Tower of Pisa", credit: "Campanile of Pisa Cathedral, begun 1173 (attributed to Bonanno Pisano; completed by Tommaso di Andrea Pisano, 1372). LOD 350 study built from BIMja commands: 8 storeys, ~56 m, 3.97° lean, blind arcade on the base drum, six open loggias of 30 columns carrying round-arched arcades, gallery doorways, entrance portal, hollow belfry with arched openings and its seven bells as a family.", commands: c };
 }
 
 // ---------------------------------------------------------------- Taj Mahal
@@ -113,9 +112,9 @@ function taj() {
 function fallingwater() {
   const c = []; const stone = "#8d7f6b", cream = "#e8dcbd", red = "#a8432f";
   // site: stream, rock ledges, the falls
-  c.push(mass({ name: "Bear Run stream bed", outline: rect(-30000, -26000, 34000, -6000), base: -9000, height: 400, material: "Water", color: "#4f7f95", ifc_class: "IfcCovering" }));
+  c.push(mass({ name: "Bear Run stream bed", outline: rect(-30000, -26000, 34000, -6000), base: -9000, height: 400, material: "Water", color: "#4f7f95", ifc_class: "IfcGeographicElement" }));
   c.push(mass({ name: "Rock ledge (upper)", outline: [[-26000, -12000], [12000, -9000], [16000, 6000], [-24000, 9000]], base: -9000, height: 5500, material: "Stone", color: "#6f6a5f", ifc_class: "IfcFooting" }));
-  c.push(mass({ name: "Falls", outline: [[-14000, -12100], [8000, -9900], [8000, -9500], [-14000, -11700]], base: -8800, height: 5200, material: "Water", color: "#cfe4ee", ifc_class: "IfcCovering" }));
+  c.push(mass({ name: "Falls", outline: [[-14000, -12100], [8000, -9900], [8000, -9500], [-14000, -11700]], base: -8800, height: 5200, material: "Water", color: "#cfe4ee", ifc_class: "IfcGeographicElement" }));
   // stone core: chimney and piers
   c.push(mass({ name: "Chimney mass", outline: rect(-1800, 1500, 1600, 4300), base: -3500, height: 15500, material: "Stone", color: stone, ifc_class: "IfcWall" }));
   for (const [i, x] of [-7000, -2500, 2500].entries()) c.push(mass({ name: `Bolster pier ${i + 1}`, outline: rect(x, -4000, x + 1100, -1000), base: -3500, height: 3500, material: "Stone", color: stone, ifc_class: "IfcColumn" }));
@@ -163,9 +162,6 @@ function fallingwater() {
 // ---------------------------------------------------------------- Burj Khalifa
 function burj() {
   const c = []; const glass = "#a9c4d2", steel = "#c7ced4", dark = "#56656e";
-  // Burj Lake and the Dubai Fountain promenade (context)
-  c.push(mass({ name: "Burj Lake", outline: [[-260000, -120000], [-60000, -150000], [140000, -140000], [230000, -90000], [210000, -60000], [-40000, -95000], [-240000, -80000]], base: -1500, height: 1200, material: "Water", color: "#3d6f8c", ifc_class: "IfcGeographicElement" }));
-  c.push(mass({ name: "Plaza and park", outline: ring(118000, 24).map((p) => rot(p, 7)), base: -300, height: 300, material: "Paving", color: "#cfc8b8", ifc_class: "IfcSlab" }));
   // podium with three entrance pavilions, one at the end of each wing (residential, hotel, corporate)
   c.push(mass({ as: "podium", name: "Podium", outline: ring(70000, 6).map((p) => rot(p, 30)), height: 12000, material: "Glass", color: "#7f97a3", ifc_class: "IfcSlab" }));
   c.push({ name: "boolean", args: { base: "$podium", op: "difference", tools: [0, 1, 2].map((i) => ({ shape: "opening", at: [...rot([60500, 0], 90 + i * 120), 0], dir_deg: 90 + i * 120 + 90, width: 16000, height: 9000, depth: 6000, arch: "segmental" })) } });
@@ -198,7 +194,7 @@ function burj() {
   c.push(rev({ name: "Spire", center: [0, 0], profile: [[0, 0], [7000, 0], [2600, 160000], [600, 243000], [0, 243000]], base: 585000, segments: 12, material: "Steel", color: steel, ifc_class: "IfcMember" }));
   c.push(rev({ as: "sring", name: "Spire service ring", center: [0, 0], profile: tube(0, 6600, 900), base: 600000, segments: 12, material: "Steel", color: "#9aa3ab", ifc_class: "IfcMember" }));
   c.push({ name: "array", args: { source: "$sring", count: 8, step: [0, 0, 18000] } });
-  return { id: "burj", plans: [{ title: "Plan at +6 m (podium)", cut_z: 6000 }, { title: "Plan at +50 m", cut_z: 50000 }, { title: "Plan at +300 m", cut_z: 300000 }, { title: "Plan at +500 m", cut_z: 500000 }], name: "Burj Khalifa", credit: "Burj Khalifa, Dubai, 2004–2010, by Skidmore, Owings & Merrill (Adrian Smith, design partner). LOD 350 study built from BIMja commands: Y-shaped plan with 27 spiralling setbacks and terraces, stainless nose fins, mechanical floor bands, observation decks at L124 and L148, telescoping spire with service rings, podium entrances and the Burj Lake, 828 m. Not affiliated with or endorsed by the owner.", commands: c };
+  return { id: "burj", plans: [{ title: "Plan at +6 m (podium)", cut_z: 6000 }, { title: "Plan at +50 m", cut_z: 50000 }, { title: "Plan at +300 m", cut_z: 300000 }, { title: "Plan at +500 m", cut_z: 500000 }], name: "Burj Khalifa", credit: "Burj Khalifa, Dubai, 2004–2010, by Skidmore, Owings & Merrill (Adrian Smith, design partner). LOD 350 study built from BIMja commands: Y-shaped plan with 27 spiralling setbacks and terraces, stainless nose fins, mechanical floor bands, observation decks at L124 and L148, telescoping spire with service rings and podium entrances, 828 m; the city around it comes from the OpenStreetMap context. Not affiliated with or endorsed by the owner.", commands: c };
 }
 
 // ---------------------------------------------------------------- Vitra Fire Station
@@ -235,6 +231,33 @@ export const LANDMARKS = [pisa(), taj(), fallingwater(), burj(), vitra()];
 
 import { newProject } from "../author/model.js";
 /** The project + script for a landmark: a fresh project named after it, credit in the description. */
+// ---------------------------------------------------------------- stages: location, 4D, 5D, drawings
+// Real locations (WGS84, from published coordinates), ground level and standard-time zone; the programme spans
+// the documented construction years (activity durations inside it are proportioned by volume, not historical);
+// cost rates are illustrative sample rates for a modern rebuild in local currency, not a cost plan.
+const R = (code, description, ifc_class, basis, unit, rate) => ({ code, description, match: { ifc_class }, basis, unit, rate });
+export const STAGES = {
+  pisa: { site: { lat: 43.72306, lon: 10.39639, height_m: 3, timezone: 1, orient_deg: 0, label: "Leaning Tower of Pisa, Piazza del Duomo" }, program: ["1173-08-09", "1372-12-31"], code: "PISA", currency: "EUR",
+    rates: [R("P-01", "Marble ashlar masonry, walls and drum", "IfcWall", "NetVolume", "m³", 9500), R("P-02", "Marble columns, turned, with capitals", "IfcColumn", "NetVolume", "m³", 24000), R("P-03", "Arcade arches, carved marble", "IfcBeam", "NetVolume", "m³", 21000), R("P-04", "Cornices and floors, marble", "IfcSlab", "NetVolume", "m³", 7800), R("P-05", "Bells and fittings", "IfcBuildingElementProxy", "count", "no.", 85000)] },
+  taj: { site: { lat: 27.175, lon: 78.0421, height_m: 170, timezone: 5.5, orient_deg: 0, label: "Taj Mahal, Agra" }, program: ["1632-01-01", "1653-12-31"], code: "TAJ", currency: "INR",
+    rates: [R("T-01", "Makrana marble masonry with inlay, walls and pishtaqs", "IfcWall", "NetVolume", "m³", 420000), R("T-02", "Plinth and platforms, sandstone core with marble", "IfcSlab", "NetVolume", "m³", 65000), R("T-03", "Minaret shafts and guldastas, marble", "IfcColumn", "NetVolume", "m³", 380000), R("T-04", "Domes, marble on brick", "IfcRoof", "NetVolume", "m³", 520000), R("T-05", "Cornices, crowns and finials", "IfcMember", "NetVolume", "m³", 650000), R("T-06", "Chhatris (family)", "IfcBuildingElementProxy", "count", "no.", 9500000), R("T-07", "Jaali railings", "IfcRailing", "NetVolume", "m³", 800000), R("T-08", "Iwan back panels with inlay", "IfcCovering", "NetSurfaceArea", "m²", 85000), R("T-09", "Footings", "IfcFooting", "NetVolume", "m³", 18000), R("T-10", "Steps", "IfcStair", "NetVolume", "m³", 60000)] },
+  fallingwater: { site: { lat: 39.90611, lon: -79.46806, height_m: 420, timezone: -5, orient_deg: 0, label: "Fallingwater, Mill Run PA" }, program: ["1936-04-01", "1939-12-31"], code: "FW", currency: "USD",
+    rates: [R("F-01", "Reinforced concrete cantilever slabs and terraces", "IfcSlab", "NetVolume", "m³", 2400), R("F-02", "Local sandstone masonry walls and core", "IfcWall", "NetVolume", "m³", 1900), R("F-03", "Steel sash, Cherokee red", "IfcMember", "NetVolume", "m³", 95000), R("F-04", "Concrete parapets, rounded", "IfcRailing", "NetVolume", "m³", 3200), R("F-05", "Stair treads", "IfcStair", "NetVolume", "m³", 3500), R("F-06", "Piers and abutments", "IfcColumn", "NetVolume", "m³", 1700), R("F-07", "Footings and abutments", "IfcFooting", "NetVolume", "m³", 900), R("F-08", "Trellis beams", "IfcBeam", "NetVolume", "m³", 3800), R("F-09", "Hearth boulder (retained in place)", "IfcBuildingElementProxy", "count", "no.", 1500), R("F-10", "Stream and falls works", "IfcGeographicElement", "NetVolume", "m³", 120)] },
+  burj: { site: { lat: 25.197139, lon: 55.274111, height_m: 5, timezone: 4, orient_deg: 0, label: "Burj Khalifa, Downtown Dubai" }, program: ["2004-01-06", "2010-01-04"], code: "BURJ", currency: "AED",
+    rates: [R("B-01", "Unitised curtain wall, reflective glass and stainless fins", "IfcCurtainWall", "NetSurfaceArea", "m²", 6500), R("B-02", "Reinforced concrete core and walls", "IfcWall", "NetVolume", "m³", 2600), R("B-03", "Post-tensioned slabs, terraces and decks", "IfcSlab", "NetVolume", "m³", 2300), R("B-04", "Structural steel spire and fins", "IfcMember", "NetVolume", "m³", 95000), R("B-05", "Mechanical floor louvres", "IfcCovering", "NetSurfaceArea", "m²", 2200), R("B-06", "Entrance canopies (family)", "IfcBuildingElementProxy", "count", "no.", 1800000)] },
+  vitra: { site: { lat: 47.6003639, lon: 7.6146778, height_m: 270, timezone: 1, orient_deg: 0, label: "Vitra Fire Station, Weil am Rhein" }, program: ["1990-06-01", "1993-06-30"], code: "VFS", currency: "EUR",
+    rates: [R("V-01", "Exposed in-situ concrete walls, sharp arrises", "IfcWall", "NetVolume", "m³", 1450), R("V-02", "Concrete slabs, forecourt and canopy", "IfcSlab", "NetVolume", "m³", 980), R("V-03", "Roof plate", "IfcRoof", "NetVolume", "m³", 1100), R("V-04", "Steel struts", "IfcMember", "NetVolume", "m³", 42000), R("V-05", "Engine bay doors (family)", "IfcBuildingElementProxy", "count", "no.", 38000), R("V-06", "Stair", "IfcStair", "NetVolume", "m³", 2600)] },
+};
+/** The stage commands for a landmark, run after the model: location, cost, programme, drawing set. */
+export function landmarkStages(id) {
+  const st = STAGES[id]; const l = LANDMARKS.find((x) => x.id === id); if (!st || !l) return [];
+  return [{ name: "geolocate", args: { ...st.site } },
+    { name: "cost", args: { rates: st.rates, currency: st.currency, label: "Illustrative sample rates for a modern rebuild, not a cost plan" } },
+    { name: "auto_sequence", args: { start: st.program[0], finish: st.program[1] } },
+    { name: "drawing_setup", args: { project_code: st.code, project_name: `${l.name} LOD 350 study` } },
+    { name: "sheets_auto", args: {} }];
+}
+
 export function landmarkProject(id) {
   const l = LANDMARKS.find((x) => x.id === id); if (!l) return null;
   const model = newProject(`${l.name} (BIMja massing study)`); model.description = `${l.credit} Built with BIMja commands.`; model.drawing_plans = l.plans;

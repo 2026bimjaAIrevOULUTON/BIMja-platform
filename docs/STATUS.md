@@ -1,5 +1,89 @@
 # Status
 
+## 2026-11-21: Five landmarks through every stage; location and simulation twin
+
+**What moved**
+- **Landmarks at Taj level of detail.** All five are built only from commands, with cut openings, sweeps, arrays and families:
+  - **Burj Khalifa:**
+    - 27 setback terraces and stainless nose fins;
+    - six mechanical-floor bands;
+    - observation decks at L124 and L148;
+    - spire with 8 arrayed service rings;
+    - three podium entrances cut in, with an "Entrance canopy" family.
+  - **Pisa:**
+    - entrance portal and gallery doorways in every storey (all leaning with the tower);
+    - hollow belfry with six arched openings;
+    - seven bells placed as a "Church bell" family.
+  - **Fallingwater:**
+    - arrayed sash on every level;
+    - north stone wall with window slots;
+    - hearth boulder;
+    - study terrace parapet;
+    - drive bridge and abutments over Bear Run.
+  - **Vitra:**
+    - "Engine bay door" family placed five times;
+    - slot windows cut in the leaning wall;
+    - club-room window band, roof plate, 24-tread stair and raking struts.
+  - The invented lake, plaza and lawn were removed. The real surroundings now come from the map.
+- **Location (headless):**
+  - `geolocate {lat, lon}` takes a Google Maps pin. It sets the UTM CRS and an IfcMapConversion anchor that includes grid convergence, so local north is true north.
+  - It also sets the time zone and the site pin.
+  - The IFC gains IfcProjectedCRS (WGS84, UTM, zone) and TrueNorth.
+  - UTM is our own Krüger series: it matches proj4 to under 0.1 mm, and the inverse is exact to 1e-9°.
+  - `location` returns the record and a Google Maps link.
+- **Map context (browser):**
+  - OpenStreetMap tiles are draped under the model in true position. Each landmark sits on its real streets and river (e.g. the Yamuna north of the Taj).
+  - Optional OSM neighbouring buildings come from Overpass, extruded to their tagged height.
+  - Context only: never exported.
+- **Simulation twin:**
+  - `sun` gives the NOAA sun position, sunrise/sunset and clear-sky irradiance for any date and time at the location.
+  - The viewer casts real shadows from that sun; "Play day" animates it.
+  - `solar_study` simulates a day on the model's own geometry, using a depth buffer from the sun with slope-scaled bias and subdivided samples. It reports:
+    - sun hours and kWh/m² per facade orientation and per element;
+    - ground shadow area over time.
+  - The heatmap colours the model by exposure.
+- **4D for any model:** `auto_sequence` now sequences free-form solids: site works first, then rise by rise from the ground up, structure before envelope, with durations from volume. A `finish` date scales the programme to fit, so each landmark runs over its documented construction years (Pisa 1173–1372, Taj 1632–1653, …).
+- **Coordination for authored models:**
+  - `clash_model` computes exact intersection volumes on the geometry kernel, by discipline (ISO 19650 role codes A, S, M, E, P, C, L, F) or by IFC class.
+  - Elements take an optional `discipline`, which prepares the federation split.
+- **Stages:**
+  - Each landmark carries its location, programme, illustrative cost rates in local currency and a drawing setup.
+  - "Build landmark" runs model → locate → 5D → 4D → drawings, then shows the map and the sun.
+- **More IFC classes for solids:** curtain wall, ramp, geographic element, furniture, and pipe/duct/cable-carrier segments. Also pumps, fans, chillers, cooling towers, AHUs, generators, transformers, distribution boards and tanks (needed for the data centre).
+
+**Gates**
+- `tests/twin.mjs`:
+  - UTM, inverse and convergence match proj4 at 7 sites, both hemispheres and the Norway zone.
+  - geolocate keeps local north true north.
+  - Sun: equinox elevation is correct; Agra sunrise and sunset within ±3 min; midnight sun in Svalbard.
+  - Block shadow 583 m² against 549 m² by hand. Clear-sky June roof 8.48 kWh/m².
+  - OSM fixture parsed: heights from tags, the project's own footprint skipped, relations handled.
+  - Located IFC is schema-valid; replay is identical.
+- `tests/landmarks.mjs`, for every landmark:
+  - every class priced;
+  - the programme spans the documented years;
+  - every element is in the 4D programme;
+  - a drawing set exists;
+  - clash checked every solid;
+  - the solar study runs;
+  - the IFC is georeferenced and valid, with all geometry built in IfcOpenShell.
+- Parity: 89 of 89 commands. First load 278 KB of the 600 KB budget.
+- Browser QA:
+  - Taj, Burj and Fallingwater build with map, sun and shadows.
+  - The heatmap, 4D Gantt, 5D estimate and discipline clashes all show.
+  - 0 console errors.
+
+**Known limits**
+- Cost rates are illustrative, not a cost plan. 4D durations inside the programme are proportioned by volume, not taken from historical records.
+- Solar study:
+  - clear sky only, no weather files;
+  - no neighbouring buildings or terrain in the shadow calculation;
+  - standard time without daylight saving;
+  - no wind or CFD.
+- OSM buildings use the public Overpass API. The parser is tested, but the live fetch is not: this sandbox cannot reach Overpass. OSM tiles follow the OSM tile policy (light use, attribution shown).
+- Google Maps imagery needs a Google Maps Platform key. The Google Maps link opens the location; the basemap command takes any tile URL the user has rights to.
+- Discipline clashes in the landmark studies are mostly intentional modelling overlaps (e.g. cornice and wall). They show the tool working, not design errors.
+
 ## 2026-11-21: D3 geometry kernel, LOD 350 landmarks, isometric drawings
 
 **What moved**

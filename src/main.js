@@ -3,10 +3,11 @@ import { readIfcGeoref } from "./geo/geo.js";
 import { installGeoTwin } from "./app/geotwin-ui.js";
 import { installTime } from "./app/time-ui.js";
 import { installCostUI } from "./app/cost-ui.js";
-import { landmarkProject } from "./app/landmarks.js";
+import { landmarkProject, landmarkStages } from "./app/landmarks.js";
 import { installDocsUI } from "./app/docs-ui.js";
 import { siteForIfc } from "./site/commands.js";
 import { installSiteUI } from "./app/site-ui.js";
+import { installSimUI } from "./app/sim-ui.js";
 import { DEFAULT_RULES, runCheck, quantities, toCSV } from "./rules.js";
 import { Viewer } from "./viewer.js";
 import { REGISTRY } from "./commands/registry.js";
@@ -215,11 +216,14 @@ async function buildLandmark(id) {
   await kernelReady; await run("load_project", { project: lp.project });
   const r = await run("script", { commands: lp.landmark.commands });
   if (!r.ok) return toast(`Could not build ${lp.landmark.name}: ${r.refusals?.[0]?.message || "error"}`);
+  const st = await run("script", { commands: landmarkStages(id) }); // location, 5D rates, 4D programme, drawing set
+  if (!st.ok) toast(`Stages: ${st.refusals?.[0]?.message || "error"}`);
   $("#welcome").hidden = true; refreshAuthored(); viewer.fit(); setTimeout(() => viewer.fit(), 150);
   const counts = {}; for (const e of Object.values(bus.model.data.elements)) counts[e.ifc_class || e.kind] = (counts[e.ifc_class || e.kind] || 0) + 1;
   $("#meta").innerHTML = `<b>${esc(lp.landmark.name)}</b> · authored · ${Object.keys(bus.model.data.elements).length} elements<br>${Object.entries(counts).map(([k, v]) => `${esc(k)} ${v}`).join(" · ")}<br><span class="note">Export IFC4 or GLB from Create; run Check, 4D or 5D on it like any model.</span>`;
   $("#credit").innerHTML = `<b>${esc(lp.landmark.name)}</b>${esc(lp.landmark.credit)} Built from ${lp.landmark.commands.length} BIMja commands.`; $("#credit").hidden = false;
-  toast(`${lp.landmark.name}: ${lp.landmark.commands.length} commands, one undo step`);
+  toast(`${lp.landmark.name}: ${lp.landmark.commands.length} model commands + located, costed, programmed and drawn`);
+  if (st.ok) { await simUI.mapContext({ imagery: true, buildings: $("#ctxBuildings").checked, radius_m: id === "burj" ? 900 : 500 }); $("#simTime").value = 9; $("#simTimeLabel").textContent = "09:00"; await simUI.setSun(true); }
 }
 $("#sample").onchange = (e) => { const v = e.target.value; e.target.value = ""; if (!v) return; if (v.startsWith("landmark:")) buildLandmark(v.slice(9)); else { $("#credit").hidden = true; loadUrl(BASE + v); } };
 document.querySelectorAll("[data-landmark]").forEach((b) => (b.onclick = () => buildLandmark(b.dataset.landmark)));
@@ -334,6 +338,12 @@ $("#walkBtn").onclick = () => run("walkthrough", { on: !viewer.walk });
 
 installDocsUI({ bus, run, toast, download, downloadBlob });
 const siteUI = installSiteUI({ bus, viewer, run, toast, BASE });
+$("#clashModel").onclick = async () => { $("#cmSummary").textContent = "Intersecting solids…"; await new Promise((r) => setTimeout(r, 20));
+  const r = await run("clash_model", { a: $("#cmA").value, b: $("#cmB").value, min_volume_m3: 0.01 }); if (!r.ok) { $("#cmSummary").textContent = r.refusals[0].message; return; }
+  const d = r.data; $("#cmSummary").textContent = `${d.total} clashes over 0.01 m³ · ${d.pairs_tested} pairs tested · ${Object.entries(d.by_discipline_pair).map(([k, v]) => `${k} ${v}`).join(" · ") || "none"}`;
+  $("#cmList").innerHTML = d.clashes.slice(0, 60).map((c, i) => `<div class="sheet-row" data-cm="${i}"><span class="grow"><b>${esc(c.a_name)}</b> × <b>${esc(c.b_name)}</b><br><span class="num">${c.a_discipline}/${c.b_discipline} · ${c.volume_m3} m³</span></span></div>`).join("");
+  $("#cmList").onclick = (e) => { const row = e.target.closest("[data-cm]"); if (!row) return; const c = d.clashes[+row.dataset.cm]; selectAuthored(c.a, true); }; };
+const simUI = installSimUI({ bus, viewer, run, toast, rebuild: () => refreshAuthored() }); window.__bimjaSim = simUI;
 // window.bimja: one function per registered command (same names, args, refusals as MCP), plus run() and helpers
 window.bimja = { version: "0.3.0", run: (name, args, opts = {}) => run(name, args, { actor: "agent:console", ...opts }) };
 for (const r of REGISTRY) window.bimja[r.name] = (args = {}, opts = {}) => window.bimja.run(r.name, args, opts);

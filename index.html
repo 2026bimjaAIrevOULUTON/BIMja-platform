@@ -143,7 +143,11 @@
       <h4 class="sec">Models</h4>
       <div id="fedModels"></div>
       <div class="row"><label class="btn" title="Add structure, MEP or other models">Federate IFC…<input type="file" id="fedFile" accept=".ifc" multiple hidden></label></div>
-      <h4 class="sec">Clash detection</h4>
+      <h4 class="sec">Authored model clash (by discipline)</h4>
+      <div class="row"><select id="cmA"><option value="all">All</option><option value="A">A Architecture</option><option value="S" selected>S Structure</option><option value="M">M Mechanical</option><option value="E">E Electrical</option><option value="P">P Public health</option><option value="L">L Landscape</option></select><span class="note">vs</span><select id="cmB"><option value="all">All</option><option value="A" selected>A Architecture</option><option value="S">S Structure</option><option value="M">M Mechanical</option><option value="E">E Electrical</option><option value="P">P Public health</option><option value="L">L Landscape</option></select><button class="btn primary" id="clashModel">Clash</button></div>
+      <div class="note" id="cmSummary"></div>
+      <div id="cmList"></div>
+      <h4 class="sec">Clash detection (opened and federated IFC)</h4>
       <div class="row"><input id="clashA" placeholder="Set A: all / model / IfcClass" value="all"><input id="clashB" placeholder="Set B (blank = A vs A)"></div>
       <div class="row"><label class="note">Tolerance mm <input id="clashTol" type="number" value="10" style="width:70px"></label><label class="note">Clearance mm <input id="clashClear" type="number" value="0" style="width:70px"></label><button class="btn primary" id="runClash">Run clash</button></div>
       <div class="note" id="clashSummary"></div>
@@ -183,9 +187,22 @@
       <div id="registerList"></div>
     </div>
     <div data-pane="twin" class="pane">
-      <h2 class="pane-title">Geo and twin</h2>
-      <div id="geoWarn" class="warnbox">⚠ No CRS: the model sits at a local origin, not on a real location. Set a CRS and an anchor to place it on the map.</div>
-      <h4 class="sec">Georeference</h4>
+      <h2 class="pane-title">Location and simulation twin</h2>
+      <h4 class="sec">Location</h4>
+      <div class="row"><input id="locLat" placeholder="lat (or paste lat, lon)" style="flex:1"><input id="locLon" placeholder="lon" style="flex:1"></div>
+      <div class="row"><input id="locTz" placeholder="UTC offset h" title="Standard time offset from UTC, hours" style="width:96px"><input id="locOrient" placeholder="orient °" title="Building turned anticlockwise from true north, degrees" style="width:80px"><input id="locH" placeholder="ground m" title="Ground level above sea level, metres" style="width:80px"><button class="btn primary" id="geoLocate">Locate</button></div>
+      <div class="note" id="locInfo"></div><button class="btn ghost" id="locInfoBtn" hidden>Location</button>
+      <h4 class="sec">Map context</h4>
+      <div class="row"><label class="chk"><input type="checkbox" id="ctxImagery" checked> OpenStreetMap ground</label><label class="chk"><input type="checkbox" id="ctxBuildings"> Neighbouring buildings</label><input id="ctxRadius" value="500" title="Radius, metres" style="width:60px"></div>
+      <h4 class="sec">Sun and shadow</h4>
+      <div class="row"><input type="date" id="simDate" value="2026-06-21"><button class="btn" id="simSun">Sun and shadows</button><button class="btn" id="simPlay">Play day</button></div>
+      <div class="row"><input type="range" id="simTime" min="4" max="20" step="0.25" value="9" style="flex:1"><span class="note" id="simTimeLabel"></span></div>
+      <div class="note" id="simSunInfo"></div>
+      <div class="row"><button class="btn primary" id="simRun">Run solar study</button><button class="btn" id="simExposureOff" hidden>Clear heatmap</button></div>
+      <div id="simLegend" class="legend" hidden></div>
+      <div id="simResult"></div>
+      <details class="adv"><summary>Advanced georeference (any EPSG code), basemap and overlays</summary>
+      <div id="geoWarn" class="warnbox">⚠ No CRS: the model sits at a local origin. Use Locate above, or set a CRS and an anchor here.</div>
       <div class="row"><input id="crsCode" placeholder="EPSG:32643" value="EPSG:32643"><button class="btn" id="setCrs">Set CRS</button></div>
       <div class="row"><input id="crsDef" placeholder="proj4 definition (only for codes not built in)"></div>
       <div class="row"><input id="anLat" placeholder="lat" value="18.5204" style="width:90px"><input id="anLon" placeholder="lon" value="73.8567" style="width:90px"><input id="anH" placeholder="height m" value="560" style="width:80px"><input id="anRot" placeholder="rot °" value="0" style="width:60px"></div>
@@ -194,7 +211,8 @@
       <div class="row"><input id="basemapUrl" placeholder="Basemap URL https://…/{z}/{x}/{y}.png"><button class="btn" id="setBasemap">Basemap</button></div>
       <div class="row"><input id="overlayUrl" placeholder="GeoJSON / ArcGIS REST (f=geojson) URL"><button class="btn" id="addOverlay">Overlay</button></div>
       <canvas id="twinMap"></canvas>
-      <h4 class="sec">Sensors</h4>
+      </details>
+      <h4 class="sec">Live sensors (IoT, optional)</h4>
       <div class="row"><select id="sensorKind"></select><input id="sensorName" placeholder="Name"><button class="btn" id="addSensor" title="Binds to the selected element">Add sensor</button></div>
       <div id="sensorList"></div>
       <div class="row"><button class="btn primary" id="feedSim">Start simulated feed</button><button class="btn" id="feedStop">Stop</button></div>
@@ -207,6 +225,7 @@
   <div id="center">
   <section id="view">
     <div id="canvas"></div>
+    <div id="mapAttribution" hidden></div>
     <div id="tools">
       <button class="btn" id="fit" title="Fit">Fit</button><button class="btn" id="walkBtn" title="Walk through (WASD, drag to look, Esc to leave)">Walk</button>
       <button class="btn" id="xray" title="X-ray">X-ray</button>

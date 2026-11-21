@@ -198,3 +198,12 @@ th{color:var(--muted);font-weight:500}tr.click{cursor:pointer}tr.click:hover{bac
 .sheet-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--line);border-radius:var(--r);margin:4px 0;cursor:pointer;font-size:12.5px}
 .sheet-row:hover{border-color:var(--line-2);background:var(--raised)}.sheet-row.on{border-color:var(--sel)}
 .sheet-row .num{font-variant-numeric:tabular-nums;color:var(--muted);font-size:11.5px}.sheet-row .grow{flex:1}.sheet-row .st{font-size:11px;color:var(--muted)}
+
+/* simulation twin */
+#mapAttribution { position: absolute; right: 8px; bottom: 6px; font-size: 11px; color: #e8eaed; background: #0009; padding: 2px 6px; border-radius: 4px; z-index: 3; pointer-events: none; }
+.legend { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted, #9aa3ad); margin: 6px 0; }
+.legend span { display: inline-block; width: 120px; height: 10px; border-radius: 3px; }
+details.adv { margin-top: 12px; } details.adv summary { cursor: pointer; color: var(--muted, #9aa3ad); font-size: 12px; padding: 6px 0; }
+label.chk { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; }
+#simSun.on { background: var(--accent, #ff8a3d); color: #111; }
+#locInfo a, .pane a { color: #7cc0ff; }

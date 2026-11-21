@@ -22,7 +22,7 @@ export function installCost(bus) {
     if (a.remove) rates = rates.filter((r) => ![].concat(a.remove).includes(r.code));
     const currency = a.currency ? String(a.currency).toUpperCase().slice(0, 3) : a.sample ? SAMPLE_RATES.currency : cur.currency;
     if (!/^[A-Z]{3}$/.test(currency)) fail("currency must be a 3-letter ISO code (INR, USD, GBP…)");
-    bus.extra.cost = { currency, rates, ...(a.sample ? { label: SAMPLE_RATES.label } : cur.label && !a.rates ? { label: cur.label } : {}) };
+    bus.extra.cost = { currency, rates, ...(a.label ? { label: String(a.label).slice(0, 200) } : a.sample ? { label: SAMPLE_RATES.label } : cur.label && !a.rates ? { label: cur.label } : {}) };
     const est = estimate(bus.cost.elements(), bus.extra.cost); return { rates: rates.length, currency, total: est.total, label: bus.extra.cost.label || null };
   });
 

@@ -63,7 +63,7 @@ export function installTime(bus) {
   bus.register("animate", (a) => ({ frames: frames(T(), { from: a.from, to: a.to, step_days: a.step_days ?? 7 }) }), { kind: "view" });
 
   bus.register("auto_sequence", (a) => {
-    const steps = autoSequence(bus.model, { start: a.start || "2026-01-05" }); if (!steps.length) fail("nothing to sequence: the authored model is empty");
+    const steps = autoSequence(bus.model, { start: a.start || "2026-01-05", finish: a.finish || null }); if (a.finish && !(toMs(a.finish) > toMs(a.start || "2026-01-05"))) fail("finish must be after start"); if (!steps.length) fail("nothing to sequence: the authored model is empty");
     if (!a.keep) bus.extra.time = emptySchedule();
     for (const st of steps) bus.handlers.get(st.name).run(st.args, { ...st }, bus);
     return { activities: Object.keys(T().activities).length, span: span(T()) };

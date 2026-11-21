@@ -220,6 +220,7 @@ const massCommon = (m, c, e) => {
   if (c.lean_deg) { e.lean_deg = num(c.lean_deg, "lean_deg", { min: -45, max: 45 }); e.lean_dir_deg = num(c.lean_dir_deg ?? 0, "lean_dir_deg"); }
   if (c.pivot) { if (!Array.isArray(c.pivot) || c.pivot.length !== 3) fail("pivot must be [x, y, z] in mm"); e.pivot = c.pivot.map((v, i) => num(v, `pivot[${i}]`)); }
   if (c.segments != null) e.segments = Math.round(num(c.segments, "segments", { min: 1, max: 96 }));
+  if (c.discipline != null) { if (!/^[ASMEPCLF]$/.test(c.discipline)) fail("discipline must be one role code: A architecture, S structure, M mechanical, E electrical, P public health, C civil, L landscape, F fire"); e.discipline = c.discipline; }
   let sol; try { sol = solidOf(e); } catch (err) { if (err.code === "unavailable") throw new CommandError(err.message, "unavailable"); fail(`bad geometry: ${err.message}`); } if (!(sol.volume > 1)) fail("the solid has no volume: check the outline/profile");
   const id = m.newId("M"); e.id = id; e.name = String(c.name || `${e.ifc_class.replace(/^Ifc/, "")} ${id}`); m.data.elements[id] = e;
   return { id, volume_m3: +(sol.volume / 1e9).toFixed(3), height_m: +((sol.zmax - sol.zmin) / 1000).toFixed(3) };
