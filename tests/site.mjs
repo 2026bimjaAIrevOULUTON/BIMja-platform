@@ -56,7 +56,7 @@ writeFileSync("dist-test/site.ifc", ifc);
 try { execFileSync("python3", ["ci/validate_ifc.py", "dist-test/site.ifc"], { stdio: "inherit" }); const out = execFileSync("python3", ["ci/geometry_check.py", "dist-test/site.ifc"], { encoding: "utf8" }); assert.ok(/"failed": 0/.test(out), out); }
 catch (e) { if (process.env.CI) throw e; }
 // site sheets
-run("drawing_setup", { project_code: "SIT" }); assert.equal(run("sheets_auto", {}).data.sheets, 7);
+run("drawing_setup", { project_code: "SIT" }); assert.equal(run("sheets_auto", {}).data.sheets, 8); // register, site, site section, plan, elevations, sections, isometric, schedules
 const sp = b.extra.docs.sheets.find((s) => s.kind === "site"); const svg = run("drawing", { sheet: sp.id, format: "svg" }).data.svg;
 assert.ok(svg.includes("FFL +") && svg.includes("Earthworks: cut") && svg.includes("E 482"), "site plan: FFL, earthworks, map grid");
 assert.ok(terrariumZ(128, 0, 0) === 0 && terrariumZ(130, 10, 128) === 522.5, "terrarium decoding");
