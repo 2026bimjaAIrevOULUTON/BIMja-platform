@@ -19,7 +19,8 @@
 - Tests: viewer, authoring and parity all pass locally.
 - Budget: 147.3 / 600 KB.
 - Browser QA (headless Chrome, desktop and mobile): 0 errors.
-- GitHub Pages: see below.
+- CI on GitHub: test, build, budget and SBOM all pass (run 44867919940).
+- GitHub Pages deploy: **blocked**. Pages isn't enabled on the repo yet; the owner has to switch it on once (Settings → Pages → Source: GitHub Actions). This session's proxy refuses the Pages API.
 
 **What broke**
 - The first parity run caught 4 live UI commands missing from `window.bimja`. Fixed.
