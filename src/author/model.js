@@ -91,21 +91,35 @@ export class Model {
     if (w.height) return w.height;
     const up = this.levelAbove(w.level); return up ? up.elevation - this.level(w.level).elevation : 3000;
   }
-  /** Wall end extensions so chains meet at corners: extend each end by half the thickness of a wall meeting it there. */
+  /**
+   * Wall end adjustments (mm) so walls meet without gaps or overlaps (butt joins, like a modeller's wall joins):
+   * at a shared corner the "winning" wall extends by half the other's thickness and the other trims back by half the
+   * winner's; a wall ending on another wall's body trims back to its face. So per-element volumes add up exactly and
+   * IFC quantities match the geometry (checked against IfcOpenShell ifc5d).
+   */
   wallExtents(w) {
-    let ea = 0, eb = 0;
-    for (const o of this.wallsOn(w.level)) {
-      if (o.id === w.id) continue; const t = this.type("wall", o.type).thickness / 2;
-      if (near(w.a, o.a) || near(w.a, o.b)) ea = Math.max(ea, t);
-      if (near(w.b, o.a) || near(w.b, o.b)) eb = Math.max(eb, t);
-    }
-    return { ea, eb };
+    const T = (x) => this.type("wall", x.type);
+    const rank = (x) => [T(x).isExternal ? 1 : 0, T(x).thickness, -parseInt(String(x.id).replace(/\D/g, "") || "0", 10)];
+    const beats = (x, y) => { const a = rank(x), b = rank(y); for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a[i] > b[i]; return false; };
+    const end = (p) => {
+      let ext = 0, trim = 0;
+      for (const o of this.wallsOn(w.level)) {
+        if (o.id === w.id) continue; const half = T(o).thickness / 2;
+        if (near(p, o.a) || near(p, o.b)) { if (beats(w, o)) ext = Math.max(ext, half); else trim = Math.max(trim, half); }
+        else { const q = projectToSegment(p, o.a, o.b); if (q.t > 0 && q.t < 1 && q.d < 1) trim = Math.max(trim, half); } // T-junction
+      }
+      return trim ? -trim : ext;
+    };
+    return { ea: end(w.a), eb: end(w.b) };
   }
+  /** Length as built (after joins), mm. */
+  wallBuiltLength(w) { const { ea, eb } = this.wallExtents(w); return dist(w.a, w.b) + ea + eb; }
   /** Opening interval along the wall (mm from its start) for a door/window. */
   openingSpan(o) { const t = this.type(o.kind, o.type); return { from: o.offset - t.width / 2, to: o.offset + t.width / 2, sill: o.kind === "window" ? (o.sill ?? t.sill) : 0, height: t.height, width: t.width }; }
   checkOpeningFits(host, o, ignoreId) {
     const L = this.wallLength(host), s = this.openingSpan(o), H = this.wallHeight(host);
-    if (s.from < 50 || s.to > L - 50) fail(`${o.kind} (${s.width} mm wide) does not fit wall ${host.id} at offset ${Math.round(o.offset)} (wall is ${Math.round(L)} mm)`, "out_of_bounds");
+    const { ea, eb } = this.wallExtents(host);
+    if (s.from < Math.max(0, -ea) + 50 || s.to > L + Math.min(0, eb) - 50) fail(`${o.kind} (${s.width} mm wide) does not fit wall ${host.id} at offset ${Math.round(o.offset)} (wall is ${Math.round(L)} mm)`, "out_of_bounds");
     if (s.sill + s.height > H) fail(`${o.kind} is taller than wall ${host.id} (${H} mm)`, "out_of_bounds");
     for (const x of this.hosted(host.id)) {
       if (x.id === ignoreId) continue; const r = this.openingSpan(x);

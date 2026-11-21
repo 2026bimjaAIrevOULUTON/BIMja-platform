@@ -10,7 +10,7 @@
 </head>
 <body>
 <header>
-  <div class="brand">BIM<span>ja</span> <small>open BIM · v0.7</small></div>
+  <div class="brand">BIM<span>ja</span> <small>open BIM · v0.8</small></div>
   <nav id="tabs">
     <button data-tab="model" class="on">Model</button>
     <button data-tab="create">Create</button>
@@ -86,9 +86,19 @@
       <div id="issues"></div>
     </div>
     <div data-pane="qto" class="pane">
-      <p class="note">Counts and base quantities read from the model's quantity sets (Qto_*). Add rates to turn this into a cost estimate.</p>
+      <p class="note">Counts and base quantities read from the model's quantity sets (Qto_*). Rates below turn them into a cost estimate.</p>
       <div class="row"><button class="btn" id="csvQto">Quantities CSV</button></div>
       <div id="qto"></div>
+      <h4 class="sec">Cost estimate</h4>
+      <div class="note">Rates price the open IFC, or the authored model when no IFC is open. The first matching rate prices each element.</div>
+      <div class="row"><button class="btn" id="costSample" title="Labelled sample INR rates to start from">Load sample rates</button><button class="btn primary" id="costRun">Estimate</button><button class="btn" id="costCsv">Estimate CSV</button></div>
+      <div class="row"><input id="rateDesc" placeholder="Description"><input id="rateClass" placeholder="IfcWall" style="width:90px"><input id="rateType" placeholder="type contains" style="width:100px"></div>
+      <div class="row"><select id="rateBasis"><option>count</option><option>NetVolume</option><option>NetSideArea</option><option>NetArea</option><option>NetFloorArea</option><option>Area</option><option>Length</option></select><input id="rateUnit" placeholder="unit" style="width:60px"><input id="rateValue" type="number" placeholder="rate" style="width:90px"><button class="btn" id="rateAdd">Add rate</button></div>
+      <div id="costTable"></div>
+      <h4 class="sec">Assets and COBie</h4>
+      <div class="row"><input id="assetMaker" placeholder="Manufacturer"><input id="assetWarranty" type="number" placeholder="Warranty yrs" style="width:100px"><input id="assetPm" type="number" placeholder="PM every n days" style="width:120px"></div>
+      <div class="row"><button class="btn" id="assetAdd" title="Register the element selected in the view">Register selected</button><button class="btn" id="assetDoors">Register all doors + windows</button><button class="btn primary" id="cobieExport">COBie .xlsx</button></div>
+      <div class="note" id="assetSummary"></div>
     </div>
     <div data-pane="coord" class="pane">
       <h4 class="sec">Models</h4>

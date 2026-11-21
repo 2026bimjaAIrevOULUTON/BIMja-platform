@@ -1,5 +1,30 @@
 # Status
 
+## 2026-11-21: M7 (5D cost, assets, COBie). Gate PASSED
+
+**What moved**
+- **Wall joins fixed (found by the gate):** walls used to overlap at corners and T-junctions, so per-element volumes double-counted about 3% at corners. Walls now butt-join (one wall runs through, the other stops at its face), the exported geometry has no overlaps, and wall quantities follow the built length.
+- **`cost`:** unit rates matched by IFC class (subtypes included), type text, name or storey, priced on count or any base quantity (NetVolume, NetSideArea, NetArea, NetFloorArea, Area, Length), with an optional factor. `sample:true` loads clearly labelled **sample** INR rates to replace with your own.
+- **`estimate`:** lines (qty × rate), total, unpriced classes and missing-quantity warnings; CSV export. It is live on the model: delete a door and the estimate drops at once. It works on the authored model and on any open IFC (from its Qto sets).
+- **`asset`:** register elements (one, a list, or a rule such as all doors) with tag, manufacturer, model, serial, install date, warranty and maintenance interval.
+- **`cobie`:** COBie 2.4 workbook (.xlsx, all 18 sheets): Contact, Facility, Floor, Space, Type, Component (doors, windows, equipment classes, registered assets; each placed in the room(s) it opens into), and PM Jobs from maintenance intervals. Deterministic.
+- 5D pane: sample rates, add rate, estimate table (click a line to see its elements), CSV, register assets, COBie download.
+- **No stubs left:** 62 commands, all live.
+
+**Gates**
+- **Quantities vs IfcOpenShell ifc5d 0.9.0** (geometry takeoff of the exported IFC, CI only): 69 values (walls, slabs, spaces, windows) all within 0.5%; worst 0.0000%. Exterior wall lengths add up to the 36 m centre-line perimeter (no double counting).
+- **COBie:** an independent Python checker opens the .xlsx with openpyxl and checks every COBie 2.4 sheet and column, no blank required fields, unique keys, CreatedBy → Contact, Space → Floor, Component → Type and Space, Job → Type: passes.
+- Estimate arithmetic exact; replaying the log gives the same estimate and the same COBie bytes.
+- Browser QA: sample rates, estimate, assets, COBie on the authored house and on AC20-FZK-Haus.ifc: 0 errors. Budget: 208 KB of 600 KB.
+
+**Known limits**
+- The COBie check is structural (sheets, columns, keys, references). Categories are plain labels, not OmniClass codes, and it has not been through the official COBie QC tool.
+- For an open IFC, COBie components have Space "n/a" (we don't compute room containment for IFC doors yet), and the 5D quantities are the file's own Qto sets.
+- Sample rates are illustrative, not a market rate book.
+
+**Single next step**
+- M8 (cuttable): walkthrough, historical twin series in IndexedDB, MQTT, NWD read. Then cross-browser testing (Firefox, Safari).
+
 ## 2026-11-21: M6 (4D scheduling). Gate PASSED
 
 **What moved**

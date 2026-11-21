@@ -6,6 +6,7 @@ import { exportIFC } from "../author/ifc-export.js";
 import { authoredRecords } from "../author/records.js";
 import { runCheck } from "../rules.js";
 import { installTime } from "../time/commands.js";
+import { installCost } from "../cost/commands.js";
 
 const AUTHOR = ["level", "wall", "walls", "door", "window", "floor", "room", "roof", "delete", "move", "set", "type"];
 
@@ -45,6 +46,7 @@ export function installCore(bus) {
     bus.model.data = JSON.parse(JSON.stringify(p.model)); bus.extra = JSON.parse(JSON.stringify(p.extra || {})); return { loaded: true, elements: Object.keys(p.model.elements).length };
   });
   installTime(bus);
+  installCost(bus);
   return bus;
 }
 

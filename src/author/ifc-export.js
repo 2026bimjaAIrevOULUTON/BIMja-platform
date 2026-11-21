@@ -105,8 +105,8 @@ export function exportIFC(model, { projectName, geo } = {}) {
       else pset(el, "Pset_WindowCommon", [["Reference", `IFCIDENTIFIER(${str(o.type)})`], ["IsExternal", bool(t.isExternal)]]);
       qto(el, o.kind === "door" ? "Qto_DoorBaseQuantities" : "Qto_WindowBaseQuantities", [["Width", "LENGTH", m(sp.width)], ["Height", "LENGTH", m(sp.height)], ["Area", "AREA", (sp.width * sp.height) / 1e6]]);
     }
-    const gross = (Lw * H) / 1e6;
-    qto(wall, "Qto_WallBaseQuantities", [["Length", "LENGTH", m(Lw)], ["Height", "LENGTH", m(H)], ["Width", "LENGTH", m(t.thickness)], ["GrossSideArea", "AREA", gross], ["NetSideArea", "AREA", gross - openArea], ["NetVolume", "VOLUME", (gross - openArea) * m(t.thickness)]]);
+    const Lb = Lw + ea + eb, gross = (Lb * H) / 1e6; // quantities follow the built geometry (after joins)
+    qto(wall, "Qto_WallBaseQuantities", [["Length", "LENGTH", m(Lb)], ["Height", "LENGTH", m(H)], ["Width", "LENGTH", m(t.thickness)], ["GrossSideArea", "AREA", gross], ["NetSideArea", "AREA", gross - openArea], ["NetVolume", "VOLUME", (gross - openArea) * m(t.thickness)]]);
   }
   for (const s of model.elements.filter((e) => e.kind === "floor" || e.kind === "roof")) {
     const t = model.type(s.kind, s.type), st = storeys[s.level], A = Math.abs(polygonArea(s.boundary)) / 1e6, P = polygonPerimeter(s.boundary) / 1000;

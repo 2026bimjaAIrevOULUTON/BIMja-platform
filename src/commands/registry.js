@@ -47,7 +47,10 @@ export const REGISTRY = [
   c("export_issues", "cost", "Handover issues as CSV", { kind: "read", ui_path: "#csvIssues", needs: "viewer" }),
   c("export_report", "cost", "Handover report as JSON (HTML from the UI)", { kind: "read", ui_path: "#jsonReport", needs: "viewer" }),
   c("quantity", "cost", "Counts, areas, volumes, lengths per class", { kind: "read", ui_path: "#csvQto", needs: "viewer" }),
-  stub("cost", "cost", "Apply unit rates to quantities", "M7"), stub("asset", "cost", "Register assets for operations", "M7"), stub("cobie", "cost", "Export COBie", "M7"),
+  c("cost", "cost", "Set unit rates on quantities (sample:true loads labelled sample INR rates); first matching rate prices each element", { args: { rates: "[{code, description, match:{ifc_class,type,name,storey}, basis: count|NetVolume|NetSideArea|NetArea|NetFloorArea|Area|Length, unit, rate, factor?}]?", currency: "ISO?", mode: "replace|add?", sample: "boolean?", remove: "code[]?" }, example: { sample: true }, ui_path: "#costSample" }),
+  c("estimate", "cost", "Cost estimate: lines (qty × rate), total, unpriced classes; format csv for a spreadsheet", { kind: "read", args: { format: "json|csv?" }, ui_path: "#costRun" }),
+  c("asset", "cost", "Register elements as operational assets (tag, manufacturer, model, serial, installed, warranty, maintenance interval)", { args: { element: "id|GlobalId?", elements: "[]?", rule: "{ifc_class,type}?", tag: "string?", tag_prefix: "string?", manufacturer: "string?", model_number: "string?", serial: "string?", installed: "date?", warranty_years: "number?", maintenance_days: "number?", delete: "boolean?" }, example: { rule: { ifc_class: "IfcDoor" }, tag_prefix: "DR-", warranty_years: 2, maintenance_days: 180 }, refusals: [...W, "no_such_element"], ui_path: "#assetAdd" }),
+  c("cobie", "cost", "COBie 2.4 handover workbook (.xlsx as base64, or format json): Contact, Facility, Floor, Space, Type, Component, Job…", { kind: "read", args: { format: "xlsx|json?", created_by: "email?" }, ui_path: "#cobieExport" }),
 
   // view
   c("select", "view", "Select an element by express ID, GlobalId or authored id", { kind: "view", args: { id: "string|number" }, ui_path: "#tree", needs: "viewer" }),

@@ -2,6 +2,7 @@ import { createApi, openModel, webifc } from "./ifc.js";
 import { readIfcGeoref } from "./geo/geo.js";
 import { installGeoTwin } from "./app/geotwin-ui.js";
 import { installTime } from "./app/time-ui.js";
+import { installCostUI } from "./app/cost-ui.js";
 import { DEFAULT_RULES, runCheck, quantities, toCSV } from "./rules.js";
 import { Viewer } from "./viewer.js";
 import { REGISTRY } from "./commands/registry.js";
@@ -289,6 +290,14 @@ const resolveEl = (ref) => { if (!ref) return null; if (bus.model.data.elements[
     return [...state.model.index.elements.values()].filter((e) => !e.isPart && (!cls || cls.includes(String(e.ifcClass).toLowerCase())) && (!rule.storey || e.storey === rule.storey)).map((e) => e.globalId).sort();
   }; }
 const timeUI = installTime({ bus, viewer, run, toast, resolveElement: resolveEl, selectIds: (ids, fly) => { viewer.highlight(ids, false); if (fly) viewer.fit(ids); } });
+
+// 5D prices the open IFC (its quantity sets) or, with no IFC open, the authored model
+{ const elA = bus.cost.elements, spA = bus.cost.spaceOf, lvA = bus.cost.levels, prA = bus.cost.project;
+  bus.cost.elements = () => (state.model ? state.model.index.elements : elA());
+  bus.cost.spaceOf = () => (state.model ? () => [] : spA());
+  bus.cost.levels = () => (state.model ? [...new Set([...state.model.index.elements.values()].map((e) => e.storey).filter(Boolean))].map((name) => ({ name })) : lvA());
+  bus.cost.project = () => (state.model ? state.fileName.replace(/\.ifc.*$/i, "") || "IFC model" : prA()); }
+installCostUI({ bus, run, toast, download, downloadBlob, resolveElement: resolveEl, selectIds: (ids) => { viewer.highlight(ids, true); viewer.fit(ids); } });
 
 // window.bimja: one function per registered command (same names, args, refusals as MCP), plus run() and helpers
 window.bimja = { version: "0.3.0", run: (name, args, opts = {}) => run(name, args, { actor: "agent:console", ...opts }) };

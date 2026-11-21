@@ -19,7 +19,7 @@ jobs:
       - name: Tools for gates (xmllint for BCF XSD validation)
         run: sudo apt-get install -y -qq libxml2-utils >/dev/null
       - name: Reference tools, CI only (IfcOpenShell + ifc4d are LGPL, never bundled)
-        run: pip install --quiet ifcopenshell==0.9.0.post1 && pip install --quiet --no-deps ifc4d==0.9.0
+        run: pip install --quiet ifcopenshell==0.9.0.post1 && pip install --quiet --no-deps ifc4d==0.9.0 ifc5d==0.9.0 && pip install --quiet openpyxl==3.1.5
       - run: npm test
       - name: Validate exported IFC with IfcOpenShell
         run: npm run validate-ifc
