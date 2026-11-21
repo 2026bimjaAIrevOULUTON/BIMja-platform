@@ -1,16 +1,16 @@
 {
   "name": "bimja-platform",
-  "version": "1.0.0",
+  "version": "0.2.0-dev",
   "description": "",
   "main": "index.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node tests/run.mjs"
+    "test": "node tests/run.mjs && node tests/author.mjs"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "three": "^0.187.0",
     "web-ifc": "^0.0.79"
