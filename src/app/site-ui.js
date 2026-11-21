@@ -23,6 +23,7 @@ export function installSiteUI({ bus, viewer, run, toast, BASE }) {
     group.children.slice().forEach((c) => { c.geometry?.dispose(); group.remove(c); });
     const site = bus.extra.site; const v = site?.points?.length ? siteSurfaces(site) : null; info(v);
     if (!v) { viewer.fit?.(); return; }
+    const w = document.getElementById("welcome"); if (w) w.hidden = true; // the survey is now the thing on screen
     const z0 = ref(site, v); const show = $("#showTerrain").checked, showC = $("#showContours").checked;
     const mesh = (grid, mat) => { const T = gridTriangles(grid, 1); const pos = new Float32Array(T.length); for (let i = 0; i < T.length; i += 3) { pos[i] = T[i]; pos[i + 1] = T[i + 2] - z0; pos[i + 2] = -T[i + 1]; }
       const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(pos, 3)); g.computeVertexNormals(); const m = new THREE.Mesh(g, mat); m.userData = { site: true }; return m; };

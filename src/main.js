@@ -282,6 +282,9 @@ function refreshAuthored() {
   viewer.setAuthored(g);
   if (hasAuth) $("#welcome").hidden = true;
   if (hasAuth && authoredDirty && !state.model) { viewer.fit(); authoredDirty = false; }
+  if (!state.model) { // the Model panel describes the authored model while there is no opened IFC
+    const els = Object.values(bus.model.data.elements); const counts = {}; for (const e of els) { const k = e.ifc_class || e.kind; counts[k] = (counts[k] || 0) + 1; }
+    $("#meta").innerHTML = els.length ? `<b>${esc(bus.model.data.name || "Project")}</b> · authored · ${els.length} elements<br>${Object.entries(counts).map(([k, v]) => `${esc(k)} ${v}`).join(" · ")}` : "No model loaded."; }
 }
 const ui = initSessionUI({ bus, viewer, run, toast, download, onAuthoredChange: () => { refreshAuthored(); fillPlanSelects(); } });
 const plan = initPlan({ bus, run, toast, container: $("#view"), onSelect: (id) => (id ? selectAuthored(id, false) : select(null)) });
