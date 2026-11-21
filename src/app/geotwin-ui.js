@@ -4,15 +4,17 @@ import * as THREE from "three";
 import { definitionFor, localToMap, proj4, proj4Sync } from "../geo/geo.js";
 import { defaultSensor, simulate, evaluate, History, SENSOR_KINDS } from "../twin/twin.js";
 import { ifcGuid } from "../author/ifc-export.js";
+import { mqttFeed } from "../twin/mqtt.js";
+import { openStore } from "../twin/store.js";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const err = (m, code = "bad_arg") => Object.assign(new Error(m), { code });
 
-export function installGeoTwin({ bus, viewer, run, toast, resolveElement, selectIds }) {
+export function installGeoTwin({ bus, viewer, run, toast, resolveElement, selectIds, download }) {
   const geo = () => (bus.extra.geo ||= {});
   const twin = () => (bus.extra.twin ||= { sensors: {}, seed: 7 });
-  const hist = new History(5000); let timer = null, ws = null, tick = 0, scrubTick = null; const alerts = []; const latest = new Map();
+  const hist = new History(5000); const store = openStore(); let timer = null, ws = null, mq = null, tick = 0, scrubTick = null; const alerts = []; const latest = new Map();
 
   // ---------- geo ----------
   bus.register("crs", (a) => { const c = definitionFor(a.epsg || a.crs, a.proj4); geo().crs = c.code; geo().def = c.def; proj4().then(drawMap); return { crs: c.code }; });
@@ -49,14 +51,19 @@ export function installGeoTwin({ bus, viewer, run, toast, resolveElement, select
     if (mode === "ws") { if (!/^wss?:\/\//.test(a.url || "")) throw err("ws feed needs url ws:// or wss://");
       ws = new WebSocket(a.url); ws.onmessage = (ev) => { try { const m = JSON.parse(ev.data); for (const r of [].concat(m)) ingest(String(r.sensor), +r.value, r.tick ?? tick++); } catch { /* ignore bad frames */ } };
       ws.onerror = () => toast("Twin feed: WebSocket error"); return { feed: "ws", url: a.url }; }
-    throw err("mode must be simulated, ws or off");
+    if (mode === "mqtt") { // credentials are not logged: feed is a view command
+      mq = mqttFeed({ url: a.url, topic: a.topic || "bimja/#", username: a.username, password: a.password, onReading: (r) => { ingest(r.sensor, r.value, r.tick ?? ++tick); renderLive(); },
+        onStatus: (st, m) => { mqStatus = st; if (st === "refused" || st === "error") toast(`MQTT: ${m || st}`); } });
+      return { feed: "mqtt", url: a.url, topic: a.topic || "bimja/#" }; }
+    throw err("mode must be simulated, ws, mqtt or off");
   }, { kind: "view" });
-  function stopFeed() { if (timer) clearInterval(timer); timer = null; if (ws) ws.close(); ws = null; }
+  let mqStatus = null;
+  function stopFeed() { if (timer) clearInterval(timer); timer = null; if (ws) ws.close(); ws = null; if (mq) mq.close(); mq = null; }
   function step() { tick++; for (const s of Object.values(twin().sensors)) ingest(s.id, simulate(s, tick, twin().seed), tick); renderLive(); }
   function ingest(sensorId, value, t) {
     const s = twin().sensors[sensorId]; if (!s || !Number.isFinite(value)) return;
     const status = evaluate(s, value); const prev = latest.get(sensorId)?.status;
-    const row = { sensor: sensorId, value, tick: t, status }; latest.set(sensorId, row); hist.push(row);
+    const row = { sensor: sensorId, value, tick: t, status }; latest.set(sensorId, row); hist.push(row); store.add({ ...row, at: Date.now() });
     if (status !== "ok" && prev !== status) {
       const a = { at: performance.now(), tick: t, sensor: sensorId, name: s.name, value, unit: s.unit, status, element: s.element };
       alerts.unshift(a); alerts.length = Math.min(alerts.length, 100);
@@ -64,6 +71,14 @@ export function installGeoTwin({ bus, viewer, run, toast, resolveElement, select
       toast(`⚠ ${s.name}: ${value} ${s.unit} (${status})`); window.dispatchEvent(new CustomEvent("bimja:alert", { detail: a }));
     }
   }
+
+  bus.register("history", async (a) => {
+    if (a.clear) { await store.clear(); hist.rows.length = 0; return { cleared: true }; }
+    const rows = await store.last(Math.min(+a.last || 200, 50000), a.sensor); return { persistent: store.persistent, stored: await store.count(), readings: rows.map(({ sensor, value, tick: t, status, at }) => ({ sensor, value, tick: t, status, at })) };
+  }, { kind: "view" });
+  // restore the last session's readings so the scrub bar has history after a reload
+  store.last(5000).then((rows) => { for (const r of rows) { hist.push(r); tick = Math.max(tick, r.tick); } if (rows.length) renderLive(); });
+  window.addEventListener("pagehide", () => store.flush());
 
   // ---------- live view: element tint + labels ----------
   const tintMats = { ok: new THREE.MeshStandardMaterial({ color: 0x3ecf8e, transparent: true, opacity: 0.85 }), high: new THREE.MeshStandardMaterial({ color: 0xe5484d }), low: new THREE.MeshStandardMaterial({ color: 0x5adcff }) };
@@ -104,6 +119,9 @@ export function installGeoTwin({ bus, viewer, run, toast, resolveElement, select
     run("sensor", { kind: $("#sensorKind").value, name: $("#sensorName").value || undefined, ...(el ? { element: el } : {}) }); };
   $("#feedSim").onclick = () => run("feed", { mode: "simulated", interval_ms: 800 });
   $("#feedStop").onclick = () => run("feed", { mode: "off" });
+  $("#feedMqtt").onclick = () => run("feed", { mode: "mqtt", url: $("#mqttUrl").value.trim(), topic: $("#mqttTopic").value.trim() || "bimja/#" });
+  $("#twinHistory").onclick = async () => { const r = await run("history", { last: 50000 }); if (!r.ok) return;
+    download?.("twin-history.csv", ["sensor,value,tick,status,time", ...r.data.readings.map((x) => [x.sensor, x.value, x.tick, x.status, x.at ? new Date(x.at).toISOString() : ""].join(","))].join("\n"), "text/csv"); };
   $("#sensorKind").innerHTML = SENSOR_KINDS.map((k) => `<option>${k}</option>`).join("");
 
   // ---------- map: basemap tiles (Web Mercator, user URL), model footprint, sensors, overlays ----------

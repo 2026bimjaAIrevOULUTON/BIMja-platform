@@ -80,8 +80,10 @@ export const REGISTRY = [
   c("basemap", "geo", "Basemap tiles from a URL you supply (https://…/{z}/{x}/{y}.png)", { args: { url: "string", attribution: "string?" }, ui_path: "#setBasemap", needs: "viewer" }),
   c("overlay", "geo", "Overlay GeoJSON features from a URL or inline (ArcGIS REST: add f=geojson)", { kind: "view", args: { url: "string?", geojson: "object?" }, ui_path: "#addOverlay", needs: "viewer" }),
   c("sensor", "geo", "Add or edit a twin sensor (temperature, humidity, co2, occupancy, energy) with thresholds", { args: { id: "string?", name: "string?", kind: "string", min: "number?", max: "number?", element: "GlobalId|id?" }, example: { kind: "temperature", name: "Living temp", max: 26 }, ui_path: "#addSensor", needs: "viewer" }),
+  c("history", "geo", "Twin readings kept in this browser (IndexedDB) across reloads: newest N, per sensor, or clear", { kind: "view", args: { sensor: "string?", last: "number?", clear: "boolean?" }, ui_path: "#twinHistory", needs: "viewer" }),
+  c("walkthrough", "view", "First-person walk: WASD/arrows to move, drag to look, Q/E up/down, Esc to leave; stops at walls", { kind: "view", args: { on: "boolean", eye_height: "m?", speed: "m/s?" }, ui_path: "#walkBtn", needs: "viewer" }),
   c("bind", "geo", "Bind a sensor to an element (GlobalId or authored id)", { args: { sensor: "string", element: "string" }, refusals: [...W, "no_such_element"], ui_path: "#sensorList", needs: "viewer" }),
-  c("feed", "geo", "Start the twin feed: simulated (seeded), a WebSocket JSON feed, or off", { kind: "view", args: { mode: "simulated|ws|off", url: "ws(s)://?", interval_ms: "number?", seed: "number?" }, example: { mode: "simulated" }, ui_path: "#feedSim", needs: "viewer" }),
+  c("feed", "geo", "Start the twin feed: simulated (seeded), a WebSocket JSON feed, MQTT over WebSocket (topic bimja/#: JSON {sensor,value} or a number on bimja/<sensor>), or off", { kind: "view", args: { mode: "simulated|ws|mqtt|off", url: "ws(s)://?", topic: "string? (mqtt)", username: "string? (mqtt)", password: "string? (mqtt, never logged)", interval_ms: "number?", seed: "number?" }, example: { mode: "simulated" }, ui_path: "#feedSim", needs: "viewer" }),
 ];
 
 export const byName = Object.fromEntries(REGISTRY.map((r) => [r.name, r]));

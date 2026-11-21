@@ -1,5 +1,32 @@
 # Status
 
+## 2026-11-21: M8 (late items). Walkthrough, twin history and MQTT done; NWD cut
+
+**What moved**
+- **`walkthrough`:** first-person walk in the 3D view. WASD or arrows to move, drag to look, Q/E for up/down, Shift to run, Esc to leave. It starts at eye height facing the most open direction, and stops 0.3 m short of any wall.
+- **Twin history in IndexedDB:** readings persist in this browser across reloads (batched writes; nothing is uploaded). The scrub bar is restored after a reload. `history` returns the newest N readings (optionally per sensor), or clears them; there is also a CSV download.
+- **MQTT feed:** `feed {mode:"mqtt", url:"wss://…", topic:"bimja/#"}`. A minimal MQTT 3.1.1 client over WebSocket, with no dependencies. Payloads are JSON `{sensor, value}` or a number on `bimja/<sensor>`. Credentials are never written to the command log.
+
+**Gates**
+- **MQTT:** a real broker (aedes, test-only dev dependency, MIT) over WebSocket delivers QoS 0 and QoS 1 messages, both JSON and number payloads; 200 malformed packets are handled.
+- **Browser QA:**
+  - MQTT readings from a local broker raised an alert that selected its element;
+  - history survived a page reload (IndexedDB);
+  - the walkthrough started, moved and stopped at a wall, and Esc left it;
+  - 0 errors.
+- Parity: 64 live commands, 0 stubs. Budget: 211 KB of 600 KB.
+
+**Cut (brief's cut order)**
+- **NWD reading: cut.** It needs reverse-engineering a proprietary container (the brief's last resort). Ask Navisworks users for IFC + BCF instead; both work today.
+- The walkthrough has no VR/WebXR mode.
+
+**Not yet verified**
+- Firefox and Safari. All browser QA so far is headless Chrome (desktop and mobile sizes).
+- Chrome's Local Network Access prompt for attached-agent mode on a real machine.
+
+**Single next step**
+- Run the app on Firefox and Safari, then do one end-to-end agent session over MCP on a real laptop.
+
 ## 2026-11-21: M7 (5D cost, assets, COBie). Gate PASSED
 
 **What moved**

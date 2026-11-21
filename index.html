@@ -10,7 +10,7 @@
 </head>
 <body>
 <header>
-  <div class="brand">BIM<span>ja</span> <small>open BIM · v0.8</small></div>
+  <div class="brand">BIM<span>ja</span> <small>open BIM · v0.9</small></div>
   <nav id="tabs">
     <button data-tab="model" class="on">Model</button>
     <button data-tab="create">Create</button>
@@ -144,7 +144,8 @@
       <div class="row"><select id="sensorKind"></select><input id="sensorName" placeholder="Name"><button class="btn" id="addSensor" title="Binds to the selected element">Add sensor</button></div>
       <div id="sensorList"></div>
       <div class="row"><button class="btn primary" id="feedSim">Start simulated feed</button><button class="btn" id="feedStop">Stop</button></div>
-      <div class="row"><input type="range" id="twinScrub" min="0" max="0" value="0" style="flex:1"><span class="note" id="twinScrubLabel"></span></div>
+      <div class="row"><input id="mqttUrl" placeholder="MQTT over WebSocket: wss://broker:8884/mqtt"><input id="mqttTopic" placeholder="bimja/#" style="width:90px"><button class="btn" id="feedMqtt">MQTT</button></div>
+      <div class="row"><input type="range" id="twinScrub" min="0" max="0" value="0" style="flex:1"><span class="note" id="twinScrubLabel"></span><button class="btn" id="twinHistory" title="Readings kept in this browser across reloads">History CSV</button></div>
       <h4 class="sec">Alerts</h4>
       <div id="alertList"></div>
     </div>
@@ -152,7 +153,7 @@
   <section id="view">
     <div id="canvas"></div>
     <div id="tools">
-      <button class="btn" id="fit" title="Fit">Fit</button>
+      <button class="btn" id="fit" title="Fit">Fit</button><button class="btn" id="walkBtn" title="Walk through (WASD, drag to look, Esc to leave)">Walk</button>
       <button class="btn" id="xray" title="X-ray">X-ray</button>
       <button class="btn" id="spaces" title="Show spaces">Spaces</button>
       <button class="btn" id="showAll" title="Show all">Show all</button>

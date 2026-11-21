@@ -34,7 +34,9 @@ export class Viewer {
       const hit = this.ray.intersectObjects(this.meshes(), false).find((h) => h.object.visible && this._inSection(h.point));
       this.onPick(hit ? hit.object.userData.expressID : null);
     });
-    const loop = () => { requestAnimationFrame(loop); this.controls.update(); this.renderer.render(this.scene, this.camera); };
+    let last = performance.now();
+    const loop = (now = performance.now()) => { requestAnimationFrame(loop); const dt = Math.min(0.1, (now - last) / 1000); last = now;
+      if (this.walk) this._walkStep(dt); else this.controls.update(); this.renderer.render(this.scene, this.camera); };
     loop(); this.resize();
   }
   meshes() { return [...this.root.children, ...this.auth.children, ...[...this.fed.values()].flatMap((g) => g.visible ? g.children : [])]; }
@@ -75,6 +77,38 @@ export class Viewer {
     this.highlight(this._hl || [], this._ghost);
   }
   _inSection(p) { return this.section.distanceToPoint(p) >= -1e-6; }
+  /** First-person walkthrough: WASD/arrows move, drag looks, Q/E up/down, Shift runs, Esc leaves. Stops 0.3 m short of geometry. */
+  walkthrough(on, { eyeHeight = 1.6, speed = 1.4, at } = {}) {
+    if (!on) { if (!this.walk) return false; const w = this.walk; this.walk = null; removeEventListener("keydown", w.kd); removeEventListener("keyup", w.ku);
+      this.renderer.domElement.removeEventListener("pointermove", w.pm); this.controls.enabled = true; this.camera.up.set(0, 1, 0);
+      const fwd = new THREE.Vector3(); this.camera.getWorldDirection(fwd); this.controls.target.copy(this.camera.position).addScaledVector(fwd, 5); this.onWalk?.(false); return false; }
+    if (this.walk) return true;
+    const b = this.box(); const floorY = b.isEmpty() ? 0 : b.min.y; const c = b.isEmpty() ? new THREE.Vector3() : b.getCenter(new THREE.Vector3());
+    const start = at ? new THREE.Vector3(at[0], floorY + eyeHeight, at[1]) : new THREE.Vector3(c.x, floorY + eyeHeight, c.z);
+    this.camera.position.copy(start); this.controls.enabled = false;
+    const keys = new Set(); const w = { keys, yaw: Math.atan2(-(this.controls.target.x - start.x), -(this.controls.target.z - start.z)) || 0, pitch: 0, speed, eyeHeight };
+    w.kd = (e) => { if (/input|textarea|select/i.test(e.target.tagName)) return; if (e.key === "Escape") return this.walkthrough(false); keys.add(e.key.toLowerCase()); if (/^(arrow|w|a|s|d|q|e| )/.test(e.key.toLowerCase())) e.preventDefault(); };
+    w.ku = (e) => keys.delete(e.key.toLowerCase());
+    w.pm = (e) => { if (!(e.buttons & 1)) return; w.yaw -= e.movementX * 0.004; w.pitch = Math.max(-1.4, Math.min(1.4, w.pitch - e.movementY * 0.004)); };
+    addEventListener("keydown", w.kd); addEventListener("keyup", w.ku); this.renderer.domElement.addEventListener("pointermove", w.pm);
+    { // face the most open direction (longest view), so a walk never starts nose to a wall
+      const ray = (this._walkRay ||= new THREE.Raycaster()); let best = -1; const ms = this.meshes().filter((m) => m.visible);
+      for (let i = 0; i < 16; i++) { const yaw = (i / 16) * Math.PI * 2; ray.set(start, new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw))); ray.far = 200;
+        const d = ray.intersectObjects(ms, false)[0]?.distance ?? 200; if (d > best + 0.01) { best = d; w.yaw = yaw; } } }
+    this.walk = w; this._walkStep(0); this.onWalk?.(true); return true;
+  }
+  _walkStep(dt) {
+    const w = this.walk, k = w.keys; const fwd = new THREE.Vector3(-Math.sin(w.yaw), 0, -Math.cos(w.yaw)), right = new THREE.Vector3(-fwd.z, 0, fwd.x);
+    const move = new THREE.Vector3();
+    if (k.has("w") || k.has("arrowup")) move.add(fwd); if (k.has("s") || k.has("arrowdown")) move.sub(fwd);
+    if (k.has("d") || k.has("arrowright")) move.add(right); if (k.has("a") || k.has("arrowleft")) move.sub(right);
+    const v = w.speed * (k.has("shift") ? 3 : 1) * dt;
+    if (move.lengthSq()) { move.normalize(); const ray = (this._walkRay ||= new THREE.Raycaster()); ray.set(this.camera.position, move); ray.far = v + 0.3;
+      const hit = ray.intersectObjects(this.meshes().filter((m) => m.visible), false)[0]; if (!hit) this.camera.position.addScaledVector(move, v); }
+    if (k.has("e")) this.camera.position.y += v; if (k.has("q")) this.camera.position.y -= v;
+    const look = new THREE.Vector3(Math.cos(w.pitch) * -Math.sin(w.yaw), Math.sin(w.pitch), Math.cos(w.pitch) * -Math.cos(w.yaw));
+    this.camera.lookAt(this.camera.position.clone().add(look));
+  }
   resize() { const { clientWidth: w, clientHeight: h } = this.el; if (!w || !h) return; this.renderer.setSize(w, h, false); this.camera.aspect = w / h; this.camera.updateProjectionMatrix(); }
 
   load(model, classOf) {

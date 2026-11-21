@@ -207,7 +207,7 @@ addEventListener("drop", async (e) => { e.preventDefault(); dragDepth = 0; $("#d
 
 // ---------- command bus: the one path for people, agents and replays ----------
 const bus = installCore(new Bus());
-window.__bimjaBus = bus;
+window.__bimjaBus = bus; window.__bimjaViewer = viewer;
 const ifcSummary = () => state.model && (() => { const b = viewer.modelBox; const r = (v) => +v.toFixed(3);
   return { ...summary(), issues: { high: state.check.high, medium: state.check.medium, low: state.check.low },
     classes: Object.fromEntries(state.qto.map((q) => [q.ifcClass, q.count])),
@@ -277,7 +277,7 @@ const coordUI = installCoordination({ bus, viewer, run, toast, download, downloa
   openIfcBytes: async (bytes) => openModel(await api(), bytes),
   selectIds: (ids, fly = true) => { viewer.highlight(ids, true); if (fly) viewer.fit(ids); } });
 addEventListener("bimja:loaded", () => coordUI.renderModels());
-const twinUI = installGeoTwin({ bus, viewer, run, toast, selectIds: (ids) => { viewer.highlight(ids, false); viewer.fit(ids); },
+const twinUI = installGeoTwin({ bus, viewer, run, toast, download, selectIds: (ids) => { viewer.highlight(ids, false); viewer.fit(ids); },
   resolveElement: (ref) => { if (!ref) return null; if (bus.model.data.elements[ref]) return ref; if (viewer.byId.has(ref)) return ref; return coordUI.guidToViewId(ref) ?? (state.model ? window.bimja.get(ref)?.id : null); } });
 
 // 4D: elements are authored ids or IFC GlobalIds; rules reach the open IFC by class and storey too
@@ -298,6 +298,10 @@ const timeUI = installTime({ bus, viewer, run, toast, resolveElement: resolveEl,
   bus.cost.levels = () => (state.model ? [...new Set([...state.model.index.elements.values()].map((e) => e.storey).filter(Boolean))].map((name) => ({ name })) : lvA());
   bus.cost.project = () => (state.model ? state.fileName.replace(/\.ifc.*$/i, "") || "IFC model" : prA()); }
 installCostUI({ bus, run, toast, download, downloadBlob, resolveElement: resolveEl, selectIds: (ids) => { viewer.highlight(ids, true); viewer.fit(ids); } });
+
+bus.register("walkthrough", (a) => { const on = viewer.walkthrough(a.on !== false, { eyeHeight: +a.eye_height || 1.6, speed: +a.speed || 1.4 }); return { walking: on }; }, { kind: "view" });
+viewer.onWalk = (on) => { $("#walkBtn").classList.toggle("on", on); $("#walkBtn").textContent = on ? "Exit walk" : "Walk"; if (on) toast("Walk: WASD or arrows, drag to look, Q/E up/down, Shift to run, Esc to leave"); };
+$("#walkBtn").onclick = () => run("walkthrough", { on: !viewer.walk });
 
 // window.bimja: one function per registered command (same names, args, refusals as MCP), plus run() and helpers
 window.bimja = { version: "0.3.0", run: (name, args, opts = {}) => run(name, args, { actor: "agent:console", ...opts }) };

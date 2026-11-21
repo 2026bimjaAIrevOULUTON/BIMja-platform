@@ -2,25 +2,24 @@
 
 **Live:** https://2026bimjaairevouluton.github.io/BIMja-platform/ · Status: [docs/STATUS.md](docs/STATUS.md) · Handover: [docs/HANDOVER.md](docs/HANDOVER.md)
 
-BIMja is a static web app. It opens an IFC model in the browser, shows it in 3D, runs a handover data check, and exports the issues. Everything runs on your device, so the model is never uploaded. It works for people through the UI and for AI agents through `window.bimja`.
+BIMja is a static web app for open BIM: model, coordinate, schedule (4D), cost (5D) and run a georeferenced digital twin, all in the browser. Your model is never uploaded. Every capability is one command, reachable from the UI, from `window.bimja`, and from AI agents over MCP (`node mcp/bimja-mcp.mjs`); agents propose changes and a person applies them.
 
-**v0 (today):**
-
-| Area | What works |
-|---|---|
-| Model | 3D view, storey/class tree, search, properties and quantity sets, x-ray, horizontal section, PNG |
-| Handover check | 9 baseline rules: name, storey, type (COBie), material, FireRating, IsExternal, LoadBearing, space names, base quantities. Gives a score, an issue list and a ghosted focus view on each element. |
-| Exports | Issues CSV, report JSON, and a client-ready HTML report with a screenshot |
-| 5D seed | Counts plus area, volume and length per class, read from `Qto_*` sets, with CSV export |
-| Agent API | `window.bimja.commands()` lists the whole surface (from `src/commands/registry.js`); `describe`, `load`, `check_handover`, `quantity`, `select`, `isolate`, `section`, `camera`, `render`, `export_report`, `export_issues` |
-
-Planned: Coordination (clash + BCF), 4D (P6/MSP schedule + timeline), cost rates for 5D, and the digital twin (sensor → GlobalId).
+| Area | What works | Checked against |
+|---|---|---|
+| Model | Open IFC, 3D view, storey/class tree, properties, x-ray, section, PNG, first-person walkthrough | |
+| Create | Levels, walls (butt joins), doors, windows, floors, roofs, rooms; plan drawing tools; schedules; IFC4 and GLB export | IFC round-trip gate; IfcOpenShell validation |
+| Handover check | 9 rules, score, issues, HTML report | Same score after export → reopen |
+| Coordination | Federate models, clash (hard/soft, worker), issues, viewpoints, BCF 2.1 in/out | IfcOpenShell clash; BCF XSD |
+| 4D | Activities, link by element or rule, P6 XML + MS Project XML import, auto sequence, timeline, play, Gantt | ifc4d task counts |
+| 5D | Unit rates on quantities, estimate + CSV, asset register, COBie 2.4 .xlsx | ifc5d quantities (0.5%); COBie structure check |
+| Geo + twin | EPSG CRS, IfcMapConversion, basemap/GeoJSON overlays; sensors bound to GlobalIds, simulated/WebSocket/MQTT feeds, alerts that select the element, history kept in IndexedDB | PROJ (pyproj) within 0.74 mm; real MQTT broker |
+| Agents | 64 commands with args, refusals and UI paths; log, undo, replay, attribution, stale-rev, locks, pause | Parity test |
 
 ## Run locally
 ```bash
 npm ci
 npm run dev      # http://localhost:5173
-npm test         # viewer + authoring + parity tests
+npm test         # all gates (reference gates need Python: see .github/workflows/deploy.yml)
 npm run budget   # after build: first-load size gate (600 KB gz)
 npm run build    # static site in dist/
 ```
