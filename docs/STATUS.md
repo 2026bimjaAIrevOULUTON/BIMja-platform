@@ -1,5 +1,65 @@
 # Status
 
+## 2026-11-21: D3 geometry kernel, LOD 350 landmarks, isometric drawings
+
+**What moved**
+- **Geometry kernel:** Manifold (Apache-2.0, 202 KB WebAssembly), lazy-loaded at startup, off the first paint. Commands stay synchronous and replayable once it has loaded.
+- **New modelling commands** (all on `window.bimja`, MCP, the Create pane and the command palette; 83 commands in total):
+  - `sweep`: a profile along a 3D path with mitred corners. Covers cornices, parapets, mouldings, handrails, kerbs, pipes and ducts.
+  - `boolean`: difference, union or intersect against element ids or inline geometry specs. The base keeps its id and data.
+  - `opening`: cuts an arched or square hole through any solid. Arch types: rect, semi, segmental, pointed, mughal.
+  - `array`: linear (step) or polar (around a centre).
+  - `family` and `place`: reusable assets with an IFC class, Uniclass 2015 code, AIM parameters and property sets.
+- **Scripts:** a step tagged `{as: "x"}` can be referred to later as `"$x"`. Agents build a solid and cut it in one atomic, replayable script.
+- **Lean:** now applies to every kind of solid, so cut arches follow Pisa's 3.97° lean exactly.
+- **IFC:**
+  - Family instances carry `BIMja_Family` and their own psets.
+  - Uniclass is written as IfcClassification "Uniclass 2015" plus IfcClassificationReference, via IfcRelAssociatesClassification.
+  - Marks are written to `Pset_BuildingElementProxyCommon.Reference`.
+- **LOD 350 landmarks:**
+  - **Taj Mahal:**
+    - plinth with a 56-niche blind arcade and a cornice;
+    - mausoleum with 4 cut mughal iwans, 16 stacked side alcoves and 8 chamfer alcoves;
+    - pishtaq frames cut with the same arch, plus 8 guldastas;
+    - cornice and parapet sweeps;
+    - drum band, lotus crown and kalash;
+    - "Chhatri 8-column" and "Minaret chhatri" families (Uniclass EF_30_10);
+    - minarets with corbelled balconies and railings.
+  - **Pisa:** blind arcade cut into the base drum, and six loggia arcades, each cut with 30 round arches, all leaning with the tower.
+  - **Fallingwater:** rounded parapet sweeps on both cantilevers, arrayed Cherokee red sash, a 12-tread hatch stair to the stream and trellis beams.
+  - **Vitra:** five engine bays and a ribbon window cut into the hall.
+  - **Burj Khalifa:** unchanged.
+- **Drawings:**
+  - New isometric sheet type: true isometric with hidden lines, from the south-west and north-east, marked NTS.
+  - When nothing fits at 1:100, the paper falls back to A0 if that allows a larger scale.
+- **Licences:** NOTICE now lists manifold-3d (Apache-2.0) and delaunator (ISC). Full licence texts ship in `/licenses`.
+
+**Gates**
+- `tests/kernel.mjs` checks against closed-form values:
+  - closed sweep 1.440 m³ (exact);
+  - wall minus semicircular arch within 0.3%;
+  - union 14.000 m³;
+  - polar copy positions;
+  - family placement and refusals.
+- `tests/kernel.mjs` also checks the IFC: schema-valid, every shape builds in IfcOpenShell, Uniclass and psets present, deterministic export, identical log replay.
+- All five landmarks: IFC valid, 0 geometry failures in IfcOpenShell.
+  - Taj: 3.4 MB, 0.6 s.
+  - Pisa: 7.3 MB, 1.4 s.
+- Docs: 7 PDFs and 4 DXFs per house set, 0 DXF audit errors. Taj elevations render in 1.6 s.
+- Parity: 83 of 83 commands. First load 260 KB of the 600 KB budget.
+- Browser QA: Taj and Pisa build and render, and a pointed arch cut runs from `window.bimja`; 0 console errors.
+
+**Known limits**
+- The landmarks are LOD 350 *studies*, not survey-accurate: proportions come from published dimensions and photographs. There is no inlay, calligraphy, jaali or interior.
+- Burj Khalifa has not been upgraded yet; the next candidates are its facade fins and spire setbacks.
+- CSG output is triangulated, so a cut element exports as a faceted Brep, which is heavier than an extrusion.
+- Not built yet:
+  - unrolled facades;
+  - spool sheets with a bill of materials;
+  - shop drawings and millwork details;
+  - O&M cut sheets;
+  - LOIN/federation strategy documents.
+
 ## 2026-11-21: D2 site from survey (terrain, contours, grading, earthworks, site drawings)
 
 **What moved**

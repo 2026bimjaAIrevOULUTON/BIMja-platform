@@ -163,32 +163,36 @@ Recorded so the review has the facts. No decisions were taken here.
 
 ## 5. Open items: who needs to do what
 
+Updated 21 Nov 2026, after D3.
+
 | Item | Owner | Notes |
 |---|---|---|
-| Create the GitHub repo for the platform | **User** | Claude cannot create repos from here. Public allows free GitHub Pages; private needs Cloudflare Pages. Then push `bimja-platform` (2 commits). |
-| Create the `bimja-services` repo | **User** | Then push and add the Cloudflare/Resend secrets (see its README). |
-| Cloudflare API token + Account ID | **User** | Needed for both deploys. |
-| Payment account (Razorpay / PayPal / Stripe) | **User** | For the deposit button. |
-| Confirm prices | **User** | The USD service prices and the ₹15,000 pilot are drafts, not market-checked. |
+| Platform repo and GitHub Pages | Done | `2026bimjaAIrevOULUTON/BIMja-platform`; live at https://2026bimjaairevouluton.github.io/BIMja-platform/. CI deploys on every push to `main`. |
+| Keep the app private (optional) | **User** | Pages on a public repo is public. Options: Cloudflare Pages plus Cloudflare Access (free up to 50 users), or GitHub Enterprise private Pages. |
 | A test `.rvt` file the user owns | **User** | For the RVT → BIMja milestone. |
-| Venice subscription | **User** | On 18 Nov Venice showed a failed payment with 5 days of grace. |
-| `OPENAI_API_KEY` + budget on the user's PC | **User** | Only for Money Maker's live clustering. |
-| IFC writer → plan tools → 3D | Claude | Next authoring steps. |
-| Rust/WASM repo setup | Claude | After the repo exists. |
-| Borrow BIMCraft ideas into `window.bimja` | Claude | `dry_run` (already in the authoring core), read-only mode, `render()`, and handover rules as JSON with cited sources. |
+| Burj Khalifa LOD 350 (fins, spire setbacks) | Claude | The tools exist (sweep, array, family); only the model script is left. |
+| Unrolled facades, spool sheets + BOM, shop and millwork details, O&M cut sheets | Claude | New sheet kinds on the same drawing engine. |
+| LOIN / federation strategy / MIDP-TIDP documents from the model | Claude | ISO 19650 naming and the MIDP register exist; the strategy documents are next. |
+| Retaining walls, roads and drainage falls on the site | Claude | Grading is one platform today. |
+| Firefox and Safari checks of attached MCP mode | **User + Claude** | Verified in Chrome only. |
+| Payment account, price confirmation, Venice, OPENAI_API_KEY | **User** | For BIMja Services and Money Maker; unchanged. |
 
 ---
 
 ## 6. How to pick up in a new session
 
-1. Unzip `bimja-handover.zip`. Then:
+1. Clone and check:
    ```
-   cd bimja-platform && npm ci && npm test && npm run dev
+   git clone https://github.com/2026bimjaAIrevOULUTON/BIMja-platform.git
+   cd BIMja-platform && npm ci
+   pip install ifcopenshell==0.9.0.post1 && pip install --no-deps ifc4d==0.9.0 ifc5d==0.9.0 && pip install openpyxl==3.1.5 ezdxf==1.4.2 pypdf==6.1.3
+   npm test && npm run build && npm run budget && npm run dev
    ```
-2. Push to the new repo:
-   ```
-   git remote add origin <url> && git push -u origin main
-   ```
-   Then turn on Pages (Settings → Pages → GitHub Actions) or add the Cloudflare secrets.
-3. Tell Claude: "Continue BIMja from docs/HANDOVER.md, next step: IFC writer for the authoring core" (or the Rust/WASM setup).
-4. Money Maker: say "Money Maker status". The engine and state load from Drive.
+2. Read `docs/STATUS.md` from the top: the newest milestone is first, with its gates and known limits.
+3. Where things live:
+   - commands: `src/commands/registry.js`; handlers in `src/author/model.js`, `src/docs/commands.js`, `src/site/commands.js`, `src/time/`, `src/cost/`;
+   - geometry: `src/author/solids.js` and `src/author/kernel.js`;
+   - drawings: `src/docs/`;
+   - landmarks: `src/app/landmarks.js`.
+4. Agents: `node mcp/bimja-mcp.mjs --headless` runs the engine in Node over MCP stdio; attached mode drives the open browser tab.
+5. Money Maker: say "Money Maker status". The engine and state load from Drive.

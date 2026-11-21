@@ -1,0 +1,21 @@
+BIMja. Copyright (c) 2026 BIMja. Licensed under the MIT License (see LICENSE).
+
+Third-party software shipped in the web bundle:
+- web-ifc (That Open Company), Mozilla Public License 2.0, https://github.com/ThatOpen/engine_web-ifc
+  Used unmodified; source available at the link above.
+- three.js, MIT License, https://github.com/mrdoob/three.js
+- manifold-3d 3.5.5 (geometry kernel for booleans, lazy-loaded WebAssembly), Apache License 2.0, https://github.com/elalish/manifold
+  Copyright the Manifold authors. Used unmodified. Full licence: licenses/manifold-3d-LICENSE.txt
+- delaunator 5.1.0 (terrain triangulation), ISC License, Copyright (c) Mapbox. https://github.com/mapbox/delaunator
+  Full licence: licenses/delaunator-LICENSE.txt
+
+Landmark studies (Pisa, Taj Mahal, Fallingwater, Burj Khalifa, Vitra Fire Station) are simplified digital studies
+built from BIMja commands, credited to their architects in each model. They are not survey-accurate and are not
+affiliated with or endorsed by the buildings' owners.
+
+Sample models (test data only, original terms apply):
+- AC20-FZK-Haus: Karlsruhe Institute of Technology (KIT), from the web-ifc test files.
+- Ifc4_SampleHouse: from https://github.com/youshengCode/IfcSampleFiles
+
+Not shipped: IfcOpenShell (and its ifc4d schedule readers and ifc5d quantity takeoff) (LGPL-3.0) may be used in CI only, never bundled.
+A CycloneDX SBOM is generated on every build (dist/sbom.cdx.json).
