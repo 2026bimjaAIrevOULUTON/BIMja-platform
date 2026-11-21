@@ -2,7 +2,7 @@
 // free-form solids (mass: extrude with taper/shift/twist/lean; revolve: domes, minarets, columns).
 // Every change is a JSON command, so people (UI) and agents (window.bimja / MCP) drive the same code.
 // Units: millimetres in plan and height. Commands refuse invalid input and change nothing.
-import { solidOf, MASS_CLASSES } from "./solids.js";
+import { solidOf, specSolid, transformSpec, MASS_CLASSES } from "./solids.js";
 import { add, dist, mul, norm, perp, sub, near, polygonArea, polygonPerimeter, pointInPolygon, projectToSegment, planarFaces } from "./geom.js";
 
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -220,7 +220,7 @@ const massCommon = (m, c, e) => {
   if (c.lean_deg) { e.lean_deg = num(c.lean_deg, "lean_deg", { min: -45, max: 45 }); e.lean_dir_deg = num(c.lean_dir_deg ?? 0, "lean_dir_deg"); }
   if (c.pivot) { if (!Array.isArray(c.pivot) || c.pivot.length !== 3) fail("pivot must be [x, y, z] in mm"); e.pivot = c.pivot.map((v, i) => num(v, `pivot[${i}]`)); }
   if (c.segments != null) e.segments = Math.round(num(c.segments, "segments", { min: 1, max: 96 }));
-  const sol = solidOf(e); if (!(sol.volume > 1)) fail("the solid has no volume: check the outline/profile");
+  let sol; try { sol = solidOf(e); } catch (err) { if (err.code === "unavailable") throw new CommandError(err.message, "unavailable"); fail(`bad geometry: ${err.message}`); } if (!(sol.volume > 1)) fail("the solid has no volume: check the outline/profile");
   const id = m.newId("M"); e.id = id; e.name = String(c.name || `${e.ifc_class.replace(/^Ifc/, "")} ${id}`); m.data.elements[id] = e;
   return { id, volume_m3: +(sol.volume / 1e9).toFixed(3), height_m: +((sol.zmax - sol.zmin) / 1000).toFixed(3) };
 };
@@ -237,6 +237,56 @@ def("revolve", "Add a solid of revolution (dome, minaret, column, drum): {center
   const e = { kind: "mass", shape: "revolve", center: pt(c.center, "center"), profile: prof.map((q, i) => { const [r, z] = pt(q, `profile[${i}]`); if (r < 0) fail("profile radius must be ≥ 0"); return [r, z]; }) };
   return massCommon(m, c, e);
 });
+// ---------- free-form modelling: sweep, booleans, openings, arrays, families ----------
+const GEOM_KEYS = ["shape", "outline", "height", "top_scale", "top_shift", "twist_deg", "segments", "lean_deg", "lean_dir_deg", "pivot", "center", "profile", "path", "closed", "min", "max", "at", "dir_deg", "width", "depth", "arch", "op", "a", "tools", "parts", "base"];
+const geomOf = (e) => Object.fromEntries(GEOM_KEYS.filter((k) => e[k] !== undefined).map((k) => [k, clone(e[k])]));
+const checkSpec = (sp) => { let sol; try { sol = specSolid(sp); } catch (e) { if (e.code === "unavailable") throw new CommandError(e.message, "unavailable"); fail(`bad geometry: ${e.message}`); } if (!(sol.volume > 1)) fail("the solid has no volume"); return sol; };
+def("sweep", "Sweep a profile along a path: {profile:[[u,v],...] mm (CCW, in the plane across the path), path:[[x,y,z],...] mm, closed?, level?, base?, ifc_class?, material?, color?, name?}. Cornices, mouldings, handrails, kerbs, pipes, ducts", (m, c) => {
+  if (!Array.isArray(c.path) || c.path.length < 2) fail("path needs at least 2 [x, y, z] points"); const prof = poly(c.profile, "profile");
+  const e = { kind: "mass", shape: "sweep", profile: prof, path: c.path.map((p, i) => { if (!Array.isArray(p) || p.length < 2) fail(`path[${i}] must be [x, y, z]`); return [num(p[0], "x"), num(p[1], "y"), num(p[2] ?? 0, "z")]; }), ...(c.closed ? { closed: true } : {}) };
+  return massCommon(m, c, e);
+});
+def("boolean", "Combine solids with the geometry kernel: {base: id, tools: [id or geometry spec], op: difference|union|intersect, keep_tools?}. The base keeps its id and data", (m, c) => {
+  const base = m.el(c.base); if (base.kind !== "mass") fail("base must be a mass/solid element (use opening for arches in masses)");
+  const op = c.op || "difference"; if (!["difference", "union", "intersect"].includes(op)) fail("op must be difference, union or intersect");
+  if (!Array.isArray(c.tools) || !c.tools.length) fail("give tools: element ids or geometry specs");
+  const lvl = m.level(base.level).elevation; const tools = c.tools.map((t) => { if (typeof t === "string") { const te = m.el(t); if (te.kind !== "mass") fail(`${t} is not a solid`); return transformSpec(geomOf(te), { dz: m.level(te.level).elevation - lvl }); } return clone(t); });
+  const next = { ...geomOf(base) }; for (const k of GEOM_KEYS) delete base[k];
+  Object.assign(base, { shape: "csg", op, a: next, tools });
+  checkSpec(base); if (!c.keep_tools) for (const t of c.tools) if (typeof t === "string") delete m.data.elements[t];
+  const sol = solidOf(base); return { id: base.id, volume_m3: +(sol.volume / 1e9).toFixed(3) };
+});
+def("opening", "Cut an arched or square opening through a solid: {target, at:[x,y,z] mm (z from the target's level), dir_deg (wall direction), width, height, depth, arch: rect|semi|segmental|pointed|mughal}", (m, c) => {
+  const t = m.el(c.target); if (t.kind !== "mass") fail("target must be a solid (mass/revolve/sweep); walls take doors and windows");
+  const tool = { shape: "opening", at: [num(c.at?.[0], "at x"), num(c.at?.[1], "at y"), num(c.at?.[2] ?? 0, "at z")], dir_deg: num(c.dir_deg ?? 0, "dir_deg"), width: num(c.width, "width", { min: 10 }), height: num(c.height, "height", { min: 10 }), depth: num(c.depth, "depth", { min: 10 }), arch: ["rect", "semi", "segmental", "pointed", "mughal"].includes(c.arch || "semi") ? c.arch || "semi" : fail("arch must be rect, semi, segmental, pointed or mughal") };
+  if (t.shape === "csg" && t.op === "difference") t.tools.push(tool); else { const g = geomOf(t); for (const k of GEOM_KEYS) delete t[k]; Object.assign(t, { shape: "csg", op: "difference", a: g, tools: [tool] }); }
+  checkSpec(t); return { id: t.id, openings: t.tools.length };
+});
+def("array", "Copy a solid: {source, count, step:[dx,dy,dz] mm} or {source, polar:{center:[x,y], count, angle_deg?}}; returns the new ids", (m, c) => {
+  const src = m.el(c.source); if (src.kind !== "mass") fail("array works on solids (mass, revolve, sweep, boolean, family instances)"); const ids = []; const g = geomOf(src);
+  const mk = (tr, i) => { const id = m.newId("M"); m.data.elements[id] = { ...clone(src), ...transformSpec(g, tr), id, name: `${src.name} ${i + 1}`, ...(src.mark ? { mark: `${src.mark}.${i + 1}` } : {}) }; ids.push(id); };
+  if (c.polar) { const n = Math.round(num(c.polar.count, "polar.count", { min: 2, max: 2000 })); const A = num(c.polar.angle_deg ?? 360, "angle_deg"); const [cx, cy] = pt(c.polar.center, "polar.center"); const stepA = A >= 360 ? A / n : A / (n - 1);
+    for (let i = 1; i < n; i++) mk({ rot_deg: stepA * i, cx, cy }, i); }
+  else { const n = Math.round(num(c.count, "count", { min: 2, max: 2000 })); const st = c.step; if (!Array.isArray(st) || st.length < 2) fail("step must be [dx, dy, dz] mm");
+    for (let i = 1; i < n; i++) mk({ dx: st[0] * i, dy: st[1] * i, dz: (st[2] || 0) * i }, i); }
+  return { ids, count: ids.length + 1 };
+});
+def("family", "Define a reusable family (like a Revit family): {name, ifc_class?, uniclass?:{code,title}, description?, parameters?:{...}, psets?:{Pset_X:{...}}, parts:[geometry specs, origin at 0,0,0]}", (m, c) => {
+  const name = String(c.name || fail("a family needs a name")).slice(0, 80); if (!Array.isArray(c.parts) || !c.parts.length) fail("parts: one or more geometry specs (box, extrude, revolve, sweep, opening, csg)");
+  const cls = c.ifc_class || "IfcBuildingElementProxy"; if (!MASS_CLASSES.includes(cls)) fail(`ifc_class must be one of ${MASS_CLASSES.join(", ")}`);
+  if (c.uniclass && !/^[A-Z][a-z]_\d{2}(_\d{2}){0,3}$/.test(c.uniclass.code || "")) fail("uniclass.code like Pr_40_50_29 or Ss_25_10");
+  checkSpec({ shape: "group", parts: c.parts });
+  (m.data.families ||= {})[name] = { name, ifc_class: cls, ...(c.uniclass ? { uniclass: { code: c.uniclass.code, title: String(c.uniclass.title || "") } } : {}), description: String(c.description || ""), parameters: clone(c.parameters || {}), psets: clone(c.psets || {}), parts: clone(c.parts), ...(c.material ? { material: String(c.material) } : {}), ...(c.color ? { color: c.color } : {}) };
+  return { family: name, parts: c.parts.length };
+});
+def("place", "Place a family instance: {family, at:[x,y,z?] mm, rotation_deg?, level?, name?, mark?}", (m, c) => {
+  const fam = m.data.families?.[c.family] || fail(`no family ${c.family}. Families: ${Object.keys(m.data.families || {}).join(", ") || "none"}`, "no_such_element");
+  const [x, y] = pt([c.at?.[0], c.at?.[1]], "at"); const z = num(c.at?.[2] ?? 0, "z"); const rot = num(c.rotation_deg ?? 0, "rotation_deg");
+  const parts = fam.parts.map((p) => transformSpec(transformSpec(p, { rot_deg: rot }), { dx: x, dy: y, dz: z }));
+  const e = { kind: "mass", shape: "group", parts, family: fam.name, ...(fam.uniclass ? { uniclass: fam.uniclass } : {}), ...(c.mark ? { mark: String(c.mark) } : {}) };
+  const r = massCommon(m, { ...c, ifc_class: fam.ifc_class, material: c.material ?? fam.material, color: c.color ?? fam.color, name: c.name || `${fam.name}` }, e);
+  return { ...r, family: fam.name };
+});
 export function centroid(p) { let x = 0, y = 0; p.forEach((q) => { x += q[0]; y += q[1]; }); return [x / p.length, y / p.length]; }
 def("delete", "Delete elements: {ids:[...]} (a wall takes its doors and windows)", (m, c) => {
   const ids = c.ids || [c.id]; const gone = [];
@@ -249,7 +299,7 @@ def("move", "Move elements: {ids:[...], by:[dx,dy]} (doors and windows slide alo
     const e = m.el(id);
     if (e.kind === "wall") { e.a = add(e.a, d); e.b = add(e.b, d); for (const h of m.hosted(id)) m.checkOpeningFits(e, h, h.id); }
     else if (e.boundary) { e.boundary = e.boundary.map((p) => add(p, d)); if (e.at) e.at = add(e.at, d); }
-    else if (e.kind === "mass") { if (e.outline) e.outline = e.outline.map((p) => add(p, d)); if (e.center) e.center = add(e.center, d); if (e.pivot) e.pivot = [e.pivot[0] + d[0], e.pivot[1] + d[1], e.pivot[2]]; }
+    else if (e.kind === "mass") Object.assign(e, transformSpec(geomOf(e), { dx: d[0], dy: d[1] }));
     else if (e.host) { const w = m.el(e.host); const dir = norm(sub(w.b, w.a)); e.offset += d[0] * dir[0] + d[1] * dir[1]; m.checkOpeningFits(w, e, e.id); }
   }
   return { moved: ids };

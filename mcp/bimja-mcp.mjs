@@ -27,6 +27,7 @@ let bus = null, ws = null, tab = null, pending = new Map(), nextId = 1, connectU
 if (HEADLESS) {
   bus = installCore(new Bus());
   for (const r of REGISTRY) if (r.needs === "viewer") bus.register(r.name, () => { throw Object.assign(new Error(`${r.name} needs the browser view; run attached (without --headless) and open the BIMja tab`), { code: "unavailable" }); }, { kind: "read" });
+  try { await (await import("../src/author/kernel.js")).loadKernel(); } catch (e) { log(`geometry kernel unavailable: ${e.message}`); }
   log("headless mode: engine running in Node");
 } else {
   const { WebSocketServer } = await import("ws");

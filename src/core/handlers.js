@@ -10,7 +10,7 @@ import { installCost } from "../cost/commands.js";
 import { installDocs } from "../docs/commands.js";
 import { installSite, siteForIfc } from "../site/commands.js";
 
-const AUTHOR = ["level", "wall", "walls", "door", "window", "floor", "room", "roof", "mass", "revolve", "delete", "move", "set", "type"];
+const AUTHOR = ["level", "wall", "walls", "door", "window", "floor", "room", "roof", "mass", "revolve", "sweep", "boolean", "opening", "array", "family", "place", "delete", "move", "set", "type"];
 
 export function installCore(bus) {
   const m = () => bus.model;

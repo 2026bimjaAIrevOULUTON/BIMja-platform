@@ -84,3 +84,25 @@ export function offsetPolygon(poly, d) {
   }
   return out;
 }
+
+/** Ear clipping for a simple polygon [[x,y],...] -> index triples. */
+export function triangulate(poly) {
+  const n = poly.length; if (n < 3) return [];
+  const idx = [...Array(n).keys()]; if (polygonArea(poly) < 0) idx.reverse();
+  const out = []; const cr = (a, b, c) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+  const inside = (p, a, b, c) => cr(a, b, p) >= -1e-9 && cr(b, c, p) >= -1e-9 && cr(c, a, p) >= -1e-9;
+  let guard = 0;
+  while (idx.length > 3 && guard++ < n * n) {
+    let cut = false;
+    for (let i = 0; i < idx.length; i++) {
+      const i0 = idx[(i + idx.length - 1) % idx.length], i1 = idx[i], i2 = idx[(i + 1) % idx.length];
+      const a = poly[i0], b = poly[i1], c = poly[i2]; if (cr(a, b, c) <= 1e-9) continue;
+      if (idx.some((j) => j !== i0 && j !== i1 && j !== i2 && inside(poly[j], a, b, c))) continue;
+      out.push([i0, i1, i2]); idx.splice(i, 1); cut = true; break;
+    }
+    if (!cut) break; // degenerate: fall back to a fan for the rest
+  }
+  for (let k = 1; k < idx.length - 1; k++) out.push([idx[0], idx[k], idx[k + 1]]);
+  return out;
+}
+

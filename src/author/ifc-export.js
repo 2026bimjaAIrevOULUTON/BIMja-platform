@@ -67,7 +67,7 @@ export function exportIFC(model, { projectName, geo, site } = {}) {
   // materials (shared by name)
   const matRef = {}; const material = (name) => (matRef[name] ||= add(`IFCMATERIAL(${str(name)},$,$)`));
   const assocMat = {}; const associate = (key, matRefId, objs) => { (assocMat[key] ||= { mat: matRefId, objs: [] }).objs.push(...objs); };
-  const psets = []; const pset = (owner, name, props) => psets.push({ owner, name, props });
+  const psets = []; const pset = (owner, name, props) => psets.push({ owner, name, props }); const classRefs = {};
   const qtos = []; const qto = (owner, name, qs) => qtos.push({ owner, name, qs });
   const typeRefs = {}; const typeOf = {}; // kind/name -> ref ; ref -> [objects]
   const typeRef = (kind, name, ifcType, extra = "") => {
@@ -128,6 +128,10 @@ export function exportIFC(model, { projectName, geo, site } = {}) {
     const el = add(`${cls.toUpperCase()}(${g(`el/${e.id}`)},$,${str(e.name || e.id)},$,$,${place(st.pl)},${shape([brep], "Brep")},${str(e.id)},$)`);
     st.contained.push(el);
     if (e.material) associate(`m/${e.material}`, material(e.material), [el]);
+    if (e.family) { const fam = model.data.families?.[e.family] || {}; pset(el, "BIMja_Family", [["Family", `IFCLABEL(${str(e.family)})`], ...Object.entries(fam.parameters || {}).map(([k, v]) => [k, typeof v === "number" ? `IFCREAL(${f(v)})` : `IFCLABEL(${str(String(v))})`])]);
+      for (const [pn, props] of Object.entries(fam.psets || {})) pset(el, pn, Object.entries(props).map(([k, v]) => [k, typeof v === "boolean" ? bool(v) : typeof v === "number" ? `IFCREAL(${f(v)})` : `IFCLABEL(${str(String(v))})`])); }
+    if (e.mark) pset(el, "Pset_BuildingElementProxyCommon", [["Reference", `IFCIDENTIFIER(${str(e.mark)})`]]);
+    if (e.uniclass) (classRefs[e.uniclass.code] ||= { title: e.uniclass.title, objs: [] }).objs.push(el);
     const qn = cls === "IfcBuildingElementProxy" ? "Qto_BuildingElementProxyQuantities" : `Qto_${cls.slice(3)}BaseQuantities`;
     qto(el, qn, [["Height", "LENGTH", m(sol.zmax - sol.zmin)], ["NetSurfaceArea", "AREA", sol.area / 1e6], ["NetVolume", "VOLUME", sol.volume / 1e9]]);
   }
@@ -138,6 +142,8 @@ export function exportIFC(model, { projectName, geo, site } = {}) {
     st.spaces.push(sp);
     qto(sp, "Qto_SpaceBaseQuantities", [["Height", "LENGTH", m(H)], ["NetPerimeter", "LENGTH", P], ["NetFloorArea", "AREA", A], ["GrossFloorArea", "AREA", A], ["NetVolume", "VOLUME", A * m(H)]]);
   }
+  if (Object.keys(classRefs).length) { const cls = add(`IFCCLASSIFICATION('NBS','2015',$,'Uniclass 2015',$,'https://uniclass.thenbs.com',$)`);
+    for (const [code, r] of Object.entries(classRefs)) { const ref = add(`IFCCLASSIFICATIONREFERENCE(${str(`https://uniclass.thenbs.com/taxon/${code.toLowerCase().replace(/_/g, "-")}`)},${str(code)},${str(r.title)},${cls},$,$)`); add(`IFCRELASSOCIATESCLASSIFICATION(${g(`class/${code}`)},$,$,$,(${r.objs.join(",")}),${ref})`); } }
   // terrain: existing and proposed ground as tessellated surfaces (IFC4 IfcTriangulatedFaceSet), on the site
   const siteEls = [];
   for (const [k, T] of [["existing", site?.existing], ["proposed", site?.proposed]]) {

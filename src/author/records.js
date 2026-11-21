@@ -23,6 +23,6 @@ export function authoredRecords(model) {
     { const A = Math.abs(polygonArea(r.boundary)) / 1e6, H = (model.levelAbove(r.level) ? model.levelAbove(r.level).elevation - model.level(r.level).elevation : 3000) / 1000;
       rec(r, "IfcSpace", { name: r.number, longName: r.name, quantities: { Qto_SpaceBaseQuantities: { Height: H, NetFloorArea: A, GrossFloorArea: A, NetPerimeter: polygonPerimeter(r.boundary) / 1000, NetVolume: A * H } } }); }
   for (const e of model.elements.filter((x) => x.kind === "mass")) { const sol = solidOf(e); const cls = e.ifc_class || "IfcBuildingElementProxy";
-    rec(e, cls, { type: null, materials: e.material ? [e.material] : [], psets: {}, quantities: { [cls === "IfcBuildingElementProxy" ? "Qto_BuildingElementProxyQuantities" : `Qto_${cls.slice(3)}BaseQuantities`]: { Height: (sol.zmax - sol.zmin) / 1000, NetSurfaceArea: sol.area / 1e6, NetVolume: sol.volume / 1e9 } } }); }
+    rec(e, cls, { type: e.family ? `Family: ${e.family}` : null, materials: e.material ? [e.material] : [], psets: e.family ? { BIMja_Family: { Family: e.family, ...(model.data.families?.[e.family]?.parameters || {}) }, ...(model.data.families?.[e.family]?.psets || {}) } : {}, quantities: { [cls === "IfcBuildingElementProxy" ? "Qto_BuildingElementProxyQuantities" : `Qto_${cls.slice(3)}BaseQuantities`]: { Height: (sol.zmax - sol.zmin) / 1000, NetSurfaceArea: sol.area / 1e6, NetVolume: sol.volume / 1e9 } } }); }
   return recs;
 }

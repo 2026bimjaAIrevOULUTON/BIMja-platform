@@ -18,6 +18,7 @@ import { initPlan } from "./app/plan.js";
 import { exportIFC } from "./author/ifc-export.js";
 import { authoredRecords } from "./author/records.js";
 import { installCoordination } from "./app/coord-ui.js";
+import("./author/kernel.js").then((k) => k.loadKernel()).catch((e) => console.warn("geometry kernel unavailable:", e.message)); // booleans/arches; lazy, off the first paint
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));

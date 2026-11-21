@@ -79,6 +79,94 @@ function finish(verts, faces) {
   return { verts, faces, volume: vol, area, zmin, zmax };
 }
 
-export const solidOf = (e) => (e.kind === "mass" ? (e.shape === "revolve" ? revolveSolid(e) : massSolid(e)) : null);
+export const solidOf = (e) => (e.kind === "mass" ? specSolid(e) : null);
+
+// ---------- more solids: box, sweep, opening (arched), csg (kernel booleans), group (families) ----------
+import { triangulate } from "./geom.js";
+import { needKernel, toManifold, fromManifold } from "./kernel.js";
+
+export function specSolid(sp) {
+  switch (sp.shape || "extrude") {
+    case "extrude": return massSolid(sp);
+    case "revolve": return revolveSolid(sp);
+    case "box": return massSolid({ outline: [[sp.min[0], sp.min[1]], [sp.max[0], sp.min[1]], [sp.max[0], sp.max[1]], [sp.min[0], sp.max[1]]], base: sp.min[2], height: sp.max[2] - sp.min[2] });
+    case "sweep": return sweepSolid(sp);
+    case "opening": return openingSolid(sp);
+    case "csg": return csgSolid(sp);
+    case "group": return groupSolid(sp);
+    default: throw Object.assign(new Error(`unknown shape ${sp.shape}`), { code: "bad_arg" });
+  }
+}
+
+/** Profile [[u, v], ...] (mm, CCW) swept along path [[x, y, z], ...] with mitred corners; closed paths make rings. */
+export function sweepSolid(sp) {
+  const path = sp.path.map((p) => [p[0], p[1], (p[2] || 0) + (sp.base || 0)]); const closed = !!sp.closed; const prof = sp.profile; const n = path.length, m = prof.length;
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], mul = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
+  const nrm = (a) => { const l = Math.hypot(...a) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+  const crs = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], dt = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const seg = (i) => nrm(sub(path[(i + 1) % n], path[i]));
+  const frame = (t) => { const up = Math.abs(t[2]) > 0.95 ? [1, 0, 0] : [0, 0, 1]; const side = nrm(crs(t, up)); return { side, up: crs(side, t) }; };
+  const rings = [];
+  for (let i = 0; i < n; i++) {
+    const tin = i > 0 || closed ? seg((i - 1 + n) % n) : seg(0), tout = i < n - 1 || closed ? seg(i) : seg(n - 2);
+    const f = frame(tin); const nb = nrm(add(tin, tout)); const ring = [];
+    for (const [u, v] of prof) { const Q = add(path[i], add(mul(f.side, u), mul(f.up, v))); const den = dt(tin, nb) || 1; const s0 = -dt(sub(Q, path[i]), nb) / den; ring.push(add(Q, mul(tin, s0))); }
+    rings.push(ring);
+  }
+  const verts = rings.flat(), faces = []; const segs = closed ? n : n - 1;
+  for (let i = 0; i < segs; i++) for (let k = 0; k < m; k++) { const a = i * m + k, b = i * m + ((k + 1) % m), c = ((i + 1) % n) * m + ((k + 1) % m), d = ((i + 1) % n) * m + k; faces.push([a, b, c], [a, c, d]); }
+  if (!closed) { faces.push([...Array(m).keys()].reverse()); faces.push([...Array(m).keys()].map((k) => (n - 1) * m + k)); }
+  return finish(verts, faces);
+}
+
+/** Arch outline in (u, v): width w, total height h, kinds rect | semi | segmental | pointed | mughal. */
+export function archOutline(w, h, kind = "semi", seg = 10) {
+  const half = w / 2; let rise = kind === "rect" ? 0 : kind === "semi" ? half : kind === "segmental" ? w * 0.2 : kind === "pointed" ? w * 0.866 : w * 0.62;
+  rise = Math.min(rise, h * 0.9); const s = h - rise; const pts = [[-half, 0], [half, 0], [half, s]];
+  if (kind === "rect" || rise <= 0) pts.push([-half, h]);
+  if (kind === "semi" || kind === "segmental") { const r = kind === "semi" ? half : (rise * rise + half * half) / (2 * rise), cy = s + rise - r; const a0 = Math.atan2(s - cy, half), a1 = Math.PI - a0;
+    for (let i = 1; i < seg * 2; i++) { const a = a0 + ((a1 - a0) * i) / (seg * 2); pts.push([r * Math.cos(a), cy + r * Math.sin(a)]); } }
+  if (kind === "pointed" || kind === "mughal") { const r = (rise * rise + half * half) / (2 * half); // two arcs, centres on the springing line
+    const cR = [half - r, s], cL = [-half + r, s]; const aR0 = 0, aR1 = Math.acos(Math.min(1, (0 - cR[0]) / r));
+    for (let i = 1; i <= seg; i++) { const a = aR0 + ((aR1 - aR0) * i) / seg; pts.push([cR[0] + r * Math.cos(a), s + r * Math.sin(a)]); }
+    for (let i = seg - 1; i >= 1; i--) { const a = aR0 + ((aR1 - aR0) * i) / seg; pts.push([cL[0] - r * Math.cos(a), s + r * Math.sin(a)]); } }
+  pts.push([-half, s]);
+  return pts;
+}
+/** A prism with an arch outline, standing at `at` (x, y, z) along a wall direction, `depth` thick (centred). */
+export function openingSolid(sp) {
+  const o = archOutline(sp.width, sp.height, sp.arch || "semi"); const a = ((sp.dir_deg || 0) * Math.PI) / 180; const d = [Math.cos(a), Math.sin(a)], nrm = [-d[1], d[0]]; const [x, y, z] = sp.at; const t = sp.depth / 2;
+  const ring = (k) => o.map(([u, v]) => [x + u * d[0] + nrm[0] * k, y + u * d[1] + nrm[1] * k, z + v + (sp.base || 0)]);
+  const verts = [...ring(-t), ...ring(t)], m = o.length, faces = [[...Array(m).keys()], [...Array(m).keys()].map((k) => m + k).reverse()];
+  for (let k = 0; k < m; k++) { const k2 = (k + 1) % m; faces.push([k, m + k, m + k2, k2]); }
+  return finish(verts, faces);
+}
+const CSG = new Map();
+export function csgSolid(sp) {
+  const key = JSON.stringify([sp.op, sp.a, sp.tools]); if (CSG.has(key)) return CSG.get(key);
+  const K = needKernel(); let m = toManifold(specSolid(sp.a), triangulate);
+  for (const t of sp.tools || []) { const tm = toManifold(specSolid(t), triangulate); m = sp.op === "union" ? m.add(tm) : sp.op === "intersect" ? m.intersect(tm) : m.subtract(tm); }
+  const r = fromManifold(m); void K; const out = finish(r.verts, r.faces); if (CSG.size > 500) CSG.clear(); CSG.set(key, out); return out;
+}
+export function groupSolid(sp) {
+  const verts = [], faces = [];
+  for (const part of sp.parts || []) { const s = specSolid(part); const o = verts.length; verts.push(...s.verts); for (const f of s.faces) faces.push(f.map((i) => i + o)); }
+  return finish(verts, faces);
+}
+
+/** Move/rotate a geometry spec (for arrays, family placement). rot_deg turns about [cx, cy] in plan. */
+export function transformSpec(sp, { dx = 0, dy = 0, dz = 0, rot_deg = 0, cx = 0, cy = 0 } = {}) {
+  const a = (rot_deg * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a);
+  const P = (p) => { const x = p[0] - cx, y = p[1] - cy; return [Math.round((cx + x * c - y * s + dx) * 1000) / 1000, Math.round((cy + x * s + y * c + dy) * 1000) / 1000, ...(p.length > 2 ? [p[2] + dz] : [])]; };
+  const V = (v) => [v[0] * c - v[1] * s, v[0] * s + v[1] * c];
+  const o = { ...sp };
+  if (o.shape === "box") { if (rot_deg) { o.shape = "extrude"; o.outline = [[o.min[0], o.min[1]], [o.max[0], o.min[1]], [o.max[0], o.max[1]], [o.min[0], o.max[1]]].map(P); o.base = o.min[2] + dz; o.height = o.max[2] - o.min[2]; delete o.min; delete o.max; return o; }
+    o.min = [o.min[0] + dx, o.min[1] + dy, o.min[2] + dz]; o.max = [o.max[0] + dx, o.max[1] + dy, o.max[2] + dz]; return o; }
+  if (o.outline) o.outline = o.outline.map(P); if (o.center) o.center = P(o.center); if (o.path) o.path = o.path.map((p) => P([p[0], p[1], p[2] || 0])); if (o.at) o.at = P(o.at);
+  if (o.pivot) o.pivot = P(o.pivot); if (o.top_shift) o.top_shift = V(o.top_shift); if (o.dir_deg != null || o.shape === "opening") o.dir_deg = (o.dir_deg || 0) + rot_deg; if (o.lean_dir_deg != null) o.lean_dir_deg += rot_deg;
+  if (["extrude", "revolve", "sweep"].includes(o.shape || "extrude") && !o.at) o.base = (o.base || 0) + (o.path ? 0 : dz);
+  if (o.a) o.a = transformSpec(o.a, { dx, dy, dz, rot_deg, cx, cy }); if (o.tools) o.tools = o.tools.map((t) => transformSpec(t, { dx, dy, dz, rot_deg, cx, cy })); if (o.parts) o.parts = o.parts.map((t) => transformSpec(t, { dx, dy, dz, rot_deg, cx, cy }));
+  return o;
+}
 
 export const MASS_CLASSES = ["IfcBuildingElementProxy", "IfcColumn", "IfcBeam", "IfcMember", "IfcSlab", "IfcRoof", "IfcWall", "IfcPlate", "IfcFooting", "IfcCovering", "IfcRailing", "IfcStair"];
