@@ -150,7 +150,8 @@ export class Viewer {
     let r = b.getSize(new THREE.Vector3()).length() / 2 || 1;
     if (ids && this.modelBox) r = Math.max(r, this.modelBox.getSize(new THREE.Vector3()).length() * 0.18); // keep context around small elements
     this.controls.target.copy(c);
-    this.camera.position.copy(c).add(new THREE.Vector3(1, 0.75, 1.1).normalize().multiplyScalar(r * 2.2));
+    const half = Math.min(this.camera.fov, 2 * Math.atan(Math.tan((this.camera.fov * Math.PI) / 360) * this.camera.aspect) * 180 / Math.PI) * Math.PI / 360;
+    this.camera.position.copy(c).add(new THREE.Vector3(1, 0.75, 1.1).normalize().multiplyScalar(Math.max(r * 2.2, (r / Math.sin(half)) * 1.05))); // whole bounding sphere in view, also on narrow screens
     this.camera.near = r / 100; this.camera.far = r * 50; this.camera.updateProjectionMatrix();
     if (!ids) { this.grid.position.set(c.x, b.min.y - 0.01, c.z); this.modelBox = b; }
   }

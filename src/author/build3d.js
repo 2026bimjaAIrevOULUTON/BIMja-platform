@@ -1,6 +1,7 @@
 // Authored model -> three.js meshes. Plan (x, y) in mm maps to three (x, -z) in metres, up is +y.
 import * as THREE from "three";
 import { dist, norm, sub, add, mul, perp } from "./geom.js";
+import { solidOf } from "./solids.js";
 
 const M = 1 / 1000;
 const COLORS = { wall: 0xd9dde3, wallInt: 0xc9ced6, door: 0x9a6b3f, window: 0x7cc4ff, floor: 0xb9bec7, roof: 0x8c939e, room: 0x5adcff };
@@ -62,6 +63,22 @@ export function buildAuthored(model) {
   for (const r of model.elements.filter((e) => e.kind === "room")) {
     const z = elev(r.level) + 5; const m = slab(r.boundary, z, z + 10, mat("room", COLORS.room, { transparent: true, opacity: 0.18, depthWrite: false }), { authoredId: r.id, kind: "room", isSpace: true });
     m.visible = false; group.add(m);
+  }
+  const MASS_COLORS = { Glass: 0x9fc6dc, Marble: 0xf1ede4, Stone: 0xb8ab94, Concrete: 0xc4c2bc, Steel: 0x9aa0a8, Brick: 0xb0715a, Timber: 0xa77a4f };
+  for (const e of model.elements.filter((x) => x.kind === "mass")) {
+    const sol = solidOf(e); const z = elev(e.level); const pos = [];
+    for (const f of sol.faces) {
+      // fan-triangulate planar faces (caps may be concave: use three's triangulator for those)
+      if (f.length > 4) { const pts = f.map((i) => sol.verts[i]); const nz = Math.sign(pts.reduce((acc, p, i) => { const q = pts[(i + 1) % pts.length]; return acc + (p[0] * q[1] - q[0] * p[1]); }, 0)) || 1;
+        const tris = THREE.ShapeUtils.triangulateShape(pts.map((p) => new THREE.Vector2(p[0], p[1])), []);
+        for (const t of tris) { const o = nz > 0 ? t : [t[0], t[2], t[1]]; for (const k of o) { const v = pts[k]; pos.push(v[0] * M, (v[2] + z) * M, -v[1] * M); } } continue; }
+      for (let i = 1; i < f.length - 1; i++) for (const k of [f[0], f[i], f[i + 1]]) { const v = sol.verts[k]; pos.push(v[0] * M, (v[2] + z) * M, -v[1] * M); }
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals();
+    const color = e.color ? parseInt(e.color.slice(1), 16) : MASS_COLORS[e.material] ?? 0xd9dde3;
+    const glassy = e.material === "Glass";
+    const mesh = new THREE.Mesh(g, mat(`mass/${color}/${glassy}`, color, glassy ? { transparent: true, opacity: 0.8, roughness: 0.25, metalness: 0.1 } : { flatShading: e.shape !== "revolve" }));
+    mesh.userData = { authoredId: e.id, kind: "mass" }; group.add(mesh);
   }
   group.children = group.children.filter(Boolean);
   for (const c of group.children) { c.userData.baseMat = c.material; c.userData.expressID = c.userData.authoredId; c.userData.ifcClass = c.userData.kind; }

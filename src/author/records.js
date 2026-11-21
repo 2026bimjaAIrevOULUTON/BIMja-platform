@@ -2,6 +2,7 @@
 // can run on the model before export. The round-trip gate compares this with the exported, re-opened IFC.
 import { ifcGuid } from "./ifc-export.js";
 import { dist, polygonArea, polygonPerimeter } from "./geom.js";
+import { solidOf } from "./solids.js";
 export function authoredRecords(model) {
   const pid = model.data.name || "BIMja project"; const recs = new Map(); const lv = (id) => model.level(id).name;
   const rec = (e, ifcClass, extra) => recs.set(e.id, { id: e.id, ifcClass, globalId: ifcGuid(`${pid}/el/${e.id}`), name: e.name || e.mark || e.id, objectType: "", longName: "", storey: lv(e.level), type: null, materials: [], psets: {}, quantities: {}, isPart: false, ...extra });
@@ -21,5 +22,7 @@ export function authoredRecords(model) {
   for (const r of model.elements.filter((e) => e.kind === "room"))
     { const A = Math.abs(polygonArea(r.boundary)) / 1e6, H = (model.levelAbove(r.level) ? model.levelAbove(r.level).elevation - model.level(r.level).elevation : 3000) / 1000;
       rec(r, "IfcSpace", { name: r.number, longName: r.name, quantities: { Qto_SpaceBaseQuantities: { Height: H, NetFloorArea: A, GrossFloorArea: A, NetPerimeter: polygonPerimeter(r.boundary) / 1000, NetVolume: A * H } } }); }
+  for (const e of model.elements.filter((x) => x.kind === "mass")) { const sol = solidOf(e); const cls = e.ifc_class || "IfcBuildingElementProxy";
+    rec(e, cls, { type: null, materials: e.material ? [e.material] : [], psets: {}, quantities: { [cls === "IfcBuildingElementProxy" ? "Qto_BuildingElementProxyQuantities" : `Qto_${cls.slice(3)}BaseQuantities`]: { Height: (sol.zmax - sol.zmin) / 1000, NetSurfaceArea: sol.area / 1e6, NetVolume: sol.volume / 1e9 } } }); }
   return recs;
 }

@@ -7,13 +7,14 @@ BIMja is a static web app for open BIM: model, coordinate, schedule (4D), cost (
 | Area | What works | Checked against |
 |---|---|---|
 | Model | Open IFC, 3D view, storey/class tree, properties, x-ray, section, PNG, first-person walkthrough | |
-| Create | Levels, walls (butt joins), doors, windows, floors, roofs, rooms; plan drawing tools; schedules; IFC4 and GLB export | IFC round-trip gate; IfcOpenShell validation |
+| Create | Levels, walls (butt joins), doors, windows, floors, roofs, rooms, free-form masses (taper, setback, twist, lean) and revolved solids (domes, minarets); plan drawing tools; schedules; IFC4 and GLB export | IFC round-trip gate; IfcOpenShell validation and geometry build |
+| Landmark samples | Pisa, Taj Mahal, Fallingwater, Burj Khalifa, Vitra Fire Station: simplified massing studies built only from commands, credited to their architects | Valid IFC, key dimensions asserted |
 | Handover check | 9 rules, score, issues, HTML report | Same score after export → reopen |
 | Coordination | Federate models, clash (hard/soft, worker), issues, viewpoints, BCF 2.1 in/out | IfcOpenShell clash; BCF XSD |
 | 4D | Activities, link by element or rule, P6 XML + MS Project XML import, auto sequence, timeline, play, Gantt | ifc4d task counts |
 | 5D | Unit rates on quantities, estimate + CSV, asset register, COBie 2.4 .xlsx | ifc5d quantities (0.5%); COBie structure check |
 | Geo + twin | EPSG CRS, IfcMapConversion, basemap/GeoJSON overlays; sensors bound to GlobalIds, simulated/WebSocket/MQTT feeds, alerts that select the element, history kept in IndexedDB | PROJ (pyproj) within 0.74 mm; real MQTT broker |
-| Agents | 64 commands with args, refusals and UI paths; log, undo, replay, attribution, stale-rev, locks, pause | Parity test |
+| Agents | 66 commands with args, refusals and UI paths; log, undo, replay, attribution, stale-rev, locks, pause | Parity test |
 
 ## Run locally
 ```bash

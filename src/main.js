@@ -3,6 +3,7 @@ import { readIfcGeoref } from "./geo/geo.js";
 import { installGeoTwin } from "./app/geotwin-ui.js";
 import { installTime } from "./app/time-ui.js";
 import { installCostUI } from "./app/cost-ui.js";
+import { landmarkProject } from "./app/landmarks.js";
 import { DEFAULT_RULES, runCheck, quantities, toCSV } from "./rules.js";
 import { Viewer } from "./viewer.js";
 import { REGISTRY } from "./commands/registry.js";
@@ -203,7 +204,21 @@ $("#tabs").addEventListener("click", (e) => { const b = e.target.closest("button
   document.querySelectorAll("#tabs button").forEach((x) => { x.classList.toggle("on", x === b); x.setAttribute("aria-current", x === b ? "page" : "false"); });
   document.querySelectorAll(".pane").forEach((p) => p.classList.toggle("on", p.dataset.pane === b.dataset.tab)); });
 $("#file").onchange = async (e) => { const f = e.target.files[0]; if (f) await loadBytes(await f.arrayBuffer(), f.name); e.target.value = ""; };
-$("#sample").onchange = (e) => e.target.value && loadUrl(BASE + e.target.value);
+async function buildLandmark(id) {
+  const lp = landmarkProject(id); if (!lp) return;
+  if (state.model) { viewer.clear(); state.model = null; state.selected = null; $("#meta").textContent = "No model loaded."; $("#tree").innerHTML = ""; $("#props").hidden = true; }
+  await run("load_project", { project: lp.project });
+  const r = await run("script", { commands: lp.landmark.commands });
+  if (!r.ok) return toast(`Could not build ${lp.landmark.name}: ${r.refusals?.[0]?.message || "error"}`);
+  $("#welcome").hidden = true; refreshAuthored(); viewer.fit(); setTimeout(() => viewer.fit(), 150);
+  const counts = {}; for (const e of Object.values(bus.model.data.elements)) counts[e.ifc_class || e.kind] = (counts[e.ifc_class || e.kind] || 0) + 1;
+  $("#meta").innerHTML = `<b>${esc(lp.landmark.name)}</b> · authored · ${Object.keys(bus.model.data.elements).length} elements<br>${Object.entries(counts).map(([k, v]) => `${esc(k)} ${v}`).join(" · ")}<br><span class="note">Export IFC4 or GLB from Create; run Check, 4D or 5D on it like any model.</span>`;
+  $("#credit").innerHTML = `<b>${esc(lp.landmark.name)}</b>${esc(lp.landmark.credit)} Built from ${lp.landmark.commands.length} BIMja commands.`; $("#credit").hidden = false;
+  toast(`${lp.landmark.name}: ${lp.landmark.commands.length} commands, one undo step`);
+}
+$("#sample").onchange = (e) => { const v = e.target.value; e.target.value = ""; if (!v) return; if (v.startsWith("landmark:")) buildLandmark(v.slice(9)); else { $("#credit").hidden = true; loadUrl(BASE + v); } };
+document.querySelectorAll("[data-landmark]").forEach((b) => (b.onclick = () => buildLandmark(b.dataset.landmark)));
+window.__bimjaBuildLandmark = buildLandmark;
 document.querySelectorAll("[data-sample]").forEach((b) => (b.onclick = () => loadUrl(BASE + b.dataset.sample)));
 let dragDepth = 0;
 addEventListener("dragenter", (e) => { e.preventDefault(); dragDepth++; $("#drop").hidden = false; });

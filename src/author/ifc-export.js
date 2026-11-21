@@ -3,6 +3,7 @@
 // windows), slabs (floor/roof), spaces, storeys, types, materials, Pset_*Common and Qto_*BaseQuantities,
 // and the georeference (IfcMapConversion + IfcProjectedCRS) when the project has a CRS.
 import { dist, norm, sub, polygonArea, polygonPerimeter } from "./geom.js";
+import { solidOf } from "./solids.js";
 
 const B64 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_$";
 function hash128(s) { // four FNV-1a variants -> 16 bytes
@@ -28,7 +29,7 @@ export function exportIFC(model, { projectName, geo } = {}) {
   const ctx = add(`IFCGEOMETRICREPRESENTATIONCONTEXT($,'Model',3,1.E-05,${wcs},$)`);
   const body = add(`IFCGEOMETRICREPRESENTATIONSUBCONTEXT('Body','Model',*,*,*,*,${ctx},$,.MODEL_VIEW.,$)`);
   const units = add(`IFCUNITASSIGNMENT((${add("IFCSIUNIT(*,.LENGTHUNIT.,$,.METRE.)")},${add("IFCSIUNIT(*,.AREAUNIT.,$,.SQUARE_METRE.)")},${add("IFCSIUNIT(*,.VOLUMEUNIT.,$,.CUBIC_METRE.)")},${add("IFCSIUNIT(*,.PLANEANGLEUNIT.,$,.RADIAN.)")}))`);
-  const project = add(`IFCPROJECT(${g("project")},$,${str(projectName || pid)},$,$,$,$,(${ctx}),${units})`);
+  const project = add(`IFCPROJECT(${g("project")},$,${str(projectName || pid)},${str(model.data.description || null)},$,$,$,(${ctx}),${units})`);
   if (geo?.crs) {
     const crs = add(`IFCPROJECTEDCRS(${str(geo.crs)},${str(geo.description || null)},$,$,$,$,$)`);
     const a = geo.anchor || {}; const rot = ((a.rotation_deg || 0) * Math.PI) / 180;
@@ -117,6 +118,18 @@ export function exportIFC(model, { projectName, geo } = {}) {
     pset(slab, "Pset_SlabCommon", [["Reference", `IFCIDENTIFIER(${str(s.type)})`], ["IsExternal", bool(s.kind === "roof")], ["LoadBearing", bool(true)]]);
     qto(slab, "Qto_SlabBaseQuantities", [["Width", "LENGTH", m(t.thickness)], ["Perimeter", "LENGTH", P], ["NetArea", "AREA", A], ["NetVolume", "VOLUME", A * m(t.thickness)]]);
   }
+  for (const e of model.elements.filter((x) => x.kind === "mass")) { // free-form solids -> IfcFacetedBrep
+    const st = storeys[e.level]; const sol = solidOf(e);
+    const pts = sol.verts.map((v) => add(`IFCCARTESIANPOINT((${f(m(v[0]))},${f(m(v[1]))},${f(m(v[2]))}))`));
+    const fcs = sol.faces.map((fc) => add(`IFCFACE((${add(`IFCFACEOUTERBOUND(${add(`IFCPOLYLOOP((${fc.map((i) => pts[i]).join(",")}))`)},.T.)`)}))`));
+    const brep = add(`IFCFACETEDBREP(${add(`IFCCLOSEDSHELL((${fcs.join(",")}))`)})`);
+    const cls = e.ifc_class || "IfcBuildingElementProxy";
+    const el = add(`${cls.toUpperCase()}(${g(`el/${e.id}`)},$,${str(e.name || e.id)},$,$,${place(st.pl)},${shape([brep], "Brep")},${str(e.id)},$)`);
+    st.contained.push(el);
+    if (e.material) associate(`m/${e.material}`, material(e.material), [el]);
+    const qn = cls === "IfcBuildingElementProxy" ? "Qto_BuildingElementProxyQuantities" : `Qto_${cls.slice(3)}BaseQuantities`;
+    qto(el, qn, [["Height", "LENGTH", m(sol.zmax - sol.zmin)], ["NetSurfaceArea", "AREA", sol.area / 1e6], ["NetVolume", "VOLUME", sol.volume / 1e9]]);
+  }
   for (const r of model.elements.filter((e) => e.kind === "room")) {
     const st = storeys[r.level]; const up = model.levelAbove(r.level); const H = up ? up.elevation - model.level(r.level).elevation : 3000;
     const A = Math.abs(polygonArea(r.boundary)) / 1e6, P = polygonPerimeter(r.boundary) / 1000;
@@ -151,4 +164,5 @@ export const EXPORT_LOSSES = [
   "Roof overhang is drawn in 3D but the IFC roof slab follows the wall outline.",
   "Wall joins are written as overlapping extrusions at corners (no IfcRelConnectsPathElements yet).",
   "Wall layers are written as a material layer set on the wall type (no per-layer geometry).",
+  "Masses and revolved solids are written as faceted B-reps (IfcFacetedBrep), so curved surfaces are faceted; their colour is not written.",
 ];

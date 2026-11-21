@@ -1,5 +1,33 @@
 # Status
 
+## 2026-11-21: Free-form modelling (mass, revolve) and five landmark massing studies
+
+**What moved**
+- **`mass`:** extrude any outline. It can taper (top_scale), shift (setbacks, cantilevers), twist, and lean about a pivot.
+- **`revolve`:** sweep an [r, z] profile around a centre to make domes, onion domes, minarets, drums and round columns.
+- Both are agent commands like any other: they appear in the palette, `window.bimja` and MCP, and in the Create toolbar.
+- **One solid serves everything:** a single polyhedral solid feeds the 3D view, the IFC export (IfcFacetedBrep with any IFC class) and the quantities (exact volume, surface area and height in Qto sets). The three always agree.
+- **Landmark samples:** built only from commands, one undo step each, credited to their architects, with the credit written into the IFC project description:
+  - Leaning Tower of Pisa: 223 commands, 3.97° lean.
+  - Taj Mahal: 73 commands, 72.8 m.
+  - Fallingwater: 27 commands, cantilevered terraces.
+  - Burj Khalifa: 30 commands, Y-plan with 27 setbacks, 828 m.
+  - Vitra Fire Station: 9 commands, leaning planes and a knife-edge canopy.
+  
+  They are in Samples and on the welcome card. All are simplified massing studies, not affiliated with the owners.
+- Camera fit now keeps the whole model in view, including tall towers and narrow screens.
+
+**Gates**
+- Volumes are exact on reference shapes: a box comes out at 6.000 m³, and a 96-segment cylinder within 0.1% of π.
+- All five landmark IFCs are schema-valid (0 issues), and every element's geometry builds in IfcOpenShell (362/362). Exports are deterministic. Key dimensions are asserted: Burj 828 m, Taj 70–76 m, and Pisa's belfry offset matches 3.97°.
+- All earlier gates, the parity check (66 commands) and the browser QA pass. Budget: 221 KB of 600 KB.
+
+**Known limits**
+- No openings or booleans inside masses yet; the arcades are columns, not cut arches.
+- No curved walls (approximate them with segments or a revolve).
+- Masses carry no type, so the handover check flags "type" on them.
+- Landmark colours are display-only (not written to IFC).
+
 ## 2026-11-21: M8 (late items). Walkthrough, twin history and MQTT done; NWD cut
 
 **What moved**

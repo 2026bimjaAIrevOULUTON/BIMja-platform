@@ -1,6 +1,8 @@
-// BIMja authoring model: levels, types, walls (chains, joins), hosted doors/windows, floors, roofs, rooms.
+// BIMja authoring model: levels, types, walls (chains, joins), hosted doors/windows, floors, roofs, rooms, and
+// free-form solids (mass: extrude with taper/shift/twist/lean; revolve: domes, minarets, columns).
 // Every change is a JSON command, so people (UI) and agents (window.bimja / MCP) drive the same code.
 // Units: millimetres in plan and height. Commands refuse invalid input and change nothing.
+import { solidOf, MASS_CLASSES } from "./solids.js";
 import { add, dist, mul, norm, perp, sub, near, polygonArea, polygonPerimeter, pointInPolygon, projectToSegment, planarFaces } from "./geom.js";
 
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -209,6 +211,32 @@ def("room", "Add a room: {name, number?, at:[x,y] (inside walls) | boundary, lev
   const id = m.newId("S"); m.data.elements[id] = { id, kind: "room", level, boundary, name: String(c.name || `Room ${n}`), number: String(c.number || n), at: c.at || centroid(boundary) };
   return { id, area_m2: +(Math.abs(polygonArea(boundary)) / 1e6).toFixed(2) };
 });
+const massCommon = (m, c, e) => {
+  e.level = m.level(c.level || m.defaultLevel()).id;
+  e.base = num(c.base ?? 0, "base");
+  e.ifc_class = c.ifc_class || "IfcBuildingElementProxy"; if (!MASS_CLASSES.includes(e.ifc_class)) fail(`ifc_class must be one of ${MASS_CLASSES.join(", ")}`);
+  if (c.material != null) e.material = String(c.material).slice(0, 80);
+  if (c.color != null) { if (!/^#[0-9a-f]{6}$/i.test(c.color)) fail("color must be #rrggbb"); e.color = c.color.toLowerCase(); }
+  if (c.lean_deg) { e.lean_deg = num(c.lean_deg, "lean_deg", { min: -45, max: 45 }); e.lean_dir_deg = num(c.lean_dir_deg ?? 0, "lean_dir_deg"); }
+  if (c.pivot) { if (!Array.isArray(c.pivot) || c.pivot.length !== 3) fail("pivot must be [x, y, z] in mm"); e.pivot = c.pivot.map((v, i) => num(v, `pivot[${i}]`)); }
+  if (c.segments != null) e.segments = Math.round(num(c.segments, "segments", { min: 1, max: 96 }));
+  const sol = solidOf(e); if (!(sol.volume > 1)) fail("the solid has no volume: check the outline/profile");
+  const id = m.newId("M"); e.id = id; e.name = String(c.name || `${e.ifc_class.replace(/^Ifc/, "")} ${id}`); m.data.elements[id] = e;
+  return { id, volume_m3: +(sol.volume / 1e9).toFixed(3), height_m: +((sol.zmax - sol.zmin) / 1000).toFixed(3) };
+};
+def("mass", "Add a free-form solid by extruding an outline: {outline:[[x,y],...], height, level?, base?, top_scale?, top_shift?:[dx,dy], twist_deg?, segments?, lean_deg?, lean_dir_deg?, pivot?:[x,y,z], ifc_class?, material?, color?:#rrggbb, name?}", (m, c) => {
+  const e = { kind: "mass", shape: "extrude", outline: poly(c.outline, "outline"), height: num(c.height, "height", { min: 10, max: 1e6 }) };
+  if (Math.abs(polygonArea(e.outline)) < 100) fail("outline area is too small");
+  if (c.top_scale != null) e.top_scale = num(c.top_scale, "top_scale", { min: 0.01, max: 10 });
+  if (c.top_shift) e.top_shift = pt(c.top_shift, "top_shift");
+  if (c.twist_deg) e.twist_deg = num(c.twist_deg, "twist_deg", { min: -720, max: 720 });
+  return massCommon(m, c, e);
+});
+def("revolve", "Add a solid of revolution (dome, minaret, column, drum): {center:[x,y], profile:[[r,z],...] (closed back to the first point; r=0 on the axis), level?, base?, segments?, lean_deg?, lean_dir_deg?, pivot?, ifc_class?, material?, color?, name?}", (m, c) => {
+  const prof = c.profile; if (!Array.isArray(prof) || prof.length < 3) fail("profile needs at least 3 [r, z] points");
+  const e = { kind: "mass", shape: "revolve", center: pt(c.center, "center"), profile: prof.map((q, i) => { const [r, z] = pt(q, `profile[${i}]`); if (r < 0) fail("profile radius must be ≥ 0"); return [r, z]; }) };
+  return massCommon(m, c, e);
+});
 export function centroid(p) { let x = 0, y = 0; p.forEach((q) => { x += q[0]; y += q[1]; }); return [x / p.length, y / p.length]; }
 def("delete", "Delete elements: {ids:[...]} (a wall takes its doors and windows)", (m, c) => {
   const ids = c.ids || [c.id]; const gone = [];
@@ -221,12 +249,13 @@ def("move", "Move elements: {ids:[...], by:[dx,dy]} (doors and windows slide alo
     const e = m.el(id);
     if (e.kind === "wall") { e.a = add(e.a, d); e.b = add(e.b, d); for (const h of m.hosted(id)) m.checkOpeningFits(e, h, h.id); }
     else if (e.boundary) { e.boundary = e.boundary.map((p) => add(p, d)); if (e.at) e.at = add(e.at, d); }
+    else if (e.kind === "mass") { if (e.outline) e.outline = e.outline.map((p) => add(p, d)); if (e.center) e.center = add(e.center, d); if (e.pivot) e.pivot = [e.pivot[0] + d[0], e.pivot[1] + d[1], e.pivot[2]]; }
     else if (e.host) { const w = m.el(e.host); const dir = norm(sub(w.b, w.a)); e.offset += d[0] * dir[0] + d[1] * dir[1]; m.checkOpeningFits(w, e, e.id); }
   }
   return { moved: ids };
 });
 def("set", "Change fields: {id, type?, name?, height?, offset?, sill?, mark?, level?}", (m, c) => {
-  const e = m.el(c.id); const allowed = ["type", "name", "height", "offset", "sill", "mark", "number", "level"];
+  const e = m.el(c.id); const allowed = ["type", "name", "height", "offset", "sill", "mark", "number", "level", "material", "color"];
   for (const k of Object.keys(c)) if (!["cmd", "id"].includes(k) && !allowed.includes(k)) fail(`cannot set ${k}`);
   if (c.type) m.type(e.kind === "room" ? fail("rooms have no type") : e.kind, c.type);
   if (c.level) c.level = m.level(c.level).id;
