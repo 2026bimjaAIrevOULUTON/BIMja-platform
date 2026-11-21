@@ -5,6 +5,8 @@ import { installTime } from "./app/time-ui.js";
 import { installCostUI } from "./app/cost-ui.js";
 import { landmarkProject } from "./app/landmarks.js";
 import { installDocsUI } from "./app/docs-ui.js";
+import { siteForIfc } from "./site/commands.js";
+import { installSiteUI } from "./app/site-ui.js";
 import { DEFAULT_RULES, runCheck, quantities, toCSV } from "./rules.js";
 import { Viewer } from "./viewer.js";
 import { REGISTRY } from "./commands/registry.js";
@@ -244,7 +246,7 @@ bus.register("check_handover", (a) => {
   const res = runCheck(els, a.rules || DEFAULT_RULES); if (!authoredOnly) { state.check = res; renderCheck(); } else renderAuthoredCheck(res); return res;
 }, { kind: "read" });
 bus.register("export_ifc", () => {
-  if (Object.keys(bus.model.data.elements).length || !state.model) return exportIFC(bus.model, { geo: bus.extra.geo });
+  if (Object.keys(bus.model.data.elements).length || !state.model) return exportIFC(bus.model, { geo: bus.extra.geo, site: siteForIfc(bus) });
   return new TextDecoder().decode(state.api.SaveModel(state.model.modelID)); // re-save the open IFC unchanged
 }, { kind: "read" });
 bus.register("export_gltf", async () => {
@@ -326,6 +328,7 @@ viewer.onWalk = (on) => { $("#walkBtn").classList.toggle("on", on); $("#walkBtn"
 $("#walkBtn").onclick = () => run("walkthrough", { on: !viewer.walk });
 
 installDocsUI({ bus, run, toast, download, downloadBlob });
+const siteUI = installSiteUI({ bus, viewer, run, toast, BASE });
 // window.bimja: one function per registered command (same names, args, refusals as MCP), plus run() and helpers
 window.bimja = { version: "0.3.0", run: (name, args, opts = {}) => run(name, args, { actor: "agent:console", ...opts }) };
 for (const r of REGISTRY) window.bimja[r.name] = (args = {}, opts = {}) => window.bimja.run(r.name, args, opts);

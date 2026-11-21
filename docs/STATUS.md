@@ -1,5 +1,45 @@
 # Status
 
+## 2026-11-21: D2 site from survey (terrain, contours, grading, earthworks, site drawings)
+
+**What moved**
+- **Survey readers:**
+  - CSV/XYZ/TXT (header or P,E,N,Z,code).
+  - DXF: POINT with Z, spot-level TEXT, LINE/3D POLYLINE, contours as LWPOLYLINE with elevation, 3DFACE.
+  - LandXML: TIN Pnts or CgPoints (N E Z order handled).
+  - LAS 1.0–1.4: point formats 0–10, ground class 2 preferred.
+  - PLY: ascii and binary.
+  - Large clouds are thinned to a lowest-point ground grid.
+  - E57/LAZ are refused with a clear "convert to LAS" message.
+- **Location:**
+  - `site_pin` takes a Google-Maps-style lat/lon and suggests the UTM CRS.
+  - "Terrain from pin" (browser) sets the CRS and anchor, then samples AWS open Terrain Tiles (Terrarium) around the pin into survey points.
+- **Terrain:** Delaunay TIN, height grid, contours (marching squares, auto interval, major every 5).
+- **Grading (`site_grade`):** a platform around the building footprint at FFL minus plinth, with cut and fill batters (H:V) that daylight into the survey. It reports cut, fill and net volumes and areas.
+- **Site in 3D:** under the building, either existing ground or the graded platform, with contours.
+- **Site in IFC:** IfcGeographicElement TERRAIN (IfcTriangulatedFaceSet) for existing and proposed ground. IfcSite carries RefElevation = FFL and the pin's latitude and longitude.
+- **Drawings:**
+  - Site plan: existing contours (major labelled; dashed once graded) and proposed contours; platform with levels; the building cut; FFL; E/N grid ticks; survey and earthworks notes.
+  - Site section S-S: existing and proposed ground profiles with the building section.
+  - `sheets_auto` adds both sheets when a survey exists.
+- **Site workspace:** pin, import (files plus three samples), terrain from pin, grading inputs, earthworks table, terrain and contour toggles.
+
+**Gates**
+- Samples read (CSV 949, DXF 910, LandXML 600 points).
+- A DXF written by ezdxf (R2018: LWPOLYLINE elevation, POINT, TEXT) is read with every contour and spot level present.
+- Synthetic LAS 1.2 (format 1) and 1.4 (format 6) read, with vegetation dropped by ground class. PLY ascii and binary read.
+- Junk in every format is refused.
+- Grading on flat ground matches the analytic frustum within 0.06%.
+- The terrain IFC is schema-valid and IfcOpenShell builds its geometry.
+- The site plan shows FFL, earthworks and the map grid.
+- A log replay gives an identical site.
+- Browser QA: sample survey, grade, 3D, undo; 0 errors. Budget 252 KB of 600 KB.
+
+**Known limits**
+- Terrain from pin needs internet in the browser and has not been tested against the live tile server from CI (the decoder is tested). Tiles give about 5 m spacing at zoom 15, which is fine for feasibility but is not a survey.
+- One platform per site; no retaining walls, roads or drainage falls yet.
+- Breaklines from DXF are sampled as points (no constrained TIN).
+
 ## 2026-11-21: D1 drawing engine (plans, elevations, sections, schedules → PDF, DXF, Excel; ISO 19650)
 
 **What moved**

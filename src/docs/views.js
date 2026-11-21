@@ -194,3 +194,39 @@ export function sectionView(model, { axis = "x", at, label = "A" } = {}) {
   return { prims: r.prims, box: bboxOf(r.prims), title: `Section ${label}-${label}`, kind: "section", axis, at };
 }
 export { bboxOf };
+
+// ---------- site ----------
+import { siteSurfaces, footprint } from "../site/commands.js";
+/** Site plan: existing contours (major labelled), proposed contours, platform, building cut at 1.2 m, levels. Model mm. */
+export function sitePlanView(model, site) {
+  const v = siteSurfaces(site); const P = emptyPrims(); if (!v) return { prims: P, box: bboxOf(P), title: "Site plan", kind: "site" };
+  const M = (p) => [p[0] * 1000, p[1] * 1000]; const major = v.interval * 5;
+  for (const c of v.existing) { const isMaj = Math.abs(c.z / major - Math.round(c.z / major)) < 1e-6;
+    for (let i = 0; i < c.pts.length - 1; i++) P.lines.push({ p: [M(c.pts[i]), M(c.pts[i + 1])], layer: "ground", w: isMaj ? 0.35 : 0.13, dash: !!site.grading });
+    if (isMaj && c.pts.length > 6) { const q = c.pts[Math.floor(c.pts.length / 2)]; P.texts.push({ at: M(q), text: c.z.toFixed(1), h: 2, layer: "level", align: "middle" }); } }
+  if (v.proposedContours) for (const c of v.proposedContours) for (let i = 0; i < c.pts.length - 1; i++) P.lines.push({ p: [M(c.pts[i]), M(c.pts[i + 1])], layer: "grading", w: 0.25 });
+  const b = v.tin.box; P.polys.push({ pts: [[b.x0, b.y0], [b.x1, b.y0], [b.x1, b.y1], [b.x0, b.y1]].map(M), layer: "frame", fill: false, w: 0.18 });
+  if (site.grading) { P.polys.push({ pts: site.grading.pad.map(M), layer: "grading", fill: false, w: 0.5 });
+    for (const q of site.grading.pad) P.texts.push({ at: M(q), text: `+${site.grading.pad_z.toFixed(3)}`, h: 2, layer: "level", align: "start", dy: 1 }); }
+  const low = [...model.data.levels].sort((a, c) => a.elevation - c.elevation)[0];
+  if (low) { const pv = planView(model, low.id, { rooms: false, dims: false }); P.lines.push(...pv.prims.lines); P.polys.push(...pv.prims.polys); }
+  const fp = footprint(model); if (fp && site.ffl != null) { const c = fp.reduce((s, p) => [s[0] + p[0] / fp.length, s[1] + p[1] / fp.length], [0, 0]); P.texts.push({ at: c, text: `FFL +${site.ffl.toFixed(3)}`, h: 3, layer: "level", align: "middle" }); }
+  // coordinate grid ticks (map coordinates when the site has an origin)
+  const step = [5, 10, 20, 25, 50, 100, 200].find((s) => (b.x1 - b.x0) / s <= 8) || 500; const o = site.origin || [0, 0];
+  for (let x = Math.ceil((b.x0 + o[0]) / step) * step; x <= b.x1 + o[0]; x += step) { const X = (x - o[0]) * 1000; P.lines.push({ p: [[X, b.y0 * 1000], [X, b.y0 * 1000 - 1500]], layer: "grid", w: 0.18 }); P.texts.push({ at: [X, b.y0 * 1000 - 4000], text: `E ${x}`, h: 2, layer: "grid", align: "middle" }); }
+  for (let y = Math.ceil((b.y0 + o[1]) / step) * step; y <= b.y1 + o[1]; y += step) { const Y = (y - o[1]) * 1000; P.lines.push({ p: [[b.x0 * 1000, Y], [b.x0 * 1000 - 1500, Y]], layer: "grid", w: 0.18 }); P.texts.push({ at: [b.x0 * 1000 - 2000, Y], text: `N ${y}`, h: 2, layer: "grid", align: "end" }); }
+  const g = v.earthworks; const notes = [`Survey: ${site.sources.map((s) => s.name).join(", ")} · ${site.points.length} points · contours every ${v.interval} m (major ${major} m)`];
+  if (g) notes.push(`Earthworks: cut ${g.cut_m3.toFixed(1)} m³ · fill ${g.fill_m3.toFixed(1)} m³ · net ${g.net_m3.toFixed(1)} m³ (${g.net_m3 > 0 ? "surplus" : "import"}) · batters cut ${site.grading.cut_slope}:1, fill ${site.grading.fill_slope}:1 (H:V)`);
+  notes.forEach((t, i) => P.texts.push({ at: [b.x0 * 1000, b.y1 * 1000 + 4000 + (notes.length - i) * 2500], text: t, h: 2.5, layer: "text", align: "start" }));
+  return { prims: P, box: bboxOf(P), title: "Site plan", kind: "site" };
+}
+/** Site section through the building: existing (dashed) and proposed ground, with the building section. */
+export function siteSectionView(model, site) {
+  const v = siteSurfaces(site); const fp = footprint(model); const cy = fp ? fp.reduce((s, p) => s + p[1], 0) / fp.length : 0;
+  const sec = sectionView(model, { axis: "x", at: cy, label: "S" }); const P = sec.prims; if (!v) return { ...sec, title: "Site section S-S", kind: "site_section" };
+  const ffl = site.ffl ?? 0; const g = v.grid; const j = Math.round((cy / 1000 - g.y0) / g.cell);
+  const prof = (grid, layer, dash, w) => { let prev = null; for (let i = 0; i < grid.nx; i++) { const z = grid.z[j * grid.nx + i]; const p = Number.isFinite(z) ? [(g.x0 + i * g.cell) * 1000, (z - ffl) * 1000] : null; if (p && prev) P.lines.push({ p: [prev, p], layer, w, dash }); prev = p; } };
+  if (j >= 0 && j < g.ny) { prof(g, "ground", true, 0.35); if (v.proposed) prof(v.proposed, "grading", false, 0.5); }
+  P.lines = P.lines.filter((l) => l.layer !== "ground" || l.dash); // the section's own flat ground line gives way to the survey
+  return { prims: P, box: bboxOf(P), title: "Site section S-S", kind: "site_section" };
+}

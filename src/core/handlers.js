@@ -8,6 +8,7 @@ import { runCheck } from "../rules.js";
 import { installTime } from "../time/commands.js";
 import { installCost } from "../cost/commands.js";
 import { installDocs } from "../docs/commands.js";
+import { installSite, siteForIfc } from "../site/commands.js";
 
 const AUTHOR = ["level", "wall", "walls", "door", "window", "floor", "room", "roof", "mass", "revolve", "delete", "move", "set", "type"];
 
@@ -32,7 +33,7 @@ export function installCore(bus) {
 
   bus.register("commands", () => REGISTRY.map(({ name, domain, status, ui_path, headless_only, args, example, refusals, help }) => ({ name, domain, status, help, args, example, refusals, ui_path: ui_path || null, headless_only: headless_only || null })), { kind: "read" });
   bus.register("describe", () => describeModel(bus), { kind: "read" });
-  bus.register("export_ifc", () => exportIFC(bus.model, { geo: bus.extra.geo }), { kind: "read" });
+  bus.register("export_ifc", () => exportIFC(bus.model, { geo: bus.extra.geo, site: siteForIfc(bus) }), { kind: "read" });
   bus.register("check_handover", (args) => runCheck(authoredRecords(bus.model), args.rules), { kind: "read" }); // the app overrides this when an IFC is open
   bus.register("save", () => bus.saveProject(), { kind: "read" });
   bus.register("log", (args) => bus.log.slice(-(args.last || 200)), { kind: "read" });
@@ -49,6 +50,7 @@ export function installCore(bus) {
   installTime(bus);
   installCost(bus);
   installDocs(bus);
+  installSite(bus);
   return bus;
 }
 

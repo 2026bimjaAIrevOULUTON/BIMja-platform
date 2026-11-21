@@ -8,10 +8,11 @@ import { schedule } from "../author/model.js";
 import { solidOf } from "../author/solids.js";
 
 const fail = (m, code = "bad_arg") => { throw Object.assign(new Error(m), { code }); };
-const KINDS = ["register", "plan", "elevations", "sections", "schedule"];
+const KINDS = ["register", "site", "site_section", "plan", "elevations", "sections", "schedule"];
 
 export function installDocs(bus) {
   const D = () => (bus.extra.docs ||= defaultDocs());
+  const withSite = (s) => (s.kind === "site" || s.kind === "site_section" ? Object.defineProperty({ ...s }, "__site", { value: bus.extra.site || {}, enumerable: false }) : s);
   const seqOf = (kind) => D().sheets.filter((s) => s.kind === kind).length + 1;
 
   bus.register("drawing_setup", (a) => {
@@ -27,6 +28,7 @@ export function installDocs(bus) {
     const d = D(); if (!a.keep) d.sheets = [];
     const m = bus.model; const add = (s) => { const id = `D${d.next++}`; d.sheets.push({ id, seq: seqOf(s.kind), ...s }); };
     add({ kind: "register", title: "Drawing register" });
+    if (bus.extra.site?.points?.length) { add({ kind: "site", title: "Site plan and grading" }); add({ kind: "site_section", title: "Site section S-S" }); }
     const cuts = m.data.drawing_plans;
     if (cuts?.length) cuts.forEach((c) => add({ kind: "plan", level: m.data.levels[0].id, cut_z: c.cut_z, title: c.title, view_title: c.title }));
     else for (const l of [...m.data.levels].sort((x, y) => x.elevation - y.elevation)) if (m.elements.some((e) => e.level === l.id && e.kind !== "roof")) add({ kind: "plan", level: l.id, title: `${l.name} plan` });
@@ -47,14 +49,14 @@ export function installDocs(bus) {
     if (a.scale != null) { s.scale = +a.scale; if (!(s.scale > 0)) fail("scale is the denominator, e.g. 100 for 1:100"); }
     if (a.paper != null) { if (a.paper && !PAPER[a.paper]) fail(`paper must be one of ${Object.keys(PAPER).join(", ")}`); s.paper = a.paper || undefined; }
     if (a.title != null) s.title = String(a.title).slice(0, 120);
-    s.title ||= { register: "Drawing register", plan: "Plan", elevations: "Elevations", sections: "Sections", schedule: "Schedules" }[s.kind];
+    s.title ||= { site: "Site plan and grading", site_section: "Site section S-S", register: "Drawing register", plan: "Plan", elevations: "Elevations", sections: "Sections", schedule: "Schedules" }[s.kind];
     if (!cur) { s.seq = seqOf(s.kind); d.sheets.push(s); }
     return { id: s.id, number: sheetNumber(d, bus.model, s) };
   });
 
   const sheetById = (id) => D().sheets.find((s) => s.id === id) || fail(`no sheet ${id}: run sheets_auto or sheet first`, "no_such_element");
   bus.register("drawing", (a) => {
-    const s = sheetById(a.sheet); const comp = composeSheet(bus.model, D(), s, { date: a.date || "" }); const f = a.format || "svg";
+    const s = sheetById(a.sheet); const comp = composeSheet(bus.model, D(), withSite(s), { date: a.date || "" }); const f = a.format || "svg";
     const base = { sheet: s.id, number: comp.number, scale: comp.scale, paper: comp.paper };
     if (f === "svg") return { ...base, svg: toSVG(comp) };
     if (f === "dxf") return { ...base, dxf: toDXF(comp) };
@@ -73,7 +75,7 @@ export function installDocs(bus) {
     for (const s of pick) { const n = d.register.filter((r) => r.sheet === s.id && r.rev.startsWith(prefix)).length + 1;
       d.register.push({ sheet: s.id, number: sheetNumber(d, bus.model, s).container, title: s.title, status, rev: `${prefix}${String(n).padStart(2, "0")}`, date, note: String(a.note || STATUS[status].text).slice(0, 80) }); }
     const formats = a.formats || ["pdf", "dxf", "xlsx"];
-    const comps = pick.map((s) => ({ s, c: composeSheet(bus.model, d, s, { date }) })); const files = [];
+    const comps = pick.map((s) => ({ s, c: composeSheet(bus.model, d, withSite(s), { date }) })); const files = [];
     const revOf = (s) => [...d.register].reverse().find((r) => r.sheet === s.id).rev;
     if (formats.includes("pdf")) { files.push({ name: `${d.project_code}-${d.originator}-SET_${status}.pdf`, data: toPDF(comps.map((x) => x.c), { title: `${d.project_name || bus.model.data.name} drawing set` }) });
       for (const { s, c } of comps) files.push({ name: `pdf/${c.number.container}_${revOf(s)}_${status}.pdf`, data: toPDF([c], { title: s.title }) }); }

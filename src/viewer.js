@@ -144,6 +144,8 @@ export class Viewer {
     (ids ? ids.flatMap((i) => this.byId.get(i) || []) : this.meshes().filter((c) => c.visible)).forEach((m) => b.expandByObject(m));
     return b;
   }
+  /** Frame any object (e.g. the site terrain). */
+  fitObject(obj) { const b = new THREE.Box3().setFromObject(obj); if (b.isEmpty()) return; const c = b.getCenter(new THREE.Vector3()); const r = b.getSize(new THREE.Vector3()).length() / 2; this.controls.target.copy(c); this.camera.position.copy(c).add(new THREE.Vector3(1, 0.9, 1.1).normalize().multiplyScalar(r * 2)); this.camera.near = r / 200; this.camera.far = r * 60; this.camera.updateProjectionMatrix(); }
   fit(ids) {
     const b = this.box(ids); if (b.isEmpty()) return;
     const c = b.getCenter(new THREE.Vector3());

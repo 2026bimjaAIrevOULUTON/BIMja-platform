@@ -19,7 +19,7 @@ const str = (s) => (s == null ? "$" : `'${String(s).replace(/\\/g, "\\\\").repla
 const f = (x) => { const v = Math.round(x * 1e6) / 1e6; return Number.isInteger(v) ? `${v}.` : String(v); };
 const fx = (x) => { const v = +(+x).toPrecision(15); return Number.isInteger(v) ? `${v}.` : String(v); }; // full precision for georeferencing
 
-export function exportIFC(model, { projectName, geo } = {}) {
+export function exportIFC(model, { projectName, geo, site } = {}) {
   const L = []; let n = 0; const add = (s) => { L.push(`#${++n}=${s};`); return `#${n}`; };
   const pid = model.data.name || "BIMja project"; const g = (k) => str(ifcGuid(`${pid}/${k}`));
   const m = (mm) => mm / 1000;
@@ -40,10 +40,11 @@ export function exportIFC(model, { projectName, geo } = {}) {
     const ax = add(`IFCAXIS2PLACEMENT3D(${p},${zDir},${dir ? add(`IFCDIRECTION((${f(dir[0])},${f(dir[1])},0.))`) : xDir})`);
     return add(`IFCLOCALPLACEMENT(${rel || "$"},${ax})`);
   };
-  const sitePl = place(null), site = add(`IFCSITE(${g("site")},$,'Site',$,$,${sitePl},$,$,.ELEMENT.,$,$,$,$,$)`);
+  const dms = (deg) => { const sg = deg < 0 ? -1 : 1; let a = Math.abs(deg); const d = Math.floor(a); a = (a - d) * 60; const m = Math.floor(a); a = (a - m) * 60; const sec = Math.floor(a); const mic = Math.round((a - sec) * 1e6); return `(${[d, m, sec, mic].map((x) => sg * x).join(",")})`; };
+  const sitePl = place(null), siteRef = add(`IFCSITE(${g("site")},$,'Site',$,$,${sitePl},$,$,.ELEMENT.,${site?.pin ? dms(site.pin.lat) : "$"},${site?.pin ? dms(site.pin.lon) : "$"},${site?.ffl != null ? f(site.ffl) : "$"},$,$)`);
   const bldPl = place(sitePl), bld = add(`IFCBUILDING(${g("building")},$,${str(pid)},$,$,${bldPl},$,$,.ELEMENT.,$,$,$)`);
-  add(`IFCRELAGGREGATES(${g("agg-project")},$,$,$,${project},(${site}))`);
-  add(`IFCRELAGGREGATES(${g("agg-site")},$,$,$,${site},(${bld}))`);
+  add(`IFCRELAGGREGATES(${g("agg-project")},$,$,$,${project},(${siteRef}))`);
+  add(`IFCRELAGGREGATES(${g("agg-site")},$,$,$,${siteRef},(${bld}))`);
   const storeys = {}; for (const lv of model.data.levels) {
     const pl = place(bldPl, 0, 0, m(lv.elevation));
     storeys[lv.id] = { ref: add(`IFCBUILDINGSTOREY(${g(`storey/${lv.id}`)},$,${str(lv.name)},$,$,${pl},$,$,.ELEMENT.,${f(m(lv.elevation))})`), pl, contained: [], spaces: [] };
@@ -137,6 +138,17 @@ export function exportIFC(model, { projectName, geo } = {}) {
     st.spaces.push(sp);
     qto(sp, "Qto_SpaceBaseQuantities", [["Height", "LENGTH", m(H)], ["NetPerimeter", "LENGTH", P], ["NetFloorArea", "AREA", A], ["GrossFloorArea", "AREA", A], ["NetVolume", "VOLUME", A * m(H)]]);
   }
+  // terrain: existing and proposed ground as tessellated surfaces (IFC4 IfcTriangulatedFaceSet), on the site
+  const siteEls = [];
+  for (const [k, T] of [["existing", site?.existing], ["proposed", site?.proposed]]) {
+    if (!T?.length) continue; const idx = new Map(), coords = [], tri = [];
+    for (let i = 0; i < T.length; i += 3) { const key = `${T[i].toFixed(3)},${T[i + 1].toFixed(3)},${T[i + 2].toFixed(3)}`; let j = idx.get(key); if (!j) { coords.push(`(${f(T[i])},${f(T[i + 1])},${f(T[i + 2])})`); j = coords.length; idx.set(key, j); } tri.push(j); }
+    const faces = []; for (let i = 0; i < tri.length; i += 3) faces.push(`(${tri[i]},${tri[i + 1]},${tri[i + 2]})`);
+    const fs = add(`IFCTRIANGULATEDFACESET(${add(`IFCCARTESIANPOINTLIST3D((${coords.join(",")}))`)},$,.F.,(${faces.join(",")}),$)`);
+    const el = add(`IFCGEOGRAPHICELEMENT(${g(`terrain/${k}`)},$,${str(k === "existing" ? "Existing ground (survey)" : "Proposed ground (graded)")},$,$,${place(sitePl)},${shape([fs], "Tessellation")},$,.TERRAIN.)`);
+    siteEls.push(el);
+  }
+  if (siteEls.length) add(`IFCRELCONTAINEDINSPATIALSTRUCTURE(${g("contain/site")},$,$,$,(${siteEls.join(",")}),${siteRef})`);
   // relationships
   for (const [lid, st] of Object.entries(storeys)) {
     if (st.contained.length) add(`IFCRELCONTAINEDINSPATIALSTRUCTURE(${g(`contain/${lid}`)},$,$,$,(${st.contained.join(",")}),${st.ref})`);
