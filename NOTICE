@@ -9,5 +9,5 @@ Sample models (test data only, original terms apply):
 - AC20-FZK-Haus: Karlsruhe Institute of Technology (KIT), from the web-ifc test files.
 - Ifc4_SampleHouse: from https://github.com/youshengCode/IfcSampleFiles
 
-Not shipped: IfcOpenShell (LGPL-3.0) may be used in CI only, never bundled.
+Not shipped: IfcOpenShell (and its ifc4d schedule readers) (LGPL-3.0) may be used in CI only, never bundled.
 A CycloneDX SBOM is generated on every build (dist/sbom.cdx.json).

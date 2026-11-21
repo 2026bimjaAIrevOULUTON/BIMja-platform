@@ -1,6 +1,7 @@
 import { createApi, openModel, webifc } from "./ifc.js";
 import { readIfcGeoref } from "./geo/geo.js";
 import { installGeoTwin } from "./app/geotwin-ui.js";
+import { installTime } from "./app/time-ui.js";
 import { DEFAULT_RULES, runCheck, quantities, toCSV } from "./rules.js";
 import { Viewer } from "./viewer.js";
 import { REGISTRY } from "./commands/registry.js";
@@ -277,6 +278,17 @@ const coordUI = installCoordination({ bus, viewer, run, toast, download, downloa
 addEventListener("bimja:loaded", () => coordUI.renderModels());
 const twinUI = installGeoTwin({ bus, viewer, run, toast, selectIds: (ids) => { viewer.highlight(ids, false); viewer.fit(ids); },
   resolveElement: (ref) => { if (!ref) return null; if (bus.model.data.elements[ref]) return ref; if (viewer.byId.has(ref)) return ref; return coordUI.guidToViewId(ref) ?? (state.model ? window.bimja.get(ref)?.id : null); } });
+
+// 4D: elements are authored ids or IFC GlobalIds; rules reach the open IFC by class and storey too
+const resolveEl = (ref) => { if (!ref) return null; if (bus.model.data.elements[ref]) return ref; if (viewer.byId.has(ref)) return ref; return coordUI.guidToViewId(ref) ?? (state.model ? window.bimja.get(ref)?.id : null); };
+{ const hasA = bus.time.has, ruleA = bus.time.resolveRule;
+  bus.time.has = (id) => hasA(id) || !!(state.model && window.bimja.get(id)) || coordUI.guidToViewId(id) != null;
+  bus.time.resolveRule = (rule) => {
+    if (!(rule.ifc_class || rule.storey) || !state.model) return ruleA(rule);
+    const cls = rule.ifc_class && [].concat(rule.ifc_class).map((c) => c.toLowerCase());
+    return [...state.model.index.elements.values()].filter((e) => !e.isPart && (!cls || cls.includes(String(e.ifcClass).toLowerCase())) && (!rule.storey || e.storey === rule.storey)).map((e) => e.globalId).sort();
+  }; }
+const timeUI = installTime({ bus, viewer, run, toast, resolveElement: resolveEl, selectIds: (ids, fly) => { viewer.highlight(ids, false); if (fly) viewer.fit(ids); } });
 
 // window.bimja: one function per registered command (same names, args, refusals as MCP), plus run() and helpers
 window.bimja = { version: "0.3.0", run: (name, args, opts = {}) => run(name, args, { actor: "agent:console", ...opts }) };

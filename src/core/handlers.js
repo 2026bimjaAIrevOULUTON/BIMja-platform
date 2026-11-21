@@ -5,6 +5,7 @@ import { COMMANDS as MODEL_COMMANDS } from "../author/model.js";
 import { exportIFC } from "../author/ifc-export.js";
 import { authoredRecords } from "../author/records.js";
 import { runCheck } from "../rules.js";
+import { installTime } from "../time/commands.js";
 
 const AUTHOR = ["level", "wall", "walls", "door", "window", "floor", "room", "roof", "delete", "move", "set", "type"];
 
@@ -43,6 +44,7 @@ export function installCore(bus) {
     const p = args.project; if (p?.format !== "bimja-project") throw Object.assign(new Error("not a BIMja project (.bimja.json)"), { code: "bad_arg" });
     bus.model.data = JSON.parse(JSON.stringify(p.model)); bus.extra = JSON.parse(JSON.stringify(p.extra || {})); return { loaded: true, elements: Object.keys(p.model.elements).length };
   });
+  installTime(bus);
   return bus;
 }
 
@@ -52,5 +54,6 @@ export function describeModel(bus) {
   let min = [Infinity, Infinity], max = [-Infinity, -Infinity];
   for (const e of Object.values(md.elements)) for (const p of e.boundary || (e.a ? [e.a, e.b] : [])) { min = [Math.min(min[0], p[0]), Math.min(min[1], p[1])]; max = [Math.max(max[0], p[0]), Math.max(max[1], p[1])]; }
   return { rev: bus.rev, authored: { name: md.name, units: md.units, levels: md.levels.map((l) => ({ id: l.id, name: l.name, elevation: l.elevation })), counts, bbox_mm: Number.isFinite(min[0]) ? { min, max } : null },
-    paused: bus.paused, proposals: bus.proposals.size, crs: bus.extra.geo?.crs || null };
+    paused: bus.paused, proposals: bus.proposals.size, crs: bus.extra.geo?.crs || null,
+    schedule: bus.extra.time ? { activities: Object.keys(bus.extra.time.activities).length, links: bus.extra.time.links.length } : null };
 }

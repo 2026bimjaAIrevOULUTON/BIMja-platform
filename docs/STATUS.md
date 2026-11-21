@@ -1,5 +1,29 @@
 # Status
 
+## 2026-11-21: M6 (4D scheduling). Gate PASSED
+
+**What moved**
+- **Commands (all headless, MCP and UI):** `activity` (add/edit/delete; construct, demolish or temporary; `after` adds a finish-to-start link), `link` (by element id/GlobalId, or a rule: kind + level for authored, IFC class + storey for an open IFC; the rule is resolved once and recorded in the log), `schedule_import`, `auto_sequence`, `timeline`, `animate`.
+- **Import:** Primavera P6 XML and MS Project XML (MSPDI), our own parser (no LGPL code shipped). It follows IfcOpenShell ifc4d's rules: MSPDI summary tasks become WBS by OutlineLevel, null rows are skipped, links to activities outside the file are dropped.
+- **Auto sequence:** builds a schedule from the authored model (per level: slab, walls, doors and windows, fit-out; then roof), chained finish-to-start.
+- **Timeline:** at any date each linked element is hidden (not started), orange (in progress), built, existing or removed. `timeline` also returns link warnings (successor starts before its predecessor allows).
+- **4D pane:** import, sample P6 schedule, auto sequence, add activity, link the selection or by rule, date slider, play, Gantt with a "today" line. Clicking a bar jumps to it and selects its elements.
+- Schedule state is saved with the project, undoable, and agents propose by default like every other write.
+
+**Gates**
+- **Task counts vs ifc4d 0.9.0** (`tests/time.mjs`, CI installs ifc4d, test-only): P6 sample 14 activities / 5 WBS / 13 links, MSPDI sample 14 / 5 / 13: identical. The P6 and MSPDI files of the same programme parse to the same activities and dates.
+- **Deterministic frames:** same date gives the same state hash; animation frames are identical on repeat and after a log replay. In the browser, the rendered PNG hash is identical when returning to the same date.
+- Fuzz: 300 corrupted schedules return an error object, never a crash.
+- Browser QA: auto sequence, timeline, play, sample P6 + link by rule, agent proposal: 0 errors.
+- Parity: 58 live, 3 stubs (M7). Budget: under 600 KB first load.
+
+**Known limits**
+- Dates are calendar days; working calendars and resource loading from P6/MSPDI are read but not used for scheduling (no CPM recalculation). Link violations are reported, not fixed.
+- No IfcWorkSchedule/IfcTask export yet (the schedule travels in the .bimja.json project file).
+
+**Single next step**
+- M7: 5D. `cost` (unit rates on quantities), `asset`, `cobie`.
+
 ## 2026-11-21: M5 (georeferencing and digital twin). Gate PASSED
 
 **What moved**

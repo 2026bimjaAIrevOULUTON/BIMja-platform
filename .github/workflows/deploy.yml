@@ -18,9 +18,11 @@ jobs:
       - run: npm ci
       - name: Tools for gates (xmllint for BCF XSD validation)
         run: sudo apt-get install -y -qq libxml2-utils >/dev/null
+      - name: Reference tools, CI only (IfcOpenShell + ifc4d are LGPL, never bundled)
+        run: pip install --quiet ifcopenshell==0.9.0.post1 && pip install --quiet --no-deps ifc4d==0.9.0
       - run: npm test
-      - name: Validate exported IFC with IfcOpenShell (CI only, LGPL, never bundled)
-        run: pip install --quiet ifcopenshell==0.9.0.post1 && npm run validate-ifc
+      - name: Validate exported IFC with IfcOpenShell
+        run: npm run validate-ifc
       - name: Reference gates (clash vs IfcOpenShell 0.8.5, CRS vs PROJ); CI only
         run: pip install --quiet --target /tmp/ios085 --no-deps ifcopenshell==0.8.5 && pip install --quiet pyproj==3.8.0 && IFCOS08=/tmp/ios085 npm run test:ref
       - run: npm run build

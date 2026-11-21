@@ -22,7 +22,7 @@ ok(b.execute({ name: "room", args: { name: "Bed", at: [8000,4000] }, actor: "age
 const r1 = b.execute({ name: "door", args: { wall: "W1", offset: 2000 } }); assert.equal(r1.refusals[0].code, "would_overlap"); assert.equal(b.rev, 5);
 const r2 = b.execute({ name: "door", args: { wall: "nope", offset: 10 } }); assert.equal(r2.refusals[0].code, "no_such_element");
 const r3 = b.execute({ name: "flyaway" }); assert.equal(r3.refusals[0].code, "unknown_command");
-assert.equal(b.execute({ name: "activity" }).refusals[0].code, "not_implemented");
+assert.equal(b.execute({ name: "cost" }).refusals[0].code, "not_implemented");
 // stale rev
 const st = b.execute({ name: "wall", args: { start: [0,9000], end: [5000,9000] }, rev: 2 }); assert.equal(st.refusals[0].code, "stale_rev"); assert.ok(st.diff.added.length > 0);
 // locks: a person holds W1; the agent is refused, the person is not
