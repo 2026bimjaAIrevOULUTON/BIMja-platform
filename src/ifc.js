@@ -1,5 +1,6 @@
 // IFC loading + indexing on top of web-ifc (MPL-2.0). Pure data layer: no DOM, so agents and tests can use it too.
 let WebIFC = null; // loaded lazily so the first page load stays small
+export const webifc = () => WebIFC;
 
 const v = (x) => (x && typeof x === "object" && "value" in x ? x.value : x);
 const ids = (arr) => (arr || []).map((r) => v(r));

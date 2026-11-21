@@ -1,4 +1,6 @@
-import { createApi, openModel } from "./ifc.js";
+import { createApi, openModel, webifc } from "./ifc.js";
+import { readIfcGeoref } from "./geo/geo.js";
+import { installGeoTwin } from "./app/geotwin-ui.js";
 import { DEFAULT_RULES, runCheck, quantities, toCSV } from "./rules.js";
 import { Viewer } from "./viewer.js";
 import { REGISTRY } from "./commands/registry.js";
@@ -38,6 +40,8 @@ async function loadBytes(bytes, name) {
     $("#meta").innerHTML = `<b>${esc(name)}</b> · ${esc(state.model.schema)} · ${els.size} elements · ${state.model.index.storeys.length} storeys · ${Math.round(performance.now() - t)} ms`;
     renderTree(); renderCheck(); renderQto(); showProps(null); $("#welcome").hidden = true;
     document.title = `${name} — BIMja`;
+    const gr = readIfcGeoref(a, state.model.modelID, webifc()); state.model.georef = gr;
+    if (gr?.crs && !bus.extra.geo?.crs) { const r1 = await run("crs", { epsg: gr.crs }, { actor: "human" }); if (r1.ok) await run("anchor", gr.anchor, { actor: "human" }); else toast(`Model has CRS ${gr.crs}: ${r1.refusals[0].message}`); }
     window.dispatchEvent(new CustomEvent("bimja:loaded", { detail: summary() }));
   } catch (err) {
     console.error(err);
@@ -207,8 +211,9 @@ const ifcSummary = () => state.model && (() => { const b = viewer.modelBox; cons
     classes: Object.fromEntries(state.qto.map((q) => [q.ifcClass, q.count])),
     bbox: b ? { min: [r(b.min.x), r(b.min.y), r(b.min.z)], max: [r(b.max.x), r(b.max.y), r(b.max.z)] } : null }; })();
 const need = () => { if (!state.model) throw Object.assign(new Error("No IFC model is open. Use load first."), { code: "bad_arg" }); };
-bus.register("describe", () => ({ ...describeModel(bus), ifc: ifcSummary() || null,
-  crs_note: bus.extra.geo?.crs ? undefined : "No CRS: models sit at a local origin (georeferencing arrives in M5)." }), { kind: "read" });
+bus.register("describe", () => ({ ...describeModel(bus), ifc: ifcSummary() || null, anchor: bus.extra.geo?.anchor || null,
+  ...(bus.extra.geo?.crs && bus.extra.geo?.anchor ? {} : { crs_warning: "NO CRS: the model is at a local origin, not on a real location. Use crs + anchor to georeference it." }),
+  twin: { sensors: Object.keys(bus.extra.twin?.sensors || {}).length, alerts: twinUI?.alerts.length || 0 } }), { kind: "read" });
 bus.register("load", (a) => (a.url ? loadUrl(new URL(a.url, BASE).href) : loadBytes(a.bytes, a.name || "model.ifc")).then(() => ifcSummary()), { kind: "view" });
 bus.register("check_handover", (a) => {
   const authoredOnly = !state.model; const els = authoredOnly ? authoredRecords(bus.model) : state.model.index.elements;
@@ -270,6 +275,8 @@ const coordUI = installCoordination({ bus, viewer, run, toast, download, downloa
   openIfcBytes: async (bytes) => openModel(await api(), bytes),
   selectIds: (ids, fly = true) => { viewer.highlight(ids, true); if (fly) viewer.fit(ids); } });
 addEventListener("bimja:loaded", () => coordUI.renderModels());
+const twinUI = installGeoTwin({ bus, viewer, run, toast, selectIds: (ids) => { viewer.highlight(ids, false); viewer.fit(ids); },
+  resolveElement: (ref) => { if (!ref) return null; if (bus.model.data.elements[ref]) return ref; if (viewer.byId.has(ref)) return ref; return coordUI.guidToViewId(ref) ?? (state.model ? window.bimja.get(ref)?.id : null); } });
 
 // window.bimja: one function per registered command (same names, args, refusals as MCP), plus run() and helpers
 window.bimja = { version: "0.3.0", run: (name, args, opts = {}) => run(name, args, { actor: "agent:console", ...opts }) };

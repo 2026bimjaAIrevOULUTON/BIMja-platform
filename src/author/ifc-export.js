@@ -16,6 +16,7 @@ export function ifcGuid(seed) {
 }
 const str = (s) => (s == null ? "$" : `'${String(s).replace(/\\/g, "\\\\").replace(/'/g, "''").replace(/[^\x20-\x7e]/g, (c) => `\\X2\\${c.charCodeAt(0).toString(16).toUpperCase().padStart(4, "0")}\\X0\\`)}'`);
 const f = (x) => { const v = Math.round(x * 1e6) / 1e6; return Number.isInteger(v) ? `${v}.` : String(v); };
+const fx = (x) => { const v = +(+x).toPrecision(15); return Number.isInteger(v) ? `${v}.` : String(v); }; // full precision for georeferencing
 
 export function exportIFC(model, { projectName, geo } = {}) {
   const L = []; let n = 0; const add = (s) => { L.push(`#${++n}=${s};`); return `#${n}`; };
@@ -31,7 +32,7 @@ export function exportIFC(model, { projectName, geo } = {}) {
   if (geo?.crs) {
     const crs = add(`IFCPROJECTEDCRS(${str(geo.crs)},${str(geo.description || null)},$,$,$,$,$)`);
     const a = geo.anchor || {}; const rot = ((a.rotation_deg || 0) * Math.PI) / 180;
-    add(`IFCMAPCONVERSION(${ctx},${crs},${f(a.easting || 0)},${f(a.northing || 0)},${f(a.height || 0)},${f(Math.cos(rot))},${f(Math.sin(rot))},${f(a.scale || 1)})`);
+    add(`IFCMAPCONVERSION(${ctx},${crs},${fx(a.easting || 0)},${fx(a.northing || 0)},${fx(a.height || 0)},${fx(Math.cos(rot))},${fx(Math.sin(rot))},${fx(a.scale || 1)})`);
   }
   const place = (rel, x = 0, y = 0, z = 0, dir = null) => {
     const p = add(`IFCCARTESIANPOINT((${f(x)},${f(y)},${f(z)}))`);

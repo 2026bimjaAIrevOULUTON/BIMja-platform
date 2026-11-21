@@ -10,7 +10,7 @@
 </head>
 <body>
 <header>
-  <div class="brand">BIM<span>ja</span> <small>open BIM · v0.5</small></div>
+  <div class="brand">BIM<span>ja</span> <small>open BIM · v0.6</small></div>
   <nav id="tabs">
     <button data-tab="model" class="on">Model</button>
     <button data-tab="create">Create</button>
@@ -105,7 +105,25 @@
       <div id="issueList"></div>
     </div>
     <div data-pane="4d" class="pane"><div class="soon"><b>4D: planned</b><p>Import a P6 / MS Project schedule, link tasks to elements, and play the build sequence.</p></div></div>
-    <div data-pane="twin" class="pane"><div class="soon"><b>Digital twin: planned</b><p>Map sensor IDs to IFC GlobalIds and colour elements by live readings.</p></div></div>
+    <div data-pane="twin" class="pane">
+      <div id="geoWarn" class="warnbox">⚠ No CRS: the model sits at a local origin, not on a real location. Set a CRS and an anchor to place it on the map.</div>
+      <h4 class="sec">Georeference</h4>
+      <div class="row"><input id="crsCode" placeholder="EPSG:32643" value="EPSG:32643"><button class="btn" id="setCrs">Set CRS</button></div>
+      <div class="row"><input id="crsDef" placeholder="proj4 definition (only for codes not built in)"></div>
+      <div class="row"><input id="anLat" placeholder="lat" value="18.5204" style="width:90px"><input id="anLon" placeholder="lon" value="73.8567" style="width:90px"><input id="anH" placeholder="height m" value="560" style="width:80px"><input id="anRot" placeholder="rot °" value="0" style="width:60px"></div>
+      <div class="row"><input id="anE" placeholder="or easting" style="width:120px"><input id="anN" placeholder="northing" style="width:120px"><button class="btn" id="setAnchor">Set anchor</button></div>
+      <div class="note" id="geoStatus"></div>
+      <div class="row"><input id="basemapUrl" placeholder="Basemap URL https://…/{z}/{x}/{y}.png"><button class="btn" id="setBasemap">Basemap</button></div>
+      <div class="row"><input id="overlayUrl" placeholder="GeoJSON / ArcGIS REST (f=geojson) URL"><button class="btn" id="addOverlay">Overlay</button></div>
+      <canvas id="twinMap"></canvas>
+      <h4 class="sec">Sensors</h4>
+      <div class="row"><select id="sensorKind"></select><input id="sensorName" placeholder="Name"><button class="btn" id="addSensor" title="Binds to the selected element">Add sensor</button></div>
+      <div id="sensorList"></div>
+      <div class="row"><button class="btn primary" id="feedSim">Start simulated feed</button><button class="btn" id="feedStop">Stop</button></div>
+      <div class="row"><input type="range" id="twinScrub" min="0" max="0" value="0" style="flex:1"><span class="note" id="twinScrubLabel"></span></div>
+      <h4 class="sec">Alerts</h4>
+      <div id="alertList"></div>
+    </div>
   </section>
   <section id="view">
     <div id="canvas"></div>
@@ -143,7 +161,7 @@
     </div>
   </form>
 </dialog>
-<footer>Runs in your browser: your model is not uploaded anywhere. Built on web-ifc (MPL-2.0) and three.js (MIT). <a href="https://github.com/2026bimjaAIrevOULUTON/BIMja-platform" id="gh">Source (MIT)</a> · Agents: <code>window.bimja</code> or MCP (<code>node mcp/bimja-mcp.mjs</code>) · <span id="rev">rev 0</span></footer>
+<footer>Runs in your browser: your model is not uploaded anywhere. Built on web-ifc (MPL-2.0) and three.js (MIT). <a href="https://github.com/2026bimjaAIrevOULUTON/BIMja-platform" id="gh">Source (MIT)</a> · Agents: <code>window.bimja</code> or MCP (<code>node mcp/bimja-mcp.mjs</code>) · <span id="crsBadge" class="warn">No CRS · local origin</span> · <span id="rev">rev 0</span></footer>
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>

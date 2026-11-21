@@ -21,8 +21,8 @@ jobs:
       - run: npm test
       - name: Validate exported IFC with IfcOpenShell (CI only, LGPL, never bundled)
         run: pip install --quiet ifcopenshell==0.9.0.post1 && npm run validate-ifc
-      - name: Clash gate against IfcOpenShell 0.8.5's clash tree (CI only)
-        run: pip install --quiet --target /tmp/ios085 --no-deps ifcopenshell==0.8.5 && IFCOS08=/tmp/ios085 npm run test:clash
+      - name: Reference gates (clash vs IfcOpenShell 0.8.5, CRS vs PROJ); CI only
+        run: pip install --quiet --target /tmp/ios085 --no-deps ifcopenshell==0.8.5 && pip install --quiet pyproj==3.8.0 && IFCOS08=/tmp/ios085 npm run test:ref
       - run: npm run build
       - name: Load budget (fails over 600 KB gzipped first load)
         run: npm run budget

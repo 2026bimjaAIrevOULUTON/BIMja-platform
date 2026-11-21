@@ -1,6 +1,6 @@
 {
   "name": "bimja-platform",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -10,12 +10,14 @@
     "budget": "node scripts/budget.mjs",
     "sbom": "npm sbom --sbom-format cyclonedx --omit dev > dist/sbom.cdx.json",
     "validate-ifc": "python3 ci/validate_ifc.py dist-test/sample-house.ifc dist-test/incomplete.ifc",
-    "test:clash": "node tests/clash.mjs"
+    "test:clash": "node tests/clash.mjs",
+    "test:ref": "node tests/clash.mjs && node tests/geo.mjs"
   },
   "keywords": [],
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "proj4": "2.19.10",
     "three": "^0.187.0",
     "web-ifc": "^0.0.79",
     "ws": "8.18.3"

@@ -1,5 +1,43 @@
 # Status
 
+## 2026-11-21: M5 (georeferencing and digital twin). Gate PASSED
+
+**What moved**
+- **`crs`:** EPSG code, never a bare lat/long.
+  - Built in: WGS84, Web Mercator, WGS84 UTM 32601–32660 and 32701–32760, ETRS89 UTM, BNG 27700, India NSF LCC 7755, NY State Plane 2263, Lambert-93 2154.
+  - Any other code works with its proj4 definition.
+  - proj4js (MIT) loads lazily.
+- **`anchor`:** IfcMapConversion maths, from easting/northing or lat/lon, with height, rotation to grid north and scale. Lat/lon is resolved to E/N inside the logged command, so a replay is exact.
+- **IFC:** export writes IfcProjectedCRS + IfcMapConversion; import reads them and applies them to the project.
+- **No-CRS warning:** shown in the UI (a banner in Twin and a badge in the footer) and to agents (`describe.crs_warning`).
+- **Map:**
+  - `basemap`: XYZ tiles from a URL the user supplies; none by default.
+  - `overlay`: GeoJSON by URL or inline; ArcGIS REST is consumed via `f=geojson`.
+  - The map draws the model footprint, overlays and live sensor markers.
+- **Twin:**
+  - `sensor`: temperature, humidity, CO₂, occupancy or energy, with thresholds; `bind` ties it to a GlobalId or authored id.
+  - `feed`: simulated (seeded, deterministic), a WebSocket JSON contract, or off.
+  - **Alerts select their element.** Live values show on elements as tinted labels.
+  - History scrub bar (in memory).
+
+**Gates**
+- **CRS** (`tests/geo.mjs`): proj4js agrees with PROJ 9.8 (pyproj) within **0.74 mm** across 7 CRSs. IfcMapConversion maths is exact, and the CRS and anchor survive an IFC round trip.
+- **Browser QA:**
+  - with no CRS, the warning shows in the UI and in `describe`;
+  - the CRS + anchor (Pune, UTM 43N) are set; the IFC exports with IfcMapConversion and reopens with the same anchor;
+  - a simulated alert selected its element in **0.1 ms** (gate: ≤1 s);
+  - 0 errors.
+- Parity: 52 live. Budget: 193.6 KB of 600 KB.
+
+**Known limits and cuts (in the brief's cut order)**
+- proj4js's inverse 7-parameter datum shift closes to about 1 mm on BNG (27700). The forward transform is within 0.74 mm of PROJ.
+- **MQTT adapter cut**: the WebSocket JSON contract covers live feeds; MQTT-over-WS can come later.
+- Historical series are kept in memory (5,000 readings), not IndexedDB. This is the brief's cut item 3.
+
+**Single next step**
+- M6: 4D. Activities, P6 XML / MSPDI import, linking tasks to elements, timeline and animation.
+
+
 ## 2026-11-21: M4 (coordination: federation, clash, issues, BCF). Gate PASSED
 
 **What moved**

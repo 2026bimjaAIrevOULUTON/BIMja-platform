@@ -66,8 +66,14 @@ export const REGISTRY = [
   c("bcf_merge", "coord", "Merge parsed BCF topics into the project (the write half of bcf_import)", { args: { topics: "array" }, headless_only: "Internal write step of bcf_import, which is the UI control; kept separate so imports are logged, attributed and undoable", needs: "viewer" }),
   // time (M6)
   ...["activity", "link", "schedule_import", "timeline", "animate"].map((n) => stub(n, "time", `4D: ${n.replace("_", " ")}`, "M6")),
-  // geo + twin (M5)
-  ...["crs", "anchor", "basemap", "sensor", "bind", "feed"].map((n) => stub(n, "geo", `Geo/twin: ${n}`, "M5")),
+  // geo + twin
+  c("crs", "geo", "Set the project CRS by EPSG code (proj4 definition optional for codes not built in)", { args: { epsg: "EPSG:xxxx", proj4: "string?" }, example: { epsg: "EPSG:32643" }, ui_path: "#setCrs", needs: "viewer" }),
+  c("anchor", "geo", "Place the local origin on the map (IfcMapConversion): easting/northing or lat/lon, height, rotation to grid north", { args: { easting: "number?", northing: "number?", lat: "number?", lon: "number?", height: "m?", rotation_deg: "number?", scale: "number?" }, example: { lat: 18.5204, lon: 73.8567, height: 560, rotation_deg: 0 }, ui_path: "#setAnchor", needs: "viewer" }),
+  c("basemap", "geo", "Basemap tiles from a URL you supply (https://…/{z}/{x}/{y}.png)", { args: { url: "string", attribution: "string?" }, ui_path: "#setBasemap", needs: "viewer" }),
+  c("overlay", "geo", "Overlay GeoJSON features from a URL or inline (ArcGIS REST: add f=geojson)", { kind: "view", args: { url: "string?", geojson: "object?" }, ui_path: "#addOverlay", needs: "viewer" }),
+  c("sensor", "geo", "Add or edit a twin sensor (temperature, humidity, co2, occupancy, energy) with thresholds", { args: { id: "string?", name: "string?", kind: "string", min: "number?", max: "number?", element: "GlobalId|id?" }, example: { kind: "temperature", name: "Living temp", max: 26 }, ui_path: "#addSensor", needs: "viewer" }),
+  c("bind", "geo", "Bind a sensor to an element (GlobalId or authored id)", { args: { sensor: "string", element: "string" }, refusals: [...W, "no_such_element"], ui_path: "#sensorList", needs: "viewer" }),
+  c("feed", "geo", "Start the twin feed: simulated (seeded), a WebSocket JSON feed, or off", { kind: "view", args: { mode: "simulated|ws|off", url: "ws(s)://?", interval_ms: "number?", seed: "number?" }, example: { mode: "simulated" }, ui_path: "#feedSim", needs: "viewer" }),
 ];
 
 export const byName = Object.fromEntries(REGISTRY.map((r) => [r.name, r]));
