@@ -32,7 +32,7 @@ function pisa() {
   c.push(rev({ name: "Cornice 7", center: [0, 0], profile: tube(0, 8100, 450), base: z, material: M, color: "#e8e1d2", segments: 48, ifc_class: "IfcSlab", ...L }));
   c.push(rev({ name: "Belfry", center: [0, 0], profile: [[0, 0], [5300, 0], [5300, 5200], [5600, 5200], [5600, 5700], [0, 5700]], base: z + 450, material: M, color: stone, segments: 40, ifc_class: "IfcWall", ...L }));
   for (const [k, a] of ring(5450, 12).entries()) c.push(rev({ name: `Belfry column ${k + 1}`, center: a, profile: cyl(200, 3600), base: z + 900, material: M, color: "#f6f2ea", segments: 8, ifc_class: "IfcColumn", ...L }));
-  return { id: "pisa", name: "Leaning Tower of Pisa", credit: "Campanile of Pisa Cathedral, begun 1173 (attributed to Bonanno Pisano; completed by Tommaso di Andrea Pisano, 1372). Simplified massing study: 8 storeys, ~56 m, 3.97° lean.", commands: c };
+  return { id: "pisa", plans: [{ title: "Ground storey plan", cut_z: 1200 }, { title: "Gallery plan, third storey", cut_z: 26000 }], name: "Leaning Tower of Pisa", credit: "Campanile of Pisa Cathedral, begun 1173 (attributed to Bonanno Pisano; completed by Tommaso di Andrea Pisano, 1372). Simplified massing study: 8 storeys, ~56 m, 3.97° lean.", commands: c };
 }
 
 // ---------------------------------------------------------------- Taj Mahal
@@ -66,7 +66,7 @@ function taj() {
     for (const hb of [12000, 24500, 37000]) c.push(rev({ name: "Minaret balcony", center: [x, y], profile: tube(0, 3600, 700), base: plinthH + hb, material: M, color: "#ece7dc", segments: 24, ifc_class: "IfcSlab", ...L }));
     c.push(rev({ name: "Minaret chhatri", center: [x, y], profile: onion(2400, 2900, 5200, 10), base: plinthH + 39500, material: M, color: white, segments: 20, ifc_class: "IfcRoof", ...L }));
   }
-  return { id: "taj", name: "Taj Mahal", credit: "Taj Mahal, Agra, 1632–1653, attributed to Ustad Ahmad Lahauri for Emperor Shah Jahan. Simplified massing study: 95 m plinth, chamfered mausoleum, onion dome (~73 m), four chhatris and minarets.", commands: c };
+  return { id: "taj", plans: [{ title: "Plan at mausoleum floor (+8.0 m)", cut_z: 8000 }, { title: "Plan at drum (+39.7 m)", cut_z: 39700 }], name: "Taj Mahal", credit: "Taj Mahal, Agra, 1632–1653, attributed to Ustad Ahmad Lahauri for Emperor Shah Jahan. Simplified massing study: 95 m plinth, chamfered mausoleum, onion dome (~73 m), four chhatris and minarets.", commands: c };
 }
 
 // ---------------------------------------------------------------- Fallingwater
@@ -95,7 +95,7 @@ function fallingwater() {
   c.push(mass({ name: "Study roof", outline: rect(-4500, 0, 1500, 4800), base: 9350, height: 300, material: "Concrete", color: cream, ifc_class: "IfcSlab" }));
   // Cherokee red window mullions on the living level (thin fins)
   for (let x = -8600; x <= 5600; x += 1600) c.push(mass({ name: "Steel sash", outline: rect(x, -6560, x + 70, -6440), base: 0, height: 3100, material: "Steel", color: red, ifc_class: "IfcMember" }));
-  return { id: "fallingwater", name: "Fallingwater", credit: "Fallingwater (Kaufmann Residence), Mill Run, Pennsylvania, 1936–1939, by Frank Lloyd Wright. Simplified massing study: stone core, stacked cantilevered terraces over the falls of Bear Run.", commands: c };
+  return { id: "fallingwater", plans: [{ title: "Living level plan", cut_z: 1200 }, { title: "Bedroom level plan", cut_z: 4600 }, { title: "Study level plan", cut_z: 7800 }], name: "Fallingwater", credit: "Fallingwater (Kaufmann Residence), Mill Run, Pennsylvania, 1936–1939, by Frank Lloyd Wright. Simplified massing study: stone core, stacked cantilevered terraces over the falls of Bear Run.", commands: c };
 }
 
 // ---------------------------------------------------------------- Burj Khalifa
@@ -117,7 +117,7 @@ function burj() {
     }
   }
   c.push(rev({ name: "Spire", center: [0, 0], profile: [[0, 0], [7000, 0], [2600, 160000], [600, 243000], [0, 243000]], base: 585000, segments: 12, material: "Steel", color: "#c7ced4", ifc_class: "IfcMember" }));
-  return { id: "burj", name: "Burj Khalifa", credit: "Burj Khalifa, Dubai, 2004–2010, by Skidmore, Owings & Merrill (Adrian Smith, design partner). Simplified massing study: Y-shaped plan, 27 spiralling setbacks, 828 m. Not affiliated with or endorsed by the owner.", commands: c };
+  return { id: "burj", plans: [{ title: "Plan at +50 m", cut_z: 50000 }, { title: "Plan at +300 m", cut_z: 300000 }, { title: "Plan at +500 m", cut_z: 500000 }], name: "Burj Khalifa", credit: "Burj Khalifa, Dubai, 2004–2010, by Skidmore, Owings & Merrill (Adrian Smith, design partner). Simplified massing study: Y-shaped plan, 27 spiralling setbacks, 828 m. Not affiliated with or endorsed by the owner.", commands: c };
 }
 
 // ---------------------------------------------------------------- Vitra Fire Station
@@ -133,7 +133,7 @@ function vitra() {
   c.push(mass({ name: "Knife-edge canopy", outline: [[2000, -400], [36000, 1600], [52000, -6500], [37000, -1200]], base: 6800, height: 320, material: "Concrete", color: "#e1dfd9", ifc_class: "IfcSlab" }));
   c.push(mass({ name: "Canopy strut", outline: [[30000, -900], [30500, -870], [30500, -500], [30000, -530]], height: 6800, lean_deg: 14, lean_dir_deg: 300, material: "Steel", color: "#5b5f63", ifc_class: "IfcMember" }));
   c.push(mass({ name: "Tapering wall (end)", outline: [[38000, 2500], [58000, 4800], [58000, 5300], [38000, 3000]], height: 5800, top_scale: 0.55, material: "Concrete", color: conc, ifc_class: "IfcWall" }));
-  return { id: "vitra", name: "Vitra Fire Station", credit: "Vitra Fire Station, Weil am Rhein, 1990–1993, by Zaha Hadid (her first major built work). Simplified massing study: long layered concrete planes, leaning walls and a knife-edge canopy. Not affiliated with or endorsed by Vitra.", commands: c };
+  return { id: "vitra", plans: [{ title: "Ground floor plan", cut_z: 1200 }, { title: "Upper floor plan", cut_z: 5800 }], name: "Vitra Fire Station", credit: "Vitra Fire Station, Weil am Rhein, 1990–1993, by Zaha Hadid (her first major built work). Simplified massing study: long layered concrete planes, leaning walls and a knife-edge canopy. Not affiliated with or endorsed by Vitra.", commands: c };
 }
 
 export const LANDMARKS = [pisa(), taj(), fallingwater(), burj(), vitra()];
@@ -142,6 +142,6 @@ import { newProject } from "../author/model.js";
 /** The project + script for a landmark: a fresh project named after it, credit in the description. */
 export function landmarkProject(id) {
   const l = LANDMARKS.find((x) => x.id === id); if (!l) return null;
-  const model = newProject(`${l.name} (BIMja massing study)`); model.description = `${l.credit} Built with BIMja commands.`;
+  const model = newProject(`${l.name} (BIMja massing study)`); model.description = `${l.credit} Built with BIMja commands.`; model.drawing_plans = l.plans;
   return { landmark: l, project: { format: "bimja-project", version: 1, model, extra: {} } };
 }

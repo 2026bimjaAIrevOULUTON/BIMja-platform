@@ -4,6 +4,7 @@ import { installGeoTwin } from "./app/geotwin-ui.js";
 import { installTime } from "./app/time-ui.js";
 import { installCostUI } from "./app/cost-ui.js";
 import { landmarkProject } from "./app/landmarks.js";
+import { installDocsUI } from "./app/docs-ui.js";
 import { DEFAULT_RULES, runCheck, quantities, toCSV } from "./rules.js";
 import { Viewer } from "./viewer.js";
 import { REGISTRY } from "./commands/registry.js";
@@ -200,7 +201,7 @@ $("#tabs").addEventListener("click", (e) => { const b = e.target.closest("button
   if (e.isTrusted && b.classList.contains("on") && document.body.dataset.ws === b.dataset.tab) { document.body.classList.toggle("panel-off"); return; }
   document.body.classList.remove("panel-off");
   if (document.body.dataset.ws === "4d" && b.dataset.tab !== "4d" && timeUI.date) timeUI.off(); // the 4D view belongs to the 4D workspace
-  document.body.dataset.ws = b.dataset.tab;
+  document.body.dataset.ws = b.dataset.tab; if (b.dataset.tab !== "docs") $("#sheetPreview").hidden = true;
   document.querySelectorAll("#tabs button").forEach((x) => { x.classList.toggle("on", x === b); x.setAttribute("aria-current", x === b ? "page" : "false"); });
   document.querySelectorAll(".pane").forEach((p) => p.classList.toggle("on", p.dataset.pane === b.dataset.tab)); });
 $("#file").onchange = async (e) => { const f = e.target.files[0]; if (f) await loadBytes(await f.arrayBuffer(), f.name); e.target.value = ""; };
@@ -324,6 +325,7 @@ bus.register("walkthrough", (a) => { const on = viewer.walkthrough(a.on !== fals
 viewer.onWalk = (on) => { $("#walkBtn").classList.toggle("on", on); $("#walkBtn").textContent = on ? "Exit walk" : "Walk"; if (on) toast("Walk: WASD or arrows, drag to look, Q/E up/down, Shift to run, Esc to leave"); };
 $("#walkBtn").onclick = () => run("walkthrough", { on: !viewer.walk });
 
+installDocsUI({ bus, run, toast, download, downloadBlob });
 // window.bimja: one function per registered command (same names, args, refusals as MCP), plus run() and helpers
 window.bimja = { version: "0.3.0", run: (name, args, opts = {}) => run(name, args, { actor: "agent:console", ...opts }) };
 for (const r of REGISTRY) window.bimja[r.name] = (args = {}, opts = {}) => window.bimja.run(r.name, args, opts);

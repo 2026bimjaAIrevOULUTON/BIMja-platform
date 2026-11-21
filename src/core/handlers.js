@@ -7,6 +7,7 @@ import { authoredRecords } from "../author/records.js";
 import { runCheck } from "../rules.js";
 import { installTime } from "../time/commands.js";
 import { installCost } from "../cost/commands.js";
+import { installDocs } from "../docs/commands.js";
 
 const AUTHOR = ["level", "wall", "walls", "door", "window", "floor", "room", "roof", "mass", "revolve", "delete", "move", "set", "type"];
 
@@ -47,6 +48,7 @@ export function installCore(bus) {
   });
   installTime(bus);
   installCost(bus);
+  installDocs(bus);
   return bus;
 }
 

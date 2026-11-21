@@ -1,0 +1,102 @@
+// Drawing deliverables on the bus: set-up (standard + ISO 19650 fields), sheets, preview/render, publish
+// (status, revision, register, zip of PDF + DXF + XLSX). Headless-safe. State: bus.extra.docs.
+import { defaultDocs, composeSheet, sheetNumber, STANDARDS, STATUS, PAPER } from "./sheets.js";
+import { toSVG, toPDF, toDXF } from "./render.js";
+import { xlsx, toBase64 } from "../cost/xlsx.js";
+import { zip } from "../coord/zip.js";
+import { schedule } from "../author/model.js";
+import { solidOf } from "../author/solids.js";
+
+const fail = (m, code = "bad_arg") => { throw Object.assign(new Error(m), { code }); };
+const KINDS = ["register", "plan", "elevations", "sections", "schedule"];
+
+export function installDocs(bus) {
+  const D = () => (bus.extra.docs ||= defaultDocs());
+  const seqOf = (kind) => D().sheets.filter((s) => s.kind === kind).length + 1;
+
+  bus.register("drawing_setup", (a) => {
+    const d = D();
+    if (a.standard != null) { if (!STANDARDS[a.standard]) fail(`standard must be one of ${Object.keys(STANDARDS).join(", ")}`); d.standard = a.standard; }
+    for (const k of ["project_code", "originator", "volume", "role"]) if (a[k] != null) { const v = String(a[k]).toUpperCase(); if (!/^[A-Z0-9]{1,6}$/.test(v)) fail(`${k} must be 1–6 letters or digits (ISO 19650 field)`); d[k] = v; }
+    for (const k of ["project_name", "client", "address", "author", "checker", "approver"]) if (a[k] != null) d[k] = String(a[k]).slice(0, 120);
+    if (a.paper != null) { if (a.paper && !PAPER[a.paper]) fail(`paper must be one of ${Object.keys(PAPER).join(", ")} (or empty for automatic)`); d.paper = a.paper || null; }
+    return { standard: d.standard, label: STANDARDS[d.standard].label, project_code: d.project_code, originator: d.originator };
+  });
+
+  bus.register("sheets_auto", (a) => {
+    const d = D(); if (!a.keep) d.sheets = [];
+    const m = bus.model; const add = (s) => { const id = `D${d.next++}`; d.sheets.push({ id, seq: seqOf(s.kind), ...s }); };
+    add({ kind: "register", title: "Drawing register" });
+    const cuts = m.data.drawing_plans;
+    if (cuts?.length) cuts.forEach((c) => add({ kind: "plan", level: m.data.levels[0].id, cut_z: c.cut_z, title: c.title, view_title: c.title }));
+    else for (const l of [...m.data.levels].sort((x, y) => x.elevation - y.elevation)) if (m.elements.some((e) => e.level === l.id && e.kind !== "roof")) add({ kind: "plan", level: l.id, title: `${l.name} plan` });
+    add({ kind: "elevations", title: "Elevations" }); add({ kind: "sections", title: "Sections A-A and B-B" });
+    if (m.elements.some((e) => ["door", "window", "room", "wall", "mass"].includes(e.kind))) add({ kind: "schedule", title: "Schedules" });
+    return { sheets: d.sheets.length };
+  });
+
+  bus.register("sheet", (a) => {
+    const d = D(); const cur = a.id && d.sheets.find((s) => s.id === a.id);
+    if (a.delete) { if (!cur) fail(`no sheet ${a.id}`, "no_such_element"); d.sheets = d.sheets.filter((s) => s !== cur); return { deleted: a.id }; }
+    if (a.id && !cur) fail(`no sheet ${a.id}`, "no_such_element");
+    const s = cur || { id: `D${d.next++}` };
+    if (a.kind != null) { if (!KINDS.includes(a.kind)) fail(`kind must be one of ${KINDS.join(", ")}`); s.kind = a.kind; }
+    if (!s.kind) fail("a new sheet needs a kind");
+    if (a.level != null) s.level = bus.model.level(a.level).id;
+    if (a.cut_z != null) { s.cut_z = +a.cut_z; if (!Number.isFinite(s.cut_z)) fail("cut_z must be mm"); }
+    if (a.scale != null) { s.scale = +a.scale; if (!(s.scale > 0)) fail("scale is the denominator, e.g. 100 for 1:100"); }
+    if (a.paper != null) { if (a.paper && !PAPER[a.paper]) fail(`paper must be one of ${Object.keys(PAPER).join(", ")}`); s.paper = a.paper || undefined; }
+    if (a.title != null) s.title = String(a.title).slice(0, 120);
+    s.title ||= { register: "Drawing register", plan: "Plan", elevations: "Elevations", sections: "Sections", schedule: "Schedules" }[s.kind];
+    if (!cur) { s.seq = seqOf(s.kind); d.sheets.push(s); }
+    return { id: s.id, number: sheetNumber(d, bus.model, s) };
+  });
+
+  const sheetById = (id) => D().sheets.find((s) => s.id === id) || fail(`no sheet ${id}: run sheets_auto or sheet first`, "no_such_element");
+  bus.register("drawing", (a) => {
+    const s = sheetById(a.sheet); const comp = composeSheet(bus.model, D(), s, { date: a.date || "" }); const f = a.format || "svg";
+    const base = { sheet: s.id, number: comp.number, scale: comp.scale, paper: comp.paper };
+    if (f === "svg") return { ...base, svg: toSVG(comp) };
+    if (f === "dxf") return { ...base, dxf: toDXF(comp) };
+    if (f === "pdf") return { ...base, base64: toBase64(toPDF([comp], { title: s.title })) };
+    fail("format must be svg, pdf or dxf");
+  }, { kind: "read" });
+
+  bus.register("register", () => ({ standard: D().standard, sheets: D().sheets.map((s) => ({ id: s.id, kind: s.kind, title: s.title, ...sheetNumber(D(), bus.model, s) })), register: D().register }), { kind: "read" });
+
+  bus.register("publish", (a) => {
+    const d = D(); if (!d.sheets.length) fail("no sheets: run sheets_auto first");
+    const status = a.status || "S2"; if (!STATUS[status]) fail(`status must be one of ${Object.keys(STATUS).join(", ")} (BS EN ISO 19650-2 UK NA)`);
+    const date = a.date || "2026-01-01"; if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) fail("date must be YYYY-MM-DD"); a.date = date;
+    const pick = a.sheets ? d.sheets.filter((s) => a.sheets.includes(s.id)) : d.sheets; if (!pick.length) fail("none of those sheets exist", "no_such_element");
+    const prefix = STATUS[status].rev;
+    for (const s of pick) { const n = d.register.filter((r) => r.sheet === s.id && r.rev.startsWith(prefix)).length + 1;
+      d.register.push({ sheet: s.id, number: sheetNumber(d, bus.model, s).container, title: s.title, status, rev: `${prefix}${String(n).padStart(2, "0")}`, date, note: String(a.note || STATUS[status].text).slice(0, 80) }); }
+    const formats = a.formats || ["pdf", "dxf", "xlsx"];
+    const comps = pick.map((s) => ({ s, c: composeSheet(bus.model, d, s, { date }) })); const files = [];
+    const revOf = (s) => [...d.register].reverse().find((r) => r.sheet === s.id).rev;
+    if (formats.includes("pdf")) { files.push({ name: `${d.project_code}-${d.originator}-SET_${status}.pdf`, data: toPDF(comps.map((x) => x.c), { title: `${d.project_name || bus.model.data.name} drawing set` }) });
+      for (const { s, c } of comps) files.push({ name: `pdf/${c.number.container}_${revOf(s)}_${status}.pdf`, data: toPDF([c], { title: s.title }) }); }
+    if (formats.includes("dxf")) for (const { s, c } of comps) if (c.scale) files.push({ name: `dxf/${c.number.container}_${revOf(s)}_${status}.dxf`, data: toDXF(c) });
+    if (formats.includes("xlsx")) files.push({ name: `${d.project_code}-${d.originator}-ZZ-ZZ-SH-A-0002_${status}.xlsx`, data: workbook(bus.model, d) });
+    files.push({ name: "README.txt", data: readme(d, bus.model, status, date) });
+    const z = zip(files);
+    return { status, date, files: files.map((f) => f.name), register: d.register.slice(-pick.length), filename: `${d.project_code}-${d.originator}_${status}_${date}.zip`, base64: toBase64(z) };
+  });
+  return bus;
+}
+
+function workbook(model, d) {
+  const sheets = [{ name: "Register (MIDP)", rows: [["Container name (ISO 19650)", "Sheet", "Title", "Status", "Status meaning", "Revision", "Date", "Note"],
+    ...d.register.map((r) => { const s = d.sheets.find((x) => x.id === r.sheet); return [r.number, s ? sheetNumber(d, model, s).shown : "", r.title, r.status, STATUS[r.status]?.text || "", r.rev, r.date, r.note]; })] }];
+  for (const k of ["door", "window", "room", "wall", "floor"]) { const rows = schedule(model, k); if (rows.length) sheets.push({ name: `${k[0].toUpperCase()}${k.slice(1)} schedule`, rows: [Object.keys(rows[0]), ...rows.map((r) => Object.values(r))] }); }
+  const masses = model.elements.filter((e) => e.kind === "mass");
+  if (masses.length) sheets.push({ name: "Element schedule", rows: [["id", "name", "IFC class", "material", "volume m3", "surface m2", "height m"], ...masses.map((e) => { const s = solidOf(e); return [e.id, e.name, e.ifc_class, e.material || "", +(s.volume / 1e9).toFixed(3), +(s.area / 1e6).toFixed(2), +((s.zmax - s.zmin) / 1000).toFixed(3)]; })] });
+  return xlsx(sheets);
+}
+function readme(d, model, status, date) {
+  return [`${d.project_name || model.data.name}: drawing issue ${date}, status ${status} (${STATUS[status].text}).`, `Standard: ${STANDARDS[d.standard].label}.`,
+    "Files: SET pdf = all sheets; pdf/ = one file per information container; dxf/ = CAD at true scale (1 unit = 1 mm; title block drawn at the plot scale); xlsx = register (MIDP) and schedules.",
+    "DWG: open a DXF in AutoCAD and use Save As > DWG, or batch-convert with the free ODA File Converter.",
+    "Generated by BIMja from the model; drawings and schedules come from the same model, so they agree.", model.data.description ? `Credit: ${model.data.description}` : ""].filter(Boolean).join("\n") + "\n";
+}

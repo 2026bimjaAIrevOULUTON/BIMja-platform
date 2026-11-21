@@ -1,5 +1,46 @@
 # Status
 
+## 2026-11-21: D1 drawing engine (plans, elevations, sections, schedules → PDF, DXF, Excel; ISO 19650)
+
+**What moved**
+- **Drawing views from the model** (headless, the same in the browser, MCP and CI):
+  - **Plans:** cut walls with clean joins, door leaves and swings, window sills and glass, room names, numbers and areas, opening marks, chain and overall dimensions, and any mass cut at the plan height.
+  - **Elevations and sections:** hidden lines removed with a software depth buffer, including the silhouettes of domes and other curved forms; cut faces filled; level datums.
+- **Sheets:**
+  - Three selectable standards: ISO 19650 + UK National Annex, US NCS + ISO 19650 process, and IS 962/NBC + ISO 19650 naming. Each sets its own layers, title block, sheet numbers and paper.
+  - Automatic paper size (smallest ISO A sheet that takes 1:50, then 1:100) and preferred scales.
+  - The grid layout is chosen per sheet (towers get one row).
+  - IS/NBC plans add an area statement.
+- **ISO 19650 information management:**
+  - Container names in Project-Originator-Volume-Level-Type-Role-Number form, e.g. TAJ-BJA-ZZ-00-DR-A-1001.
+  - UK NA suitability codes S0–S4, A1–A5, B1 and CR, with CDE state.
+  - Revisions P01… for S codes and C01… once authorised.
+  - A drawing register (MIDP) that records every issue.
+- **Commands:** `drawing_setup`, `sheets_auto`, `sheet`, `drawing` (svg|pdf|dxf), `publish`, `register`. Agents' publishes are proposals like any write.
+- **Publish zip:**
+  - The PDF set, plus one PDF and one DXF per container.
+  - An XLSX with the register and the door, window, room, wall, floor and element schedules.
+  - A README.
+  - DXF is R12 at true scale (1 unit = 1 mm) with standard layers and filled cut walls.
+  - DWG: save as DWG from AutoCAD, or batch-convert with the ODA File Converter. DWG is a closed format and is not written natively.
+- **Landmarks** carry their own plan cuts (e.g. Taj at +8.0 m and +39.7 m), so `sheets_auto` gives meaningful plans for each.
+- **Drawings workspace:** set-up, sheet list, live sheet preview (re-drawn when the model changes), PDF/DXF per sheet, and Publish with status.
+
+**Gates**
+- The plan carries the model's data: room name, area and the 10 230 mm overall dimension, cut walls filled, D01/W01 marks.
+- Revisions follow the status family (P01 → P02 → C01).
+- Publish is byte-identical for the same model and arguments.
+- Independent readers open every file in CI: pypdf for 6 PDFs (5 pages in the set), ezdxf for the DXFs (recover + audit: 0 errors, standard layers, SOLID fills), openpyxl for the workbook.
+- US NCS sheet A-101; the IS/NBC area statement; Taj elevations with more than 800 visible line segments in under 1 s.
+- Parity: 72 commands. Budget: 238 KB of 600 KB.
+
+**Known limits**
+- Plans dimension the outer chain and overall only; there are no interior or opening dimensions yet.
+- Text widths are approximate (Helvetica metrics), and there are no leaders or callouts.
+- Wall layers are not drawn per layer in plan (a single cut fill).
+- Sections cut the whole model at its middle by default.
+- No site plan yet (D2).
+
 ## 2026-11-21: Free-form modelling (mass, revolve) and five landmark massing studies
 
 **What moved**

@@ -10,7 +10,7 @@
 </head>
 <body>
 <header id="top">
-  <div class="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V9l8-5 8 5v11z"/><path d="M9 20v-6h6v6"/></svg>BIMja <small>v1.0</small></div>
+  <div class="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V9l8-5 8 5v11z"/><path d="M9 20v-6h6v6"/></svg>BIMja <small>v1.1</small></div>
   <button class="search" id="paletteBtn" title="Command palette (Ctrl/⌘+K)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 18a7 7 0 110-14 7 7 0 010 14zM16 16l4 4"/></svg><span>Search commands, run anything</span><kbd>⌘K</kbd></button>
   <div class="actions">
     <button class="btn icon" id="undo" title="Undo (Ctrl+Z)" aria-label="Undo"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 010 12h-3"/></svg></button>
@@ -42,6 +42,7 @@
     <button data-tab="coord" title="Coordination"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4v10M16 10v10M4 8h8M12 16h8M14 4l-4 4M10 20l4-4"/></svg><span>Clash</span></button>
     <button data-tab="4d" title="4D schedule"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h6M17 14v6M14 17h6"/></svg><span>4D</span></button>
     <button data-tab="qto" title="5D: quantities and cost"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12M6 9h12M9 9c3 0 5 2 5 4s-2 3-5 3l7 5M6 14h3"/></svg><span>5D</span></button>
+    <button data-tab="docs" title="Drawings and deliverables"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h10l4 4v14H5zM15 3v4h4M8 12h8M8 16h5"/></svg><span>Drawings</span></button>
     <button data-tab="twin" title="Geo and twin"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6-7-11a7 7 0 0114 0c0 5-7 11-7 11zM12 12a2 2 0 100-4 2 2 0 000 4z"/></svg><span>Twin</span></button>
     <button data-tab="log" id="logTab" title="Activity"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v5l3 3M12 21a9 9 0 110-18 9 9 0 010 18z"/></svg><span>Activity</span><span id="propCount" class="badge" hidden></span></button>
   </nav>
@@ -142,6 +143,23 @@
       <div class="row"><input id="linkRuleText" placeholder="Rule: wall@Level 1 · door · IfcWall@Level 2"><button class="btn" id="linkRule">Link by rule</button></div>
       <p class="note">The timeline and Gantt are in the bottom dock.</p>
     </div>
+    <div data-pane="docs" class="pane">
+      <h2 class="pane-title">Drawings and deliverables</h2>
+      <div class="row"><select id="dwgStandard" title="Drawing standard">
+        <option value="iso19650-uk">ISO 19650 + UK National Annex (BS EN)</option>
+        <option value="us-ncs">US National CAD Standard + ISO 19650 process</option>
+        <option value="is-nbc">IS 962 / NBC 2016 (India) + ISO 19650 naming</option></select></div>
+      <div class="row"><input id="dwgProject" placeholder="Project code (e.g. TAJ)" style="width:120px"><input id="dwgOriginator" placeholder="Originator (e.g. BJA)" style="width:120px"></div>
+      <div class="row"><input id="dwgName" placeholder="Project name"><input id="dwgClient" placeholder="Client"></div>
+      <div class="row"><button class="btn" id="dwgSetup">Apply set-up</button><button class="btn primary" id="sheetsAuto" title="Register, plans, elevations, sections, schedules">Create sheet set</button></div>
+      <h4 class="sec">Sheets</h4>
+      <div id="sheetList"><p class="note">No sheets yet. Create the sheet set from the model, or add a sheet.</p></div>
+      <div class="row"><select id="sheetKind"><option value="plan">Plan</option><option value="elevations">Elevations</option><option value="sections">Sections</option><option value="schedule">Schedules</option><option value="register">Register</option></select><input id="sheetCut" type="number" placeholder="Plan cut mm" style="width:110px" title="Plan cut height above ground, mm"><button class="btn" id="sheetAdd">Add sheet</button></div>
+      <h4 class="sec">Issue</h4>
+      <div class="row"><select id="publishStatus"></select><button class="btn primary" id="publishBtn">Publish (PDF + DXF + Excel)</button></div>
+      <p class="note">Publishing bumps each sheet's revision (P01… for S codes, C01… once authorised), records it in the register, and downloads one zip. DXF opens in AutoCAD and can be saved as DWG there.</p>
+      <div id="registerList"></div>
+    </div>
     <div data-pane="twin" class="pane">
       <h2 class="pane-title">Geo and twin</h2>
       <div id="geoWarn" class="warnbox">⚠ No CRS: the model sits at a local origin, not on a real location. Set a CRS and an anchor to place it on the map.</div>
@@ -179,6 +197,7 @@
     <div id="drop" hidden>Drop an .ifc file</div>
     <div id="ghosts"></div>
     <div id="credit" hidden></div>
+    <div id="sheetPreview" hidden><div class="sp-bar"><b id="spTitle"></b><span class="grow"></span><button class="btn" id="spPdf">PDF</button><button class="btn" id="spDxf">DXF</button><button class="btn icon" id="spClose" aria-label="Close preview">✕</button></div><div id="spBody"></div></div>
     <div id="welcome">
       <h2>Open a BIM model</h2>
       <p>Drop an <b>.ifc</b> file here, use <b>Open IFC</b>, or try a sample. Everything runs in your browser and nothing is uploaded.</p>
