@@ -1,5 +1,43 @@
 # Status
 
+## 2026-11-21: M3 (modelling UI and IFC/glTF export). Gate PASSED
+
+**What moved**
+- **Plan view** (Create → Draw in plan):
+  - draw walls by clicking, with 100 mm grid, endpoint and 15° angle snaps and a live length readout; click the first point to close;
+  - place doors and windows on walls, and rooms inside walls (named);
+  - select, pan, zoom and fit; a level picker and a wall-type picker;
+  - keyboard: W, D, N, R, V, F, Enter, Esc.
+  - Every click emits the same command an agent would send.
+- **`export_ifc`:** authored model → IFC4.
+  - Writes walls (type, material layer set, Pset_WallCommon, Qto), openings with doors and windows (fills/voids, marks, Pset_*Common, Qto), slabs (floor/roof), spaces (LongName, Qto) and storeys.
+  - Deterministic GlobalIds and byte-identical output on repeat.
+  - Never invents data the model doesn't have. The round-trip gate caught this: the exporter had been adding a placeholder material and FireRating, and now doesn't.
+  - When only an IFC is open, it re-saves that IFC unchanged.
+- **`export_gltf`:** GLB of the 3D view; the exporter loads lazily (10 KB).
+- **`check_handover`:** also runs on the authored model before export.
+
+**Gates**
+- **Round trip** (`tests/roundtrip.mjs`):
+  - Complete model: 100% before export = 100% after reopening.
+  - Deliberately incomplete model: 82% = 82%, with the same failures rule by rule.
+  - Classes, counts and GlobalIds all survive.
+- **IfcOpenShell 0.9.0 schema validation:** 0 issues on both exported files. Runs in CI only, never bundled.
+- **Browser QA:** a building drawn purely by clicks, then IFC (23 KB) and GLB (`glTF` magic) exported. Reopened IFC scores 100% = 100%. 0 errors.
+- Parity: 38 live. Budget: 178 KB of 600 KB.
+
+**Known losses** (`EXPORT_LOSSES`):
+- The roof overhang shows in 3D only.
+- Wall corners are overlapping extrusions; there is no IfcRelConnectsPathElements yet.
+- Wall layers are a type material set only.
+
+**What broke**
+- web-ifc moves models to the origin (`COORDINATE_TO_ORIGIN`), so a reopened export sits offset from the authored model. Federation in M4 must apply the coordination matrix.
+
+**Single next step**
+- M4: federate (with coordinate alignment), BVH clash, issues, viewpoints, BCF import/export.
+
+
 ## 2026-11-21: M1 (command bus and two actors). Gate PASSED (Chrome); Firefox and Safari not yet verified
 
 **What moved**

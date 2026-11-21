@@ -2,6 +2,9 @@
 // coordination/time/geo/cost by their modules. Everything here also runs headless in Node for the MCP server.
 import { REGISTRY } from "../commands/registry.js";
 import { COMMANDS as MODEL_COMMANDS } from "../author/model.js";
+import { exportIFC } from "../author/ifc-export.js";
+import { authoredRecords } from "../author/records.js";
+import { runCheck } from "../rules.js";
 
 const AUTHOR = ["level", "wall", "walls", "door", "window", "floor", "room", "roof", "delete", "move", "set", "type"];
 
@@ -26,6 +29,8 @@ export function installCore(bus) {
 
   bus.register("commands", () => REGISTRY.map(({ name, domain, status, ui_path, headless_only, args, example, refusals, help }) => ({ name, domain, status, help, args, example, refusals, ui_path: ui_path || null, headless_only: headless_only || null })), { kind: "read" });
   bus.register("describe", () => describeModel(bus), { kind: "read" });
+  bus.register("export_ifc", () => exportIFC(bus.model, { geo: bus.extra.geo }), { kind: "read" });
+  bus.register("check_handover", (args) => runCheck(authoredRecords(bus.model), args.rules), { kind: "read" }); // the app overrides this when an IFC is open
   bus.register("save", () => bus.saveProject(), { kind: "read" });
   bus.register("log", (args) => bus.log.slice(-(args.last || 200)), { kind: "read" });
   bus.register("proposals", () => [...bus.proposals.values()].map(({ id, cmd, diff, expires }) => ({ id, name: cmd.name, args: cmd.args, actor: cmd.actor, diff, expires })), { kind: "read" });

@@ -6,6 +6,9 @@ import { Bus } from "./core/bus.js";
 import { installCore, describeModel } from "./core/handlers.js";
 import { buildAuthored } from "./author/build3d.js";
 import { initSessionUI } from "./app/session-ui.js";
+import { initPlan } from "./app/plan.js";
+import { exportIFC } from "./author/ifc-export.js";
+import { authoredRecords } from "./author/records.js";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -140,6 +143,10 @@ $("#qto").addEventListener("click", (e) => { const tr = e.target.closest("tr.cli
   const ids = [...state.model.index.elements.values()].filter((x) => x.ifcClass === tr.dataset.cls).map((x) => x.id); viewer.highlight(ids, true); viewer.fit(ids); });
 
 // ---------- exports ----------
+function downloadBlob(name, blob) {
+  if (embedded) return toast("Downloads are blocked in this preview. Use the GitHub Pages link.");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name.replace(/[^\w.-]+/g, "_"); a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); toast(`Downloaded ${name}`);
+}
 function toast(msg) { let n = document.getElementById("toast"); if (!n) { n = document.createElement("div"); n.id = "toast"; document.body.appendChild(n); }
   n.textContent = msg; n.className = "show"; clearTimeout(n._t); n._t = setTimeout(() => (n.className = ""), 2600); }
 const embedded = (() => { try { return window.self !== window.top; } catch { return true; } })();
@@ -149,7 +156,7 @@ async function download(name, text, type = "text/plain") {
     catch { toast("Downloads are blocked in this preview. Open the GitHub/Cloudflare link to export."); }
     return;
   }
-  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name.replace(/[^\w.-]+/g, "_"); a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   toast(`Downloaded ${name}`);
 }
 const stem = () => (state.fileName || "model").replace(/\.ifc$/i, "");
@@ -201,7 +208,25 @@ const need = () => { if (!state.model) throw Object.assign(new Error("No IFC mod
 bus.register("describe", () => ({ ...describeModel(bus), ifc: ifcSummary() || null,
   crs_note: bus.extra.geo?.crs ? undefined : "No CRS: models sit at a local origin (georeferencing arrives in M5)." }), { kind: "read" });
 bus.register("load", (a) => (a.url ? loadUrl(new URL(a.url, BASE).href) : loadBytes(a.bytes, a.name || "model.ifc")).then(() => ifcSummary()), { kind: "view" });
-bus.register("check_handover", (a) => { need(); state.check = runCheck(state.model.index.elements, a.rules || DEFAULT_RULES); renderCheck(); return state.check; }, { kind: "read" });
+bus.register("check_handover", (a) => {
+  const authoredOnly = !state.model; const els = authoredOnly ? authoredRecords(bus.model) : state.model.index.elements;
+  const res = runCheck(els, a.rules || DEFAULT_RULES); if (!authoredOnly) { state.check = res; renderCheck(); } else renderAuthoredCheck(res); return res;
+}, { kind: "read" });
+bus.register("export_ifc", () => {
+  if (Object.keys(bus.model.data.elements).length || !state.model) return exportIFC(bus.model, { geo: bus.extra.geo });
+  return new TextDecoder().decode(state.api.SaveModel(state.model.modelID)); // re-save the open IFC unchanged
+}, { kind: "read" });
+bus.register("export_gltf", async () => {
+  const { GLTFExporter } = await import("three/examples/jsm/exporters/GLTFExporter.js");
+  const glb = await new GLTFExporter().parseAsync(viewer.scene, { binary: true, onlyVisible: true });
+  let s = ""; const b = new Uint8Array(glb); for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode(...b.subarray(i, i + 0x8000));
+  return { mime: "model/gltf-binary", bytes: b.length, base64: btoa(s) };
+}, { kind: "read" });
+function renderAuthoredCheck(c) {
+  $("#score").innerHTML = `<div class="big" style="color:${c.score >= 90 ? "var(--ok)" : c.score >= 70 ? "var(--med)" : "var(--hi)"}">${c.score}%</div><div><div class="note">Authored model: ${c.passed}/${c.checks} checks on ${c.elementsChecked} elements</div><div class="chips"><span class="chip high">${c.high} high</span><span class="chip medium">${c.medium} medium</span><span class="chip low">${c.low} low</span></div></div>`;
+  $("#rules").innerHTML = Object.entries(c.byRule).map(([id, r]) => `<div class="rule ${r.failed ? "" : "pass"}"><span><b>${id}</b> ${esc(r.title)}</span><span class="chip ${r.failed ? r.severity : "ok"}">${r.failed ? r.failed + " fail" : "pass"}</span></div>`).join("");
+  $("#issues").innerHTML = c.issues.map((i) => `<div class="issue ${i.severity}" data-aid="${esc(i.expressID)}">${esc(i.title)}<small>${esc(i.ifcClass)} · ${esc(i.name)} · ${esc(i.storey)}</small></div>`).join("");
+}
 bus.register("export_issues", () => { need(); return toCSV(state.check.issues); }, { kind: "read" });
 bus.register("export_report", (a) => { need(); return a.format === "html" ? clientReport() : report(); }, { kind: "read" });
 bus.register("quantity", () => { need(); return state.qto; }, { kind: "read" });
@@ -223,7 +248,20 @@ function refreshAuthored() {
   if (hasAuth) $("#welcome").hidden = true;
   if (hasAuth && authoredDirty && !state.model) { viewer.fit(); authoredDirty = false; }
 }
-const ui = initSessionUI({ bus, viewer, run, toast, download, onAuthoredChange: refreshAuthored });
+const ui = initSessionUI({ bus, viewer, run, toast, download, onAuthoredChange: () => { refreshAuthored(); fillPlanSelects(); } });
+const plan = initPlan({ bus, run, toast, container: $("#view"), onSelect: (id) => (id ? selectAuthored(id, false) : select(null)) });
+function fillPlanSelects() {
+  const ls = $("#planLevel"), cur = ls.value; ls.innerHTML = bus.model.data.levels.map((l) => `<option value="${esc(l.id)}">${esc(l.name)} (${l.elevation} mm)</option>`).join(""); if (cur) ls.value = cur;
+  const wt = $("#planWallType"), cw = wt.value; wt.innerHTML = Object.keys(bus.model.data.types.wall).map((n) => `<option>${esc(n)}</option>`).join(""); if (cw) wt.value = cw;
+}
+fillPlanSelects();
+$("#planLevel").onchange = (e) => plan.setLevel(e.target.value);
+const setPlan = (on) => { plan.show(on); $("#viewMode").textContent = on ? "Back to 3D" : "Draw in plan"; $("#tools").hidden = on; if (on) $("#welcome").hidden = true; else refreshAuthored(); };
+$("#viewMode").onclick = () => setPlan(!plan.on);
+$("#exportIfc").onclick = async () => { const r = await run("export_ifc", {}); if (r.ok) download(`${(bus.model.data.name || "bimja").replace(/[^\w.-]+/g, "_")}.ifc`, r.data, "application/x-step"); };
+$("#exportGlb").onclick = async () => { const r = await run("export_gltf", {}); if (r.ok) { const bin = Uint8Array.from(atob(r.data.base64), (c) => c.charCodeAt(0)); downloadBlob("bimja.glb", new Blob([bin], { type: "model/gltf-binary" })); } };
+$("#checkAuthored").onclick = async () => { await run("check_handover", {}); document.querySelector('button[data-tab="check"]').click(); };
+$("#issues").addEventListener("click", (e) => { const it = e.target.closest("[data-aid]"); if (it) selectAuthored(it.dataset.aid, true); });
 
 // window.bimja: one function per registered command (same names, args, refusals as MCP), plus run() and helpers
 window.bimja = { version: "0.3.0", run: (name, args, opts = {}) => run(name, args, { actor: "agent:console", ...opts }) };

@@ -38,10 +38,12 @@ export const REGISTRY = [
   c("set", "author", "Change an element's fields (type, name, height, offset, sill, mark)", { args: { id: "string" }, refusals: [...W, "no_such_element"], ui_path: "#props" }),
   c("type", "author", "Add or edit a type (wall, door, window, floor, roof)", { args: { kind: "string", name: "string" } }),
   c("schedule", "author", "Schedule of walls, doors, windows, rooms, floors or roofs", { kind: "read", args: { kind: "wall|door|window|room|floor|roof" }, example: { kind: "door" }, ui_path: "#scheduleKind" }),
+  c("export_ifc", "author", "Export the authored model as IFC4 (or re-save the open IFC); returns the file text", { kind: "read", ui_path: "#exportIfc" }),
+  c("export_gltf", "view", "Export the 3D view as binary glTF (GLB, base64)", { kind: "read", ui_path: "#exportGlb", needs: "viewer" }),
   c("query", "author", "Find authored elements by kind, level or type", { kind: "read", args: { kind: "string?", level: "string?", type: "string?" } }),
 
   // checks & quantities on the open IFC
-  c("check_handover", "cost", "Run the handover data check on the open IFC", { kind: "read", ui_path: "#runCheck", needs: "viewer" }),
+  c("check_handover", "cost", "Run the handover data check on the open IFC, or on the authored model if no IFC is open", { kind: "read", ui_path: "#runCheck" }),
   c("export_issues", "cost", "Handover issues as CSV", { kind: "read", ui_path: "#csvIssues", needs: "viewer" }),
   c("export_report", "cost", "Handover report as JSON (HTML from the UI)", { kind: "read", ui_path: "#jsonReport", needs: "viewer" }),
   c("quantity", "cost", "Counts, areas, volumes, lengths per class", { kind: "read", ui_path: "#csvQto", needs: "viewer" }),

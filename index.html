@@ -10,7 +10,7 @@
 </head>
 <body>
 <header>
-  <div class="brand">BIM<span>ja</span> <small>open BIM · v0.3</small></div>
+  <div class="brand">BIM<span>ja</span> <small>open BIM · v0.4</small></div>
   <nav id="tabs">
     <button data-tab="model" class="on">Model</button>
     <button data-tab="create">Create</button>
@@ -44,7 +44,17 @@
       <div id="tree"></div>
     </div>
     <div data-pane="create" class="pane">
-      <p class="note">Model in millimetres. Each tool opens its command with an example you can edit; agents use the same commands.</p>
+      <div class="row"><button class="btn primary" id="viewMode" title="Toggle plan / 3D (Tab)">Draw in plan</button>
+        <select id="planLevel" title="Level"></select></div>
+      <div class="row tools" id="planTools">
+        <button class="btn on" data-plantool="select" title="V">Select</button>
+        <button class="btn" data-plantool="wall" title="W">Wall</button>
+        <button class="btn" data-plantool="door" title="D">Door</button>
+        <button class="btn" data-plantool="window" title="N">Window</button>
+        <button class="btn" data-plantool="room" title="R">Room</button>
+      </div>
+      <div class="row"><select id="planWallType" title="Wall type"></select><input id="planRoomName" placeholder="Room name"></div>
+      <p class="note">Plan: W walls (click points, Enter to finish, click the first point to close), D door, N window, R room, V select, F fit. Or use the command forms below; agents use the same commands. Units: mm.</p>
       <div class="row tools">
         <button class="btn" id="toolWall" data-cmd="walls">Walls</button>
         <button class="btn" id="toolDoor" data-cmd="door">Door</button>
@@ -54,7 +64,8 @@
         <button class="btn" id="toolRoof" data-cmd="roof">Roof</button>
         <button class="btn" id="deleteSel" title="Delete selected (Del)">Delete</button>
       </div>
-      <div class="row"><button class="btn primary" id="demoHouse">Build a sample house</button></div>
+      <div class="row"><button class="btn" id="demoHouse">Build a sample house</button></div>
+      <div class="row"><button class="btn" id="exportIfc">Export IFC4</button><button class="btn" id="exportGlb">Export GLB</button><button class="btn" id="checkAuthored">Handover check</button></div>
       <div class="row"><select id="scheduleKind"><option value="wall">Wall schedule</option><option value="door">Door schedule</option><option value="window">Window schedule</option><option value="room">Room schedule</option><option value="floor">Floor schedule</option><option value="roof">Roof schedule</option></select></div>
       <div id="schedule"></div>
     </div>

@@ -17,6 +17,8 @@ jobs:
         with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npm test
+      - name: Validate exported IFC with IfcOpenShell (CI only, LGPL, never bundled)
+        run: pip install --quiet ifcopenshell==0.9.0.post1 && npm run validate-ifc
       - run: npm run build
       - name: Load budget (fails over 600 KB gzipped first load)
         run: npm run budget
