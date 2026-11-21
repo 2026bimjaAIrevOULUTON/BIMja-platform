@@ -9,6 +9,7 @@ import { initSessionUI } from "./app/session-ui.js";
 import { initPlan } from "./app/plan.js";
 import { exportIFC } from "./author/ifc-export.js";
 import { authoredRecords } from "./author/records.js";
+import { installCoordination } from "./app/coord-ui.js";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -74,8 +75,9 @@ $("#tree").addEventListener("click", (e) => { const it = e.target.closest(".item
 
 // ---------- selection & properties ----------
 function select(id, fly = false) {
-  if (typeof id === "string") return selectAuthored(id, fly);
-  window.__bimjaSelectedAuthored = null;
+  if (typeof id === "string" && !id.includes("#")) return selectAuthored(id, fly);
+  window.__bimjaSelectedAuthored = null; window.__bimjaSelectedIfc = typeof id === "number" ? id : null;
+  if (typeof id === "string" && id.includes("#")) { viewer.highlight([id], fly); if (fly) viewer.fit([id]); return; } // federated element
   state.selected = id;
   viewer.highlight(id ? [id] : [], fly);
   if (id && fly) viewer.fit([id]);
@@ -262,6 +264,12 @@ $("#exportIfc").onclick = async () => { const r = await run("export_ifc", {}); i
 $("#exportGlb").onclick = async () => { const r = await run("export_gltf", {}); if (r.ok) { const bin = Uint8Array.from(atob(r.data.base64), (c) => c.charCodeAt(0)); downloadBlob("bimja.glb", new Blob([bin], { type: "model/gltf-binary" })); } };
 $("#checkAuthored").onclick = async () => { await run("check_handover", {}); document.querySelector('button[data-tab="check"]').click(); };
 $("#issues").addEventListener("click", (e) => { const it = e.target.closest("[data-aid]"); if (it) selectAuthored(it.dataset.aid, true); });
+
+const coordUI = installCoordination({ bus, viewer, run, toast, download, downloadBlob,
+  getMain: () => (state.model ? { model: state.model, name: state.fileName } : null),
+  openIfcBytes: async (bytes) => openModel(await api(), bytes),
+  selectIds: (ids, fly = true) => { viewer.highlight(ids, true); if (fly) viewer.fit(ids); } });
+addEventListener("bimja:loaded", () => coordUI.renderModels());
 
 // window.bimja: one function per registered command (same names, args, refusals as MCP), plus run() and helpers
 window.bimja = { version: "0.3.0", run: (name, args, opts = {}) => run(name, args, { actor: "agent:console", ...opts }) };

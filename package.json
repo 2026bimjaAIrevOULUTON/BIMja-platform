@@ -1,15 +1,16 @@
 {
   "name": "bimja-platform",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node tests/run.mjs && node tests/author.mjs && node tests/bus.mjs && node tests/mcp.mjs && node tests/roundtrip.mjs && node tests/parity.mjs",
+    "test": "node tests/run.mjs && node tests/author.mjs && node tests/bus.mjs && node tests/mcp.mjs && node tests/roundtrip.mjs && node tests/bcf.mjs && node tests/parity.mjs",
     "budget": "node scripts/budget.mjs",
     "sbom": "npm sbom --sbom-format cyclonedx --omit dev > dist/sbom.cdx.json",
-    "validate-ifc": "python3 ci/validate_ifc.py dist-test/sample-house.ifc dist-test/incomplete.ifc"
+    "validate-ifc": "python3 ci/validate_ifc.py dist-test/sample-house.ifc dist-test/incomplete.ifc",
+    "test:clash": "node tests/clash.mjs"
   },
   "keywords": [],
   "author": "",

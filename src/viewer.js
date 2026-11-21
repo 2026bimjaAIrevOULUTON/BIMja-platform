@@ -20,6 +20,7 @@ export class Viewer {
     this.section = new THREE.Plane(new THREE.Vector3(0, -1, 0), 1e6);
     this.root = new THREE.Group(); this.scene.add(this.root);
     this.auth = new THREE.Group(); this.scene.add(this.auth);
+    this.fed = new Map(); // federated models: fid -> group
     this.byId = new Map(); // expressID -> [mesh]
     this.hl = new THREE.MeshStandardMaterial({ color: 0xff7a1a, emissive: 0x552200, side: THREE.DoubleSide, clippingPlanes: [this.section] });
     this.ray = new THREE.Raycaster();
@@ -36,7 +37,37 @@ export class Viewer {
     const loop = () => { requestAnimationFrame(loop); this.controls.update(); this.renderer.render(this.scene, this.camera); };
     loop(); this.resize();
   }
-  meshes() { return [...this.root.children, ...this.auth.children]; }
+  meshes() { return [...this.root.children, ...this.auth.children, ...[...this.fed.values()].flatMap((g) => g.visible ? g.children : [])]; }
+  /** Add a federated model: its meshes get ids "<fid>#<expressID>"; tint helps tell models apart. */
+  addModel(fid, model, classOf, tint = 0x7fb3ff) {
+    this.removeModel(fid); const g = new THREE.Group(); g.name = fid; this.scene.add(g); this.fed.set(fid, g);
+    const mats = new Map();
+    for (const m of model.meshes) for (const geo of m.geometries) {
+      const bg = new THREE.BufferGeometry(); bg.setAttribute("position", new THREE.BufferAttribute(geo.positions, 3)); bg.setAttribute("normal", new THREE.BufferAttribute(geo.normals, 3)); bg.setIndex(new THREE.BufferAttribute(geo.index, 1));
+      const c = geo.color; const key = `${c.x.toFixed(2)}${c.y.toFixed(2)}${c.z.toFixed(2)}${c.w}`;
+      if (!mats.has(key)) { const col = new THREE.Color(c.x, c.y, c.z).lerp(new THREE.Color(tint), 0.45); mats.set(key, new THREE.MeshStandardMaterial({ color: col, transparent: c.w < 1, opacity: c.w, side: THREE.DoubleSide, roughness: 0.8, clippingPlanes: [this.section] })); }
+      const mesh = new THREE.Mesh(bg, mats.get(key)); mesh.applyMatrix4(new THREE.Matrix4().fromArray(geo.matrix));
+      const id = `${fid}#${m.expressID}`; const cls = classOf(m.expressID);
+      mesh.userData = { expressID: id, ifcClass: cls, baseMat: mesh.material, isSpace: cls === "IfcSpace" }; if (cls === "IfcSpace") mesh.visible = false;
+      g.add(mesh); (this.byId.get(id) || this.byId.set(id, []).get(id)).push(mesh);
+    }
+    g.position.copy(this.root.position); return g;
+  }
+  removeModel(fid) { const g = this.fed.get(fid); if (!g) return; g.children.forEach((c) => c.geometry.dispose()); this.scene.remove(g); this.fed.delete(fid); for (const k of [...this.byId.keys()]) if (typeof k === "string" && k.startsWith(fid + "#")) this.byId.delete(k); }
+  setModelVisible(fid, on) { const g = fid === "main" ? this.root : this.fed.get(fid); if (g) g.visible = on; }
+  /** Re-centre models far from the origin (georeferenced coordinates) so the GPU keeps precision; all models share the offset. */
+  setOffset(v) { this.offset = v; for (const g of [this.root, ...this.fed.values()]) g.position.set(-v[0], -v[1], -v[2]); } // authored stays local
+  /** Camera in BCF terms (IFC world, metres, Z up). */
+  getCameraBCF() {
+    const o = this.offset || [0, 0, 0]; const p = this.camera.position, d = new THREE.Vector3(); this.camera.getWorldDirection(d);
+    const toIfc = (x, y, z) => [x, -z, y];
+    return { position: toIfc(p.x + o[0], p.y + o[1], p.z + o[2]), direction: toIfc(d.x, d.y, d.z), up: [0, 0, 1], fov: Math.round(this.camera.fov) };
+  }
+  setCameraBCF(c) {
+    const o = this.offset || [0, 0, 0]; const fromIfc = (v) => new THREE.Vector3(v[0], v[2], -v[1]);
+    const p = fromIfc(c.position).sub(new THREE.Vector3(...o)), d = fromIfc(c.direction).normalize();
+    this.camera.position.copy(p); this.controls.target.copy(p.clone().add(d.multiplyScalar(10))); this.camera.fov = c.fov || this.camera.fov; this.camera.updateProjectionMatrix();
+  }
   setAuthored(group) {
     this.auth.children.slice().forEach((c) => { c.geometry.dispose(); this.auth.remove(c); });
     for (const [id, list] of [...this.byId]) if (typeof id === "string") this.byId.delete(id);
@@ -70,9 +101,10 @@ export class Viewer {
         (this.byId.get(m.expressID) || this.byId.set(m.expressID, []).get(m.expressID)).push(mesh);
       }
     }
+    if (!this.offset) { const b = new THREE.Box3().setFromObject(this.root); const c = b.getCenter(new THREE.Vector3()); if (!b.isEmpty() && c.length() > 1000) this.setOffset([c.x, c.y, c.z]); }
     this.fit();
   }
-  clear() { this.root.children.slice().forEach((c) => { c.geometry.dispose(); this.root.remove(c); }); this.byId.clear(); }
+  clear() { this.root.children.slice().forEach((c) => { c.geometry.dispose(); this.root.remove(c); }); for (const k of [...this.byId.keys()]) if (typeof k === "number") this.byId.delete(k); }
   box(ids) {
     const b = new THREE.Box3();
     (ids ? ids.flatMap((i) => this.byId.get(i) || []) : this.meshes().filter((c) => c.visible)).forEach((m) => b.expandByObject(m));

@@ -16,9 +16,13 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
+      - name: Tools for gates (xmllint for BCF XSD validation)
+        run: sudo apt-get install -y -qq libxml2-utils >/dev/null
       - run: npm test
       - name: Validate exported IFC with IfcOpenShell (CI only, LGPL, never bundled)
         run: pip install --quiet ifcopenshell==0.9.0.post1 && npm run validate-ifc
+      - name: Clash gate against IfcOpenShell 0.8.5's clash tree (CI only)
+        run: pip install --quiet --target /tmp/ios085 --no-deps ifcopenshell==0.8.5 && IFCOS08=/tmp/ios085 npm run test:clash
       - run: npm run build
       - name: Load budget (fails over 600 KB gzipped first load)
         run: npm run budget

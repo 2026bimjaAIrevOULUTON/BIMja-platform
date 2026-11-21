@@ -56,8 +56,14 @@ export const REGISTRY = [
   c("camera", "view", "Fit the view (to elements, or all)", { kind: "view", args: { fit: "ids?" }, ui_path: "#fit", needs: "viewer" }),
   c("render", "view", "PNG of the current view (data URL), max 1600 px", { kind: "view", args: { width: "number?" }, ui_path: "#shot", needs: "viewer" }),
 
-  // coordination (M4)
-  ...["federate", "clash", "issue", "viewpoint", "bcf_import", "bcf_export"].map((n) => stub(n, "coord", `Coordination: ${n.replace("_", " ")}`, "M4")),
+  // coordination
+  c("federate", "coord", "Add another IFC model to the scene (structure, MEP…) so it can be clashed and reviewed together", { kind: "view", args: { url: "string?", bytes: "Uint8Array?", name: "string?" }, ui_path: "#fedFile", needs: "viewer" }),
+  c("clash", "coord", "Find clashes between sets (model name, IFC class, or 'all'); hard clashes deeper than tolerance, soft within clearance", { kind: "read", args: { a: "string|string[]?", b: "string|string[]?", tolerance: "m (0.01)", clearance: "m (0)", ignore_same_class: "boolean?" }, example: { a: "all", tolerance: 0.01 }, ui_path: "#runClash", needs: "viewer" }),
+  c("issue", "coord", "Create an issue (from a clash, a viewpoint or elements), or update one (id + status/comment)", { args: { title: "string", clash_index: "number?", elements: "GlobalId[]?", viewpoint: "guid?", priority: "string?", assigned: "string?", id: "guid? (update)", status: "string?", comment: "string?" }, example: { title: "Duct clashes with beam", clash_index: 0 }, refusals: [...W, "no_such_element"], ui_path: "#issueList", needs: "viewer" }),
+  c("viewpoint", "coord", "Save the current camera, selection and a snapshot as a BCF viewpoint", { ui_path: "#saveViewpoint", needs: "viewer" }),
+  c("bcf_export", "coord", "All issues as a BCF 2.1 .bcfzip (base64)", { kind: "read", ui_path: "#bcfExport", needs: "viewer" }),
+  c("bcf_import", "coord", "Import issues from a BCF 2.1 .bcfzip (base64)", { kind: "view", args: { base64: "string" }, ui_path: "#bcfFile", needs: "viewer" }),
+  c("bcf_merge", "coord", "Merge parsed BCF topics into the project (the write half of bcf_import)", { args: { topics: "array" }, headless_only: "Internal write step of bcf_import, which is the UI control; kept separate so imports are logged, attributed and undoable", needs: "viewer" }),
   // time (M6)
   ...["activity", "link", "schedule_import", "timeline", "animate"].map((n) => stub(n, "time", `4D: ${n.replace("_", " ")}`, "M6")),
   // geo + twin (M5)

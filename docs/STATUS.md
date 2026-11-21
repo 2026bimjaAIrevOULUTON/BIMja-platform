@@ -1,5 +1,44 @@
 # Status
 
+## 2026-11-21: M4 (coordination: federation, clash, issues, BCF). Gate PASSED
+
+**What moved**
+- **`federate`:** open more IFC models alongside the main one. Each is tinted, can be toggled, and its element ids are prefixed per model.
+  - Models now load in their real coordinates (no `COORDINATE_TO_ORIGIN`), so federated models line up.
+  - Models far from the origin (georeferenced) are re-centred by one shared offset.
+- **`clash`** (`src/coord/clash.js`, runs in a Web Worker):
+  - AABB sweep broad phase, triangle SAT narrow phase, point-in-mesh containment, soft clearance clashes.
+  - Severity by penetration depth.
+  - Doors and windows in their host walls are ignored, and same-class pairs by default within one set.
+  - Sets are chosen by model name, IFC class or `all`. Authored elements take part too.
+- **`issue`:** created from a clash, from a viewpoint or from elements; status, priority, assignee and comments; attributed and undoable.
+- **`viewpoint`:** saves the camera (converted to IFC Z-up), the selection and a snapshot.
+- **`bcf_export` / `bcf_import`:** BCF 2.1. The import's writes go through `bcf_merge`, so they are logged, attributed and undoable.
+  - The zip reader/writer and the XML reader are our own code (no dependencies).
+  - Output is deterministic: dates and GUIDs are fixed in the command args, so a replay gives the same bytes.
+
+**Gates**
+- **Clash** (`tests/clash.mjs`): the same hard-clash pairs as IfcOpenShell 0.8.5's clash tree on a reference pair of models (3 = 3). The 0.9 pip build ships no clash queries, so CI pins 0.8.5, for testing only.
+- **BCF** (`tests/bcf.mjs`):
+  - export → import gives identical topics;
+  - every markup, viewpoint and version file validates against buildingSMART's BCF 2.1 XSDs with xmllint (the XSDs are fetched at test time, not vendored);
+  - 200 random or truncated inputs return errors and never throw.
+- **Browser QA:**
+  - authored house vs federated model: 3 hard clashes;
+  - an issue from a clash, an issue from a viewpoint, and an agent issue (3 issues);
+  - BCF export (98 KB) imports on a fresh page as 3 issues, and re-exports byte-identical;
+  - clash run on everything in 6 ms; 0 errors.
+- Parity: 45 live. Budget: 186.5 KB of 600 KB.
+
+**Known limits**
+- Penetration depth is the overlap of the two bounding boxes, a conservative estimate.
+- Clearance clashes use the gap between bounding boxes.
+- Spaces and openings are not clashed.
+
+**Single next step**
+- M5: georeferencing (IfcMapConversion/IfcProjectedCRS read and write, EPSG via proj4js, basemap) and the digital twin (sensor bindings, simulated feed, alerts).
+
+
 ## 2026-11-21: M3 (modelling UI and IFC/glTF export). Gate PASSED
 
 **What moved**

@@ -13,8 +13,9 @@ export async function createApi(wasmPath) {
 }
 
 /** Open a model and build an index of elements, storeys, psets, quantities, types and materials. */
-export function openModel(api, bytes, onProgress = () => {}) {
-  const modelID = api.OpenModel(new Uint8Array(bytes), { COORDINATE_TO_ORIGIN: true });
+export function openModel(api, bytes, onProgress = () => {}, { coordinateToOrigin = false } = {}) {
+  // Real coordinates by default, so federated models line up; the viewer re-centres far-away models itself.
+  const modelID = api.OpenModel(new Uint8Array(bytes), { COORDINATE_TO_ORIGIN: coordinateToOrigin });
   const schema = api.GetModelSchema(modelID);
   const meshes = []; // {expressID, geometries:[{positions, normals, index, matrix, color}]}
   api.StreamAllMeshes(modelID, (mesh, i, total) => {
