@@ -1,0 +1,13 @@
+BIMja. Copyright (c) 2026 BIMja. Licensed under the MIT License (see LICENSE).
+
+Third-party software shipped in the web bundle:
+- web-ifc (That Open Company), Mozilla Public License 2.0, https://github.com/ThatOpen/engine_web-ifc
+  Used unmodified; source available at the link above.
+- three.js, MIT License, https://github.com/mrdoob/three.js
+
+Sample models (test data only, original terms apply):
+- AC20-FZK-Haus: Karlsruhe Institute of Technology (KIT), from the web-ifc test files.
+- Ifc4_SampleHouse: from https://github.com/youshengCode/IfcSampleFiles
+
+Not shipped: IfcOpenShell (LGPL-3.0) may be used in CI only, never bundled.
+A CycloneDX SBOM is generated on every build (dist/sbom.cdx.json).

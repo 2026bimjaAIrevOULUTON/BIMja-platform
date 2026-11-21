@@ -1,10 +1,11 @@
 // IFC loading + indexing on top of web-ifc (MPL-2.0). Pure data layer: no DOM, so agents and tests can use it too.
-import * as WebIFC from "web-ifc";
+let WebIFC = null; // loaded lazily so the first page load stays small
 
 const v = (x) => (x && typeof x === "object" && "value" in x ? x.value : x);
 const ids = (arr) => (arr || []).map((r) => v(r));
 
 export async function createApi(wasmPath) {
+  WebIFC ||= await import("web-ifc");
   const api = new WebIFC.IfcAPI();
   api.SetWasmPath(wasmPath, true);
   await api.Init(undefined, true); // single-threaded: no COOP/COEP headers needed (works on GitHub Pages)

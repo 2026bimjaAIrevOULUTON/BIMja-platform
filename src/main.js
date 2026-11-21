@@ -1,6 +1,7 @@
 import { createApi, openModel } from "./ifc.js";
 import { DEFAULT_RULES, runCheck, quantities, toCSV } from "./rules.js";
 import { Viewer } from "./viewer.js";
+import { commandsSummary } from "./commands/registry.js";
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -27,7 +28,7 @@ async function loadBytes(bytes, name) {
     state.qto = quantities(state.model.index.elements);
     const els = state.model.index.elements;
     $("#meta").innerHTML = `<b>${esc(name)}</b> · ${esc(state.model.schema)} · ${els.size} elements · ${state.model.index.storeys.length} storeys · ${Math.round(performance.now() - t)} ms`;
-    renderTree(); renderCheck(); renderQto(); showProps(null);
+    renderTree(); renderCheck(); renderQto(); showProps(null); $("#welcome").hidden = true;
     document.title = `${name} — BIMja`;
     window.dispatchEvent(new CustomEvent("bimja:loaded", { detail: summary() }));
   } catch (err) {
@@ -160,7 +161,8 @@ $("#tabs").addEventListener("click", (e) => { const b = e.target.closest("button
   document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("on", x === b));
   document.querySelectorAll(".pane").forEach((p) => p.classList.toggle("on", p.dataset.pane === b.dataset.tab)); });
 $("#file").onchange = async (e) => { const f = e.target.files[0]; if (f) await loadBytes(await f.arrayBuffer(), f.name); e.target.value = ""; };
-$("#sample").onchange = (e) => loadUrl(BASE + e.target.value);
+$("#sample").onchange = (e) => e.target.value && loadUrl(BASE + e.target.value);
+document.querySelectorAll("[data-sample]").forEach((b) => (b.onclick = () => loadUrl(BASE + b.dataset.sample)));
 let dragDepth = 0;
 addEventListener("dragenter", (e) => { e.preventDefault(); dragDepth++; $("#drop").hidden = false; });
 addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; $("#drop").hidden = true; } });
@@ -168,19 +170,35 @@ addEventListener("dragover", (e) => e.preventDefault());
 addEventListener("drop", async (e) => { e.preventDefault(); dragDepth = 0; $("#drop").hidden = true; const f = e.dataTransfer.files[0]; if (f) await loadBytes(await f.arrayBuffer(), f.name); });
 
 // ---------- agent API ----------
+// Names follow the command registry (src/commands/registry.js). M1 replaces these with one command bus.
+function describe() {
+  if (!state.model) return { loaded: false, note: "No model loaded. Call load({url}) or ask the user to open an IFC." };
+  const b = viewer.modelBox; const r = (v) => +v.toFixed(3);
+  return { loaded: true, ...summary(), issues: { high: state.check.high, medium: state.check.medium, low: state.check.low },
+    classes: Object.fromEntries(state.qto.map((q) => [q.ifcClass, q.count])),
+    bbox: b ? { min: [r(b.min.x), r(b.min.y), r(b.min.z)], max: [r(b.max.x), r(b.max.y), r(b.max.z)] } : null,
+    crs: null, crs_note: "Georeferencing arrives in M5; models load at a local origin." };
+}
 window.bimja = {
-  version: "0.1.0",
-  /** Load a model from a URL or ArrayBuffer. */
+  version: "0.2.0-m0",
+  commands: commandsSummary,
+  describe,
   load: (src, name = "model.ifc") => (typeof src === "string" ? loadUrl(src) : loadBytes(src, name)),
   summary,
   elements: (filter = {}) => [...(state.model?.index.elements.values() || [])].filter((e) => Object.entries(filter).every(([k, v]) => e[k] === v)),
   get: (idOrGuid) => [...(state.model?.index.elements.values() || [])].find((e) => e.id === idOrGuid || e.globalId === idOrGuid) || null,
-  check: (rules) => { state.check = runCheck(state.model.index.elements, rules || DEFAULT_RULES); renderCheck(); return state.check; },
-  quantities: () => state.qto,
+  check_handover: (rules) => { state.check = runCheck(state.model.index.elements, rules || DEFAULT_RULES); renderCheck(); return state.check; },
+  quantity: () => state.qto,
   select: (idOrGuid) => { const e = window.bimja.get(idOrGuid); select(e ? e.id : null, true); return e; },
-  report,
-  screenshot: () => viewer.screenshot(),
+  export_report: () => report(),
+  export_issues: () => toCSV(state.check?.issues || []),
+  isolate: (ids = []) => { viewer.highlight(ids, ids.length > 0); if (ids.length) viewer.fit(ids); return { isolated: ids.length }; },
+  section: (height = 1) => { const t = Math.max(0, Math.min(1, Number(height))); $("#section").value = t; viewer.setSection(t); return { section: t }; },
+  camera: ({ fit } = {}) => { viewer.fit(fit); return { ok: true }; },
+  render: () => viewer.screenshot(),
 };
+// older names kept for anything already scripted against v0
+Object.assign(window.bimja, { check: window.bimja.check_handover, quantities: window.bimja.quantity, report: window.bimja.export_report, screenshot: window.bimja.render });
 
 const q = new URLSearchParams(location.search).get("model");
-loadUrl(q || BASE + $("#sample").value).catch((err) => ($("#meta").textContent = err.message));
+if (q) loadUrl(q).catch((err) => ($("#meta").textContent = err.message));

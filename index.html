@@ -10,7 +10,7 @@
 </head>
 <body>
 <header>
-  <div class="brand">BIM<span>ja</span> <small>open BIM · v0</small></div>
+  <div class="brand">BIM<span>ja</span> <small>open BIM · v0.2</small></div>
   <nav id="tabs">
     <button data-tab="model" class="on">Model</button>
     <button data-tab="check">Handover check</button>
@@ -21,6 +21,7 @@
   </nav>
   <div class="actions">
     <select id="sample" title="Sample models">
+      <option value="">Samples…</option>
       <option value="models/AC20-FZK-Haus.ifc.txt">Sample: FZK-Haus (KIT)</option>
       <option value="models/Ifc4_SampleHouse.ifc.txt">Sample: IFC4 Sample House</option>
     </select>
@@ -67,9 +68,17 @@
     <aside id="props" hidden></aside>
     <div id="loading" hidden><div class="spinner"></div><span id="loadingText">Loading…</span></div>
     <div id="drop" hidden>Drop an .ifc file</div>
+    <div id="welcome">
+      <h2>Open a BIM model</h2>
+      <p>Drop an <b>.ifc</b> file here, use <b>Open IFC</b>, or try a sample. Everything runs in your browser and nothing is uploaded.</p>
+      <div class="row">
+        <button class="btn primary" data-sample="models/AC20-FZK-Haus.ifc.txt">Sample: FZK-Haus</button>
+        <button class="btn" data-sample="models/Ifc4_SampleHouse.ifc.txt">Sample: IFC4 house</button>
+      </div>
+    </div>
   </section>
 </main>
-<footer>Runs in your browser: your model is not uploaded anywhere. Built on web-ifc (MPL-2.0) and three.js (MIT). <a href="https://github.com/2026bimjaAIrevOULUTON/bimja-platform" id="gh">Source</a> · Agents: <code>window.bimja</code></footer>
+<footer>Runs in your browser: your model is not uploaded anywhere. Built on web-ifc (MPL-2.0) and three.js (MIT). <a href="https://github.com/2026bimjaAIrevOULUTON/BIMja-platform" id="gh">Source (MIT)</a> · Agents: <code>window.bimja</code></footer>
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>

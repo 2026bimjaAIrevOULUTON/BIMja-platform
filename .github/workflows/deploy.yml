@@ -18,6 +18,10 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - name: Load budget (fails over 600 KB gzipped first load)
+        run: npm run budget
+      - name: SBOM (CycloneDX)
+        run: npm run sbom
       - uses: actions/upload-pages-artifact@v3
         with: { path: dist }
       - name: Deploy to Cloudflare Pages (only if secrets are set)

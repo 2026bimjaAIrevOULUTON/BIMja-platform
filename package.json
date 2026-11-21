@@ -1,12 +1,14 @@
 {
   "name": "bimja-platform",
-  "version": "0.2.0-dev",
+  "version": "0.2.0",
   "description": "",
   "main": "index.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node tests/run.mjs && node tests/author.mjs"
+    "test": "node tests/run.mjs && node tests/author.mjs && node tests/parity.mjs",
+    "budget": "node scripts/budget.mjs",
+    "sbom": "npm sbom --sbom-format cyclonedx --omit dev > dist/sbom.cdx.json"
   },
   "keywords": [],
   "author": "",

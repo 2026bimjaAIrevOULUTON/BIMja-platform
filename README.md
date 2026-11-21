@@ -1,5 +1,7 @@
 # BIMja: open BIM in your browser
 
+**Live:** https://2026bimjaairevouluton.github.io/BIMja-platform/ · Status: [docs/STATUS.md](docs/STATUS.md) · Handover: [docs/HANDOVER.md](docs/HANDOVER.md)
+
 BIMja is a static web app. It opens an IFC model in the browser, shows it in 3D, runs a handover data check, and exports the issues. Everything runs on your device, so the model is never uploaded. It works for people through the UI and for AI agents through `window.bimja`.
 
 **v0 (today):**
@@ -10,7 +12,7 @@ BIMja is a static web app. It opens an IFC model in the browser, shows it in 3D,
 | Handover check | 9 baseline rules: name, storey, type (COBie), material, FireRating, IsExternal, LoadBearing, space names, base quantities. Gives a score, an issue list and a ghosted focus view on each element. |
 | Exports | Issues CSV, report JSON, and a client-ready HTML report with a screenshot |
 | 5D seed | Counts plus area, volume and length per class, read from `Qto_*` sets, with CSV export |
-| Agent API | `window.bimja`: `load`, `summary`, `elements`, `get`, `check`, `quantities`, `select`, `report`, `screenshot` |
+| Agent API | `window.bimja.commands()` lists the whole surface (from `src/commands/registry.js`); `describe`, `load`, `check_handover`, `quantity`, `select`, `isolate`, `section`, `camera`, `render`, `export_report`, `export_issues` |
 
 Planned: Coordination (clash + BCF), 4D (P6/MSP schedule + timeline), cost rates for 5D, and the digital twin (sensor → GlobalId).
 
@@ -18,7 +20,8 @@ Planned: Coordination (clash + BCF), 4D (P6/MSP schedule + timeline), cost rates
 ```bash
 npm ci
 npm run dev      # http://localhost:5173
-npm test         # regression tests on the sample models
+npm test         # viewer + authoring + parity tests
+npm run budget   # after build: first-load size gate (600 KB gz)
 npm run build    # static site in dist/
 ```
 Open your own model with the **Open IFC** button or by dropping a file on the page. You can also pass one in the link: `?model=https://…/file.ifc` (the server must allow CORS).
@@ -30,10 +33,12 @@ If the repo secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` are set, 
 
 ## Agent example
 ```js
+bimja.commands();                 // what this app can do
 await bimja.load("models/AC20-FZK-Haus.ifc.txt");
-const r = bimja.check();          // { score, high, medium, low, byRule, issues[] }
+const r = bimja.check_handover();          // { score, high, medium, low, byRule, issues[] }
 bimja.select(r.issues[0].globalId);
-const qto = bimja.quantities();
+const qto = bimja.quantity();
+bimja.describe();                 // counts, storeys, issues, bbox
 ```
 
 ## Stack and licences
