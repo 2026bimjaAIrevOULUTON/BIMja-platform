@@ -1,6 +1,6 @@
 # Status
 
-## 2026-11-21: M0 (foundation)
+## 2026-11-21: M0 (foundation). Gate PASSED
 
 **What moved**
 - Code is now in `2026bimjaAIrevOULUTON/BIMja-platform`. The repo's initial commit is kept in the history.
@@ -20,7 +20,8 @@
 - Budget: 147.3 / 600 KB.
 - Browser QA (headless Chrome, desktop and mobile): 0 errors.
 - CI on GitHub: test, build, budget and SBOM all pass (run 44867919940).
-- GitHub Pages deploy: **blocked**. Pages isn't enabled on the repo yet; the owner has to switch it on once (Settings → Pages → Source: GitHub Actions). This session's proxy refuses the Pages API.
+- GitHub Pages: **live** at https://2026bimjaairevouluton.github.io/BIMja-platform/. The owner enabled Pages, and run 44868312442 succeeded.
+- Live-site QA (headless Chrome, desktop and mobile): both samples load, `describe` and `commands` (50) work, 0 errors.
 
 **What broke**
 - The first parity run caught 4 live UI commands missing from `window.bimja`. Fixed.
