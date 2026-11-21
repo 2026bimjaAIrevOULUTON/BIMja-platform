@@ -227,7 +227,7 @@ async function buildLandmark(id) {
 }
 $("#sample").onchange = (e) => { const v = e.target.value; e.target.value = ""; if (!v) return; if (v.startsWith("landmark:")) buildLandmark(v.slice(9)); else { $("#credit").hidden = true; loadUrl(BASE + v); } };
 document.querySelectorAll("[data-landmark]").forEach((b) => (b.onclick = () => buildLandmark(b.dataset.landmark)));
-window.__bimjaBuildLandmark = buildLandmark; window.__bimjaLandmark = landmarkProject;
+window.__bimjaBuildLandmark = buildLandmark; window.__bimjaLandmark = landmarkProject; window.__bimjaStages = landmarkStages;
 document.querySelectorAll("[data-sample]").forEach((b) => (b.onclick = () => loadUrl(BASE + b.dataset.sample)));
 let dragDepth = 0;
 addEventListener("dragenter", (e) => { e.preventDefault(); dragDepth++; $("#drop").hidden = false; });

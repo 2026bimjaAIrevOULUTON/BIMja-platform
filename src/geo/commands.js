@@ -2,6 +2,7 @@
 // anchor with grid convergence, true north, site pin). The same record drives the IFC, the map, map context and the
 // sun simulation. Works in Node (agents, MCP, CI) without a projection library.
 import { toUtm, epsgOf, proj4Utm } from "./utm.js";
+import { parseOSM, cityLayers } from "./osm-city.js";
 
 const fail = (m, code = "bad_arg") => { throw Object.assign(new Error(m), { code }); };
 export function installGeo(bus) {
@@ -18,5 +19,12 @@ export function installGeo(bus) {
     return { crs: geo.crs, anchor: geo.anchor, convergence_deg: geo.location.convergence_deg, google_maps: `https://www.google.com/maps/@${lat},${lon},18z`, timezone: geo.location.timezone };
   });
   bus.register("location", () => { const g = bus.extra.geo; if (!g?.location) return { located: false }; return { located: true, ...g.location, crs: g.crs, anchor: g.anchor, google_maps: `https://www.google.com/maps/@${g.location.lat},${g.location.lon},18z` }; }, { kind: "read" });
+  bus.register("city_plan", (a) => {
+    if (!bus.extra.geo?.location) fail("place the project on the earth first: geolocate {lat, lon}", "no_location");
+    if (typeof a.osm !== "string" && typeof a.osm !== "object") fail("osm: the OpenStreetMap XML (API map call) or JSON (Overpass) text");
+    const r = Math.min(3000, Math.max(50, +a.radius_m || 600)); const osm = parseOSM(a.osm);
+    const out = cityLayers(osm, bus.extra.geo, { radius_m: r, exclude: Array.isArray(a.exclude) ? a.exclude.map(Number) : null, infill: a.infill !== false, services: a.services !== false, furniture: a.furniture !== false });
+    return { ...out, run: "script the families first, then each layer: script {commands: layer.commands}" };
+  }, { kind: "read" });
   return bus;
 }

@@ -53,7 +53,8 @@ export function exportIFC(model, { projectName, geo, site } = {}) {
   }
   add(`IFCRELAGGREGATES(${g("agg-building")},$,$,$,${bld},(${Object.values(storeys).map((s) => s.ref).join(",")}))`);
 
-  const shape = (items, kind = "SweptSolid") => add(`IFCPRODUCTDEFINITIONSHAPE($,$,(${add(`IFCSHAPEREPRESENTATION(${body},'Body',${str(kind)},(${items.join(",")}))`)}))`);
+  let lastRep = null; const layerReps = {}; // CAD layers: IfcPresentationLayerAssignment per layer name
+  const shape = (items, kind = "SweptSolid") => { lastRep = add(`IFCSHAPEREPRESENTATION(${body},'Body',${str(kind)},(${items.join(",")}))`); return add(`IFCPRODUCTDEFINITIONSHAPE($,$,(${lastRep}))`); };
   const rectSolid = (cx, cy, xd, yd, h, z0 = 0) => {
     const c2 = add(`IFCAXIS2PLACEMENT2D(${add(`IFCCARTESIANPOINT((${f(cx)},${f(cy)}))`)},$)`);
     const prof = add(`IFCRECTANGLEPROFILEDEF(.AREA.,$,${c2},${f(xd)},${f(yd)})`);
@@ -129,6 +130,8 @@ export function exportIFC(model, { projectName, geo, site } = {}) {
     const cls = e.ifc_class || "IfcBuildingElementProxy";
     const el = add(`${cls.toUpperCase()}(${g(`el/${e.id}`)},$,${str(e.name || e.id)},$,$,${place(st.pl)},${shape([brep], "Brep")},${str(e.id)},$)`);
     st.contained.push(el);
+    if (e.layer) (layerReps[e.layer] ||= []).push(lastRep);
+    if (e.layer || e.discipline) pset(el, "BIMja_Coordination", [...(e.discipline ? [["Discipline", `IFCLABEL(${str(e.discipline)})`]] : []), ...(e.layer ? [["Layer", `IFCLABEL(${str(e.layer)})`]] : [])]);
     if (e.material) associate(`m/${e.material}`, material(e.material), [el]);
     if (e.family) { const fam = model.data.families?.[e.family] || {}; pset(el, "BIMja_Family", [["Family", `IFCLABEL(${str(e.family)})`], ...Object.entries(fam.parameters || {}).map(([k, v]) => [k, typeof v === "number" ? `IFCREAL(${f(v)})` : `IFCLABEL(${str(String(v))})`])]);
       for (const [pn, props] of Object.entries(fam.psets || {})) pset(el, pn, Object.entries(props).map(([k, v]) => [k, typeof v === "boolean" ? bool(v) : typeof v === "number" ? `IFCREAL(${f(v)})` : `IFCLABEL(${str(String(v))})`])); }
@@ -146,6 +149,7 @@ export function exportIFC(model, { projectName, geo, site } = {}) {
   }
   if (Object.keys(classRefs).length) { const cls = add(`IFCCLASSIFICATION('NBS','2015',$,'Uniclass 2015',$,'https://uniclass.thenbs.com',$)`);
     for (const [code, r] of Object.entries(classRefs)) { const ref = add(`IFCCLASSIFICATIONREFERENCE(${str(`https://uniclass.thenbs.com/taxon/${code.toLowerCase().replace(/_/g, "-")}`)},${str(code)},${str(r.title)},${cls},$,$)`); add(`IFCRELASSOCIATESCLASSIFICATION(${g(`class/${code}`)},$,$,$,(${r.objs.join(",")}),${ref})`); } }
+  for (const [ln, reps] of Object.entries(layerReps).sort()) add(`IFCPRESENTATIONLAYERASSIGNMENT(${str(ln)},$,(${reps.join(",")}),${str(ln)})`);
   // terrain: existing and proposed ground as tessellated surfaces (IFC4 IfcTriangulatedFaceSet), on the site
   const siteEls = [];
   for (const [k, T] of [["existing", site?.existing], ["proposed", site?.proposed]]) {

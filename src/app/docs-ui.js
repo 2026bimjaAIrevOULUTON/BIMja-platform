@@ -32,6 +32,8 @@ export function installDocsUI({ bus, run, toast, download, downloadBlob }) {
     if (!r.ok) return toast(r.refusals?.[0]?.message || "Publish failed");
     downloadBlob(r.data.filename, new Blob([b64(r.data.base64)], { type: "application/zip" })); toast(`Published ${r.data.register.length} sheets as ${r.data.status}: ${r.data.files.length} files`); render(); if (current) preview(current); };
   document.querySelector('button[data-tab="docs"]').addEventListener("click", () => setTimeout(render));
-  bus.on((ev) => { if (ev.type === "applied" && !$("#sheetPreview").hidden && current) { clearTimeout(window.__dwgT); window.__dwgT = setTimeout(() => preview(current), 400); } });
+  bus.on((ev) => { if (ev.type !== "applied") return; // agents and MCP change the set too: keep the list and the preview current
+    if (["drawing_setup", "sheets_auto", "sheet", "sheet_remove", "publish", "load_project", "undo", "redo"].includes(ev.entry?.name)) { clearTimeout(window.__dwgR); window.__dwgR = setTimeout(render, 150); }
+    if (!$("#sheetPreview").hidden && current) { clearTimeout(window.__dwgT); window.__dwgT = setTimeout(() => preview(current), 400); } });
   return { render, preview };
 }

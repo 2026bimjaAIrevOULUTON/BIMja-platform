@@ -18,7 +18,7 @@ const AUTHOR = ["level", "wall", "walls", "door", "window", "floor", "room", "ro
 export function installCore(bus) {
   const m = () => bus.model;
   for (const r of REGISTRY.filter((x) => x.status === "stub")) bus.register(r.name, () => { throw Object.assign(new Error(`${r.name} is not implemented yet (${r.milestone})`), { code: "not_implemented" }); }, { kind: "read" });
-  for (const name of AUTHOR) bus.register(name, (args) => { const r = m().execute({ cmd: name, ...args }, { record: false }); delete r.ok; return r; });
+  for (const name of AUTHOR) bus.register(name, (args) => { const r = m().execute({ cmd: name, ...args }, { record: false, inScript: !!bus.inAtomicScript }); delete r.ok; return r; });
   bus.register("schedule", (args) => MODEL_COMMANDS.schedule.run(m(), { kind: args.kind || "wall" }).rows, { kind: "read" });
   bus.register("query", (args) => MODEL_COMMANDS.query.run(m(), args).elements, { kind: "read" });
 
@@ -26,13 +26,14 @@ export function installCore(bus) {
   bus.register("script", (args) => {
     const results = []; const list = args.commands || []; const refs = {}; // a step tagged {as:"arcade"} is referred to later as "$arcade" (its id)
     const resolve = (v) => typeof v === "string" && /^\$[A-Za-z_][\w-]*$/.test(v) ? (refs[v.slice(1)] ?? (() => { const e = new Error(`unknown reference ${v}`); e.code = "bad_arg"; throw e; })()) : Array.isArray(v) ? v.map(resolve) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, resolve(x)])) : v;
-    for (let i = 0; i < list.length; i++) {
+    const atomic = args.atomic !== false; bus.inAtomicScript = atomic; // the bus snapshots once for the whole script and rolls back on failure
+    try { for (let i = 0; i < list.length; i++) {
       const c = list[i]; const h = bus.handlers.get(c.name);
       if (!h || h.kind !== "write" || c.name === "script") { const e = new Error(`step ${i}: "${c.name}" cannot run in a script`); e.code = "bad_arg"; throw e; }
       try { const data = h.run(resolve(c.args || {}), c, bus); results.push({ name: c.name, ok: true, data }); if (c.as) refs[c.as] = data?.id ?? data?.family ?? null; }
-      catch (e) { if (args.atomic !== false) { e.message = `step ${i} (${c.name}): ${e.message}`; throw e; } results.push({ name: c.name, ok: false, error: e.message, code: e.code }); }
-    }
-    return { steps: results.length, results };
+      catch (e) { if (atomic) { e.message = `step ${i} (${c.name}): ${e.message}`; throw e; } results.push({ name: c.name, ok: false, error: e.message, code: e.code }); }
+    } } finally { bus.inAtomicScript = false; }
+    m().emit(); return { steps: results.length, results };
   });
 
   bus.register("commands", () => REGISTRY.map(({ name, domain, status, ui_path, headless_only, args, example, refusals, help }) => ({ name, domain, status, help, args, example, refusals, ui_path: ui_path || null, headless_only: headless_only || null })), { kind: "read" });

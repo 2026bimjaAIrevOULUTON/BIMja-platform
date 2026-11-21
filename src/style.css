@@ -207,3 +207,9 @@ details.adv { margin-top: 12px; } details.adv summary { cursor: pointer; color: 
 label.chk { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; }
 #simSun.on { background: var(--accent, #ff8a3d); color: #111; }
 #locInfo a, .pane a { color: #7cc0ff; }
+
+#layerList { display: grid; gap: 2px; margin: 4px 0 10px; } label.lay { font-size: 12px; } label.lay .num { margin-left: auto; color: var(--muted, #9aa3ad); }
+
+.livecards { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 6px 0; }
+.livecard { background: #ffffff08; border: 1px solid #ffffff14; border-radius: 6px; padding: 6px 8px; font-size: 12px; }
+.livecard b { display: block; font-size: 18px; color: #f3f0ea; } .livecard .k { color: var(--muted, #9aa3ad); }

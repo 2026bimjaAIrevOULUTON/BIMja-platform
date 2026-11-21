@@ -51,6 +51,8 @@
     <div data-pane="model" class="pane on">
       <h2 class="pane-title">Model</h2>
       <div class="meta" id="meta">No model loaded.</div>
+      <h4 class="sec" id="layerHead" hidden>Layers</h4>
+      <div id="layerList"></div>
       <div class="row"><input id="search" placeholder="Search name, class, GlobalId…"></div>
       <div id="tree"></div>
     </div>
@@ -194,6 +196,10 @@
       <div class="note" id="locInfo"></div><button class="btn ghost" id="locInfoBtn" hidden>Location</button>
       <h4 class="sec">Map context</h4>
       <div class="row"><label class="chk"><input type="checkbox" id="ctxImagery" checked> OpenStreetMap ground</label><label class="chk"><input type="checkbox" id="ctxBuildings"> Neighbouring buildings</label><input id="ctxRadius" value="500" title="Radius, metres" style="width:60px"></div>
+      <h4 class="sec">City context (modelled, in layers)</h4>
+      <div class="row"><input id="cityRadius" value="1100" title="Radius, metres" style="width:70px"><label class="chk"><input type="checkbox" id="cityServices" checked> Services</label><label class="chk"><input type="checkbox" id="cityInfill" checked> Infill massing</label><label class="chk"><input type="checkbox" id="cityFurniture" checked> Trees and furniture</label></div>
+      <div class="row"><button class="btn primary" id="cityBuild">Build city from OpenStreetMap</button></div>
+      <div class="note" id="cityStatus">Real roads, paths, buildings, water, parks, trees and furniture from OpenStreetMap (© OpenStreetMap contributors, ODbL). Kerbs, carriageway widths, utilities, street lighting and infill are indicative, not surveyed, and are named so.</div>
       <h4 class="sec">Sun and shadow</h4>
       <div class="row"><input type="date" id="simDate" value="2026-06-21"><button class="btn" id="simSun">Sun and shadows</button><button class="btn" id="simPlay">Play day</button></div>
       <div class="row"><input type="range" id="simTime" min="4" max="20" step="0.25" value="9" style="flex:1"><span class="note" id="simTimeLabel"></span></div>
@@ -212,6 +218,11 @@
       <div class="row"><input id="overlayUrl" placeholder="GeoJSON / ArcGIS REST (f=geojson) URL"><button class="btn" id="addOverlay">Overlay</button></div>
       <canvas id="twinMap"></canvas>
       </details>
+      <h4 class="sec">Live data at the site</h4>
+      <div class="row"><label class="chk"><input type="checkbox" id="liveWeather"> Weather and wind</label><label class="chk"><input type="checkbox" id="liveAir"> Air quality</label><label class="chk"><input type="checkbox" id="liveQuakes"> Earthquakes</label></div>
+      <div id="liveCards" class="livecards"></div>
+      <label class="chk"><input type="checkbox" id="liveClouds"> Use the live cloud forecast in the solar study</label>
+      <div class="note" id="liveCredits"></div>
       <h4 class="sec">Live sensors (IoT, optional)</h4>
       <div class="row"><select id="sensorKind"></select><input id="sensorName" placeholder="Name"><button class="btn" id="addSensor" title="Binds to the selected element">Add sensor</button></div>
       <div id="sensorList"></div>

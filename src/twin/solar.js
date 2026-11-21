@@ -4,6 +4,7 @@
 // ground area in shadow. Deterministic and headless (Node, MCP, CI); the browser shows the same sun with shadows.
 import { modelTriangles } from "../docs/mesh.js";
 import { sunPosition, localToUtc, clearSky, sunVector, sunTimes } from "./sun.js";
+import { cloudFactor } from "./live.js";
 
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
@@ -41,7 +42,7 @@ const binOf = (n, orient) => { if (n[2] > 0.7) return "Roof"; if (n[2] < -0.7) r
  * Solar study for one day. opts: {date, from:"HH:MM", to, step_min, res, ground_margin_m}
  * geo.location: {lat, lon, timezone, orient_deg}; altitude from geo.anchor.height.
  */
-export function solarStudy(model, geo, { date = "2026-06-21", from = null, to = null, step_min = 60, res = 384, ground_res = 96 } = {}) {
+export function solarStudy(model, geo, { date = "2026-06-21", from = null, to = null, step_min = 60, res = 384, ground_res = 96, clouds = null } = {}) {
   const L = geo.location; const tz = L.timezone ?? Math.round(L.lon / 15); const times = sunTimes(L.lat, L.lon, date, tz);
   const t0 = from || times.sunrise || "06:00", t1 = to || times.sunset || "18:00"; const toMin = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; };
   // geometry in metres: per element triangles with area, centroid and normal
@@ -70,7 +71,7 @@ export function solarStudy(model, geo, { date = "2026-06-21", from = null, to = 
   for (let m = toMin(t0); m <= toMin(t1); m += step_min) {
     const hhmm = `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
     const sp = sunPosition(L.lat, L.lon, localToUtc(date, hhmm, tz)); if (sp.elevation_deg <= 0.5) continue;
-    const s = sunVector(sp.azimuth_deg, sp.elevation_deg, L.orient_deg || 0); const irr = clearSky(sp.elevation_deg, alt); const dt = step_min / 60;
+    const s = sunVector(sp.azimuth_deg, sp.elevation_deg, L.orient_deg || 0); const cs = clearSky(sp.elevation_deg, alt); const cf = clouds ? cloudFactor(clouds[Math.floor(m / 60) % 24] ?? 0) : 1; const irr = { dni: cs.dni * cf, dhi: cs.dhi * Math.max(cf, 0.6) }; const dt = step_min / 60;
     const buf = sunBuffer(els.map((e) => e.tris), s, corners, res);
     for (const smp of samples) {
       const cosi = dot(smp.n, s); const sky = 0.5 * (1 + smp.n[2]); // isotropic sky view
@@ -87,5 +88,5 @@ export function solarStudy(model, geo, { date = "2026-06-21", from = null, to = 
   const elements = els.map((e, i) => ({ id: e.id, name: e.name || e.id, kwh_m2_day: +((perEl[i].wh / 1000) / (perEl[i].area || 1)).toFixed(2), sun_hours: +(perEl[i].sunlit_h / (perEl[i].area || 1)).toFixed(2), area_m2: +perEl[i].area.toFixed(1) }));
   const dayH = steps.length * (step_min / 60); const groundHours = []; for (let i = 0; i < ground.length; i++) if (gShade[i] > 0) groundHours.push([+ground[i][0].toFixed(1), +ground[i][1].toFixed(1), +gShade[i].toFixed(2)]);
   return { date, timezone: tz, location: { lat: L.lat, lon: L.lon }, ...times, step_min, steps, facades, elements, ground: { cell_m: +gstep.toFixed(2), hours_in_shadow: groundHours, max_shadow_m2: Math.max(0, ...steps.map((s) => s.ground_shadow_m2)) },
-    method: "Clear-sky irradiance (Meinel beam, Kasten–Young air mass, isotropic diffuse); shadows from a depth buffer cast from the sun over the model's own geometry. No neighbouring buildings, terrain or weather; standard time without daylight saving.", sun_hours_window: +dayH.toFixed(2) };
+    method: (clouds ? "Clear-sky irradiance scaled by hourly forecast cloud cover (Kasten–Czeplak 1 − 0.75·n^3.4); " : "Clear-sky irradiance; ") + "Meinel beam, Kasten–Young air mass, isotropic diffuse; shadows from a depth buffer cast from the sun over the model's own geometry. No neighbouring buildings, terrain or weather; standard time without daylight saving.", sun_hours_window: +dayH.toFixed(2) };
 }

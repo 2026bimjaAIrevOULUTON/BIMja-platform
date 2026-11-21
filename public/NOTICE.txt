@@ -9,6 +9,12 @@ Third-party software shipped in the web bundle:
 - delaunator 5.1.0 (terrain triangulation), ISC License, Copyright (c) Mapbox. https://github.com/mapbox/delaunator
   Full licence: licenses/delaunator-LICENSE.txt
 
+Map and context data (fetched at runtime or bundled, never relicensed):
+- OpenStreetMap data and tiles: © OpenStreetMap contributors, ODbL 1.0. Bundled extract: public/context (see its README).
+- Open-Meteo weather and air quality (CAMS): CC BY 4.0, open-meteo.com.
+- USGS earthquake feed: U.S. public domain.
+- Ideas for the live-data layers come from gods-eye-view (MIT, © 2026 Bilawal Sidhu). No code was copied.
+
 Landmark studies (Pisa, Taj Mahal, Fallingwater, Burj Khalifa, Vitra Fire Station) are simplified digital studies
 built from BIMja commands, credited to their architects in each model. They are not survey-accurate and are not
 affiliated with or endorsed by the buildings' owners.

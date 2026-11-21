@@ -54,10 +54,11 @@ export class Model {
   newId(prefix) { return `${prefix}${this.data.nextId++}`; }
 
   /** Run one command. {dry_run} validates and reports without changing the model. */
-  execute(cmd, { dry_run = false, record = true } = {}) {
+  execute(cmd, { dry_run = false, record = true, inScript = false } = {}) {
     if (!cmd || typeof cmd !== "object" || !cmd.cmd) fail('a command is {"cmd": "<name>", ...args}');
     const fn = COMMANDS[cmd.cmd]; if (!fn) fail(`unknown command "${cmd.cmd}". Try list_commands`, "unknown_command");
     if (fn.read) return fn.run(this, cmd);
+    if (inScript) return { ok: true, ...fn.run(this, cmd) }; // inside an atomic script: the script holds the one snapshot and emits once
     const before = JSON.stringify(this.data);
     try {
       const result = fn.run(this, cmd);
@@ -70,7 +71,7 @@ export class Model {
   script(cmds, { atomic = true, dry_run = false } = {}) {
     const before = JSON.stringify(this.data); const results = [];
     for (let i = 0; i < cmds.length; i++) {
-      try { results.push(this.execute(cmds[i], { record: false })); }
+      try { results.push(this.execute(cmds[i], { record: false, inScript: atomic })); }
       catch (e) {
         results.push({ ok: false, error: e.message, index: i });
         if (atomic) { this.data = JSON.parse(before); this.emit(); return { ok: false, atomic, failedAt: i, error: e.message, results }; }
@@ -220,6 +221,7 @@ const massCommon = (m, c, e) => {
   if (c.lean_deg) { e.lean_deg = num(c.lean_deg, "lean_deg", { min: -45, max: 45 }); e.lean_dir_deg = num(c.lean_dir_deg ?? 0, "lean_dir_deg"); }
   if (c.pivot) { if (!Array.isArray(c.pivot) || c.pivot.length !== 3) fail("pivot must be [x, y, z] in mm"); e.pivot = c.pivot.map((v, i) => num(v, `pivot[${i}]`)); }
   if (c.segments != null) e.segments = Math.round(num(c.segments, "segments", { min: 1, max: 96 }));
+  if (c.layer != null) { if (!LAYER_RE.test(c.layer)) fail("layer like C-ROAD or P-SEWER: discipline role code, hyphen, upper-case name (BS EN ISO 13567 style)"); e.layer = c.layer; }
   if (c.discipline != null) { if (!/^[ASMEPCLF]$/.test(c.discipline)) fail("discipline must be one role code: A architecture, S structure, M mechanical, E electrical, P public health, C civil, L landscape, F fire"); e.discipline = c.discipline; }
   let sol; try { sol = solidOf(e); } catch (err) { if (err.code === "unavailable") throw new CommandError(err.message, "unavailable"); fail(`bad geometry: ${err.message}`); } if (!(sol.volume > 1)) fail("the solid has no volume: check the outline/profile");
   const id = m.newId("M"); e.id = id; e.name = String(c.name || `${e.ifc_class.replace(/^Ifc/, "")} ${id}`); m.data.elements[id] = e;
@@ -272,12 +274,14 @@ def("array", "Copy a solid: {source, count, step:[dx,dy,dz] mm} or {source, pola
     for (let i = 1; i < n; i++) mk({ dx: st[0] * i, dy: st[1] * i, dz: (st[2] || 0) * i }, i); }
   return { ids, count: ids.length + 1 };
 });
+const LAYER_RE = /^[ASMEPCLF]-[A-Z0-9][A-Z0-9-]{1,40}$/;
 def("family", "Define a reusable family (like a Revit family): {name, ifc_class?, uniclass?:{code,title}, description?, parameters?:{...}, psets?:{Pset_X:{...}}, parts:[geometry specs, origin at 0,0,0]}", (m, c) => {
   const name = String(c.name || fail("a family needs a name")).slice(0, 80); if (!Array.isArray(c.parts) || !c.parts.length) fail("parts: one or more geometry specs (box, extrude, revolve, sweep, opening, csg)");
   const cls = c.ifc_class || "IfcBuildingElementProxy"; if (!MASS_CLASSES.includes(cls)) fail(`ifc_class must be one of ${MASS_CLASSES.join(", ")}`);
   if (c.uniclass && !/^[A-Z][A-Za-z]_\d{2}(_\d{2}){0,3}$/.test(c.uniclass.code || "")) fail("uniclass.code like Pr_40_50_29, Ss_25_10 or EF_30_10");
   checkSpec({ shape: "group", parts: c.parts });
-  (m.data.families ||= {})[name] = { name, ifc_class: cls, ...(c.uniclass ? { uniclass: { code: c.uniclass.code, title: String(c.uniclass.title || "") } } : {}), description: String(c.description || ""), parameters: clone(c.parameters || {}), psets: clone(c.psets || {}), parts: clone(c.parts), ...(c.material ? { material: String(c.material) } : {}), ...(c.color ? { color: c.color } : {}) };
+  if (c.discipline != null && !/^[ASMEPCLF]$/.test(c.discipline)) fail("discipline must be one role code: A, S, M, E, P, C, L or F"); if (c.layer != null && !LAYER_RE.test(c.layer)) fail("layer like C-ROAD or P-SEWER (role code, hyphen, upper-case name)");
+  (m.data.families ||= {})[name] = { name, ifc_class: cls, ...(c.uniclass ? { uniclass: { code: c.uniclass.code, title: String(c.uniclass.title || "") } } : {}), description: String(c.description || ""), parameters: clone(c.parameters || {}), psets: clone(c.psets || {}), parts: clone(c.parts), ...(c.material ? { material: String(c.material) } : {}), ...(c.color ? { color: c.color } : {}), ...(c.discipline ? { discipline: c.discipline } : {}), ...(c.layer ? { layer: c.layer } : {}) };
   return { family: name, parts: c.parts.length };
 });
 def("place", "Place a family instance: {family, at:[x,y,z?] mm, rotation_deg?, level?, name?, mark?}", (m, c) => {
@@ -285,7 +289,7 @@ def("place", "Place a family instance: {family, at:[x,y,z?] mm, rotation_deg?, l
   const [x, y] = pt([c.at?.[0], c.at?.[1]], "at"); const z = num(c.at?.[2] ?? 0, "z"); const rot = num(c.rotation_deg ?? 0, "rotation_deg");
   const parts = fam.parts.map((p) => transformSpec(transformSpec(p, { rot_deg: rot }), { dx: x, dy: y, dz: z }));
   const e = { kind: "mass", shape: "group", parts, family: fam.name, ...(fam.uniclass ? { uniclass: fam.uniclass } : {}), ...(c.mark ? { mark: String(c.mark) } : {}) };
-  const r = massCommon(m, { ...c, ifc_class: fam.ifc_class, material: c.material ?? fam.material, color: c.color ?? fam.color, name: c.name || `${fam.name}` }, e);
+  const r = massCommon(m, { ...c, ifc_class: fam.ifc_class, material: c.material ?? fam.material, color: c.color ?? fam.color, discipline: c.discipline ?? fam.discipline, layer: c.layer ?? fam.layer, name: c.name || `${fam.name}` }, e);
   return { ...r, family: fam.name };
 });
 export function centroid(p) { let x = 0, y = 0; p.forEach((q) => { x += q[0]; y += q[1]; }); return [x / p.length, y / p.length]; }
