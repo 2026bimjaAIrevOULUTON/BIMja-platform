@@ -1,5 +1,63 @@
 # Status
 
+## 2026-11-22: City context in layers, live site data, faster scripts
+
+**What moved**
+- **City from OpenStreetMap.**
+  - `city_plan {osm, radius_m}` turns OSM data around a located project into ordinary BIMja commands, grouped by named layer (BS EN ISO 13567 style, role code first).
+  - The Twin pane builds the city layer by layer, one undo step per layer.
+  - **Real, from OSM:**
+    - L-WATER: water bodies (including the Yamuna);
+    - L-LANDSCAPE: parks, gardens and grass;
+    - C-ROAD carriageways and C-FOOTWAY paths, on real centrelines;
+    - A-BUILDING: footprints with tagged heights;
+    - L-TREES, L-WATER-FEATURE (fountains), A-FURNITURE (benches) and lamps at their exact node positions.
+  - **Indicative, named so in every element:**
+    - carriageway widths by road class;
+    - C-KERB: 150 × 300 mm kerbs;
+    - P-WATER: DN200 water mains at 1.2 m cover;
+    - P-SEWER: DN300 foul sewers with manholes every 60 m;
+    - P-STORM: DN450 storm drains with gullies every 30 m;
+    - E-DUCT: duct banks under the verge;
+    - E-LIGHTING: 8 m street lights every 35 m;
+    - A-INFILL: massing on street frontages with no mapped building.
+  - The Taj extract ships in `public/context` (ODbL, attributed), so the Taj city builds offline. Elsewhere the browser reads the OSM API live.
+- **Layers everywhere.** Elements carry a `layer` and a `discipline`.
+  - The IFC writes IfcPresentationLayerAssignment per layer, plus a `BIMja_Coordination` pset.
+  - The Model pane has a Layers panel; `layer_visibility` switches layers on and off.
+  - Families carry their discipline and layer to every instance.
+- **Live site data** (ideas from gods-eye-view, MIT; BIMja's own code). `live_data` polls keyless public sources from the browser, with credits shown:
+  - weather and wind from Open-Meteo, CC BY 4.0, every 15 min;
+  - air quality (CAMS) from Open-Meteo, every hour;
+  - USGS earthquakes within 1,000 km, every 5 min.
+
+  A wind arrow is drawn over the model. `solar_study {cloud_cover}` scales clear-sky irradiance by the forecast cloud cover (Kasten–Czeplak).
+- **Performance.** Atomic scripts now take one snapshot instead of one per command: a 3,000-element script went from 12.4 s to 0.6 s, and the 7,743-command Taj city from 219 s to 7 s headless. Rollback and one-step undo are unchanged and tested.
+- **Gods-eye-view.** Not replicated:
+  - the photorealistic Google 3D globe (needs a key);
+  - licence-restricted or surveillance-type feeds: CCTV, plate-reader cameras, military flight tracking, vessels behind keys;
+  - the aircraft feed, which the original runs through its own server proxy.
+
+**Gates**
+- `tests/city.mjs`:
+  - live feeds parse real captured Open-Meteo and USGS responses, and junk is refused;
+  - every expected layer is present;
+  - every indicative element says so;
+  - the mausoleum's OSM footprint is replaced by the model;
+  - every tree sits exactly on its OSM node;
+  - sewers are underground;
+  - a services clash check runs;
+  - the IFC is schema-valid and has the layers;
+  - the plan is deterministic and replay rebuilds the city;
+  - forecast clouds lower the solar yield.
+- The full Taj city at a 1.1 km radius: 7,810 elements, IFC4 valid with 0 issues (65 MB).
+- Parity: 92 of 92 commands.
+
+**Known limits**
+- OSM coverage varies. Around the Taj, 208 buildings are mapped within 1.1 km, so most of the dense Taj Ganj fabric is indicative infill. Underground services are never in OSM: the services layers are a typical layout, not a utility survey.
+- Open-Meteo weather was rate-limited (429) from this build machine's shared IP. Air quality and USGS worked live. From a user's own browser the limits are per user.
+- The city is flat at ground level; there is no terrain under it yet.
+
 ## 2026-11-21: Five landmarks through every stage; location and simulation twin
 
 **What moved**

@@ -19,6 +19,29 @@ This is the exact process shown in the screen recordings. The same steps run fro
 
 The stage commands for each landmark are in `src/app/landmarks.js` (`STAGES`, `landmarkStages(id)`).
 
+## City context (Taj Mahal)
+
+After step 10, the Twin pane's "Build city from OpenStreetMap" (or `city_plan`, then `script` per layer) models the surroundings in this order:
+
+1. L-WATER
+2. L-LANDSCAPE
+3. C-PAVING
+4. C-ROAD
+5. C-FOOTWAY
+6. C-KERB
+7. P-WATER
+8. P-SEWER
+9. P-STORM
+10. E-DUCT
+11. E-LIGHTING
+12. A-BUILDING
+13. A-INFILL
+14. L-TREES
+15. L-WATER-FEATURE
+16. A-FURNITURE
+
+Real features come from OSM. Kerbs, carriageway widths, utilities, lighting and infill are indicative and named so. The live data panel adds weather, wind, air quality and earthquakes at the site.
+
 ## The five landmarks
 
 | Landmark | Model commands | Command mix | Location (WGS84, standard time) | 4D programme | 5D |
