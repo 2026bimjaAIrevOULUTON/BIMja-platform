@@ -21,14 +21,17 @@ function pisa() {
   const c = []; const M = "Marble", stone = "#efe9dc";
   const between = (r, n, phase, k) => { const a = phase + (2 * Math.PI * (k + 0.5)) / n; return { p: [Math.round(r * Math.cos(a)), Math.round(r * Math.sin(a))], dir: Math.round(((a * 180) / Math.PI + 90) * 1000) / 1000 }; };
   c.push(rev({ as: "drum", name: "Base drum", center: [0, 0], profile: cyl(7700, 11000), material: M, color: stone, segments: 60, ifc_class: "IfcWall", ...L }));
-  c.push({ name: "boolean", args: { base: "$drum", op: "difference", tools: [...Array(15).keys()].map((k) => { const b = between(7700, 15, 0, k); return { shape: "opening", at: [...b.p, 400], dir_deg: b.dir, width: 2600, height: 9000, depth: 800, arch: "semi", ...L }; }) } });
+  const portal = { shape: "opening", at: [0, -7700, 0], dir_deg: 0, width: 1800, height: 4200, depth: 3400, arch: "semi", ...L }; // entrance portal through the drum
+  c.push({ name: "boolean", args: { base: "$drum", op: "difference", tools: [...[...Array(15).keys()].map((k) => { const b = between(7700, 15, 0, k); return { shape: "opening", at: [...b.p, 400], dir_deg: b.dir, width: 2600, height: 9000, depth: 800, arch: "semi", ...L }; }), portal] } });
+  c.push(mass({ name: "Piazza dei Miracoli lawn", outline: rect(-60000, -45000, 60000, 45000), base: -700, height: 100, material: "Grass", color: "#7a9a5a", ifc_class: "IfcGeographicElement" }));
   c.push(rev({ name: "Stylobate", center: [0, 0], profile: cyl(8600, 600), base: -600, material: M, color: "#e4dccb", segments: 48, ifc_class: "IfcSlab", ...L }));
   for (const [k, a] of ring(7820, 15).entries()) c.push(rev({ name: `Blind arcade column G${k + 1}`, center: a, profile: cyl(300, 9200), base: 400, material: M, color: stone, segments: 10, ifc_class: "IfcColumn", ...L }));
   let z = 11000;
   for (let s = 1; s <= 6; s++) {
     const h = 6500;
     c.push(rev({ name: `Cornice ${s}`, center: [0, 0], profile: tube(0, 8100, 450), base: z, material: M, color: "#e8e1d2", segments: 48, ifc_class: "IfcSlab", ...L }));
-    c.push(rev({ name: `Gallery wall ${s}`, center: [0, 0], profile: tube(5200, 6300, h - 450), base: z + 450, material: M, color: stone, segments: 48, ifc_class: "IfcWall", ...L }));
+    c.push(rev({ as: `gal${s}`, name: `Gallery wall ${s}`, center: [0, 0], profile: tube(5200, 6300, h - 450), base: z + 450, material: M, color: stone, segments: 48, ifc_class: "IfcWall", ...L }));
+    c.push({ name: "boolean", args: { base: `$gal${s}`, op: "difference", tools: [0, 90, 180, 270].map((d) => { const a = ((d + 45 * (s % 2)) * Math.PI) / 180; return { shape: "opening", at: [Math.round(5750 * Math.cos(a)), Math.round(5750 * Math.sin(a)), z + 450], dir_deg: (d + 45 * (s % 2)) + 90, width: 1300, height: 3000, depth: 1600, arch: "semi", ...L }; }) } });
     const ph = s % 2 ? 0 : Math.PI / 30; // arcade band springing from the capitals, cut with 30 round arches
     c.push(rev({ as: `band${s}`, name: `Arcade ${s}`, center: [0, 0], profile: tube(7150, 7850, 1200), base: z + h - 1200, material: M, color: "#f1ece1", segments: 60, ifc_class: "IfcBeam", ...L }));
     c.push({ name: "boolean", args: { base: `$band${s}`, op: "difference", tools: [...Array(30).keys()].map((k) => { const b = between(7500, 30, ph, k); return { shape: "opening", at: [...b.p, z + h - 1500], dir_deg: b.dir, width: 900, height: 1250, depth: 1400, arch: "semi", ...L }; }) } });
@@ -36,9 +39,15 @@ function pisa() {
     z += h;
   }
   c.push(rev({ name: "Cornice 7", center: [0, 0], profile: tube(0, 8100, 450), base: z, material: M, color: "#e8e1d2", segments: 48, ifc_class: "IfcSlab", ...L }));
-  c.push(rev({ name: "Belfry", center: [0, 0], profile: [[0, 0], [5300, 0], [5300, 5200], [5600, 5200], [5600, 5700], [0, 5700]], base: z + 450, material: M, color: stone, segments: 40, ifc_class: "IfcWall", ...L }));
+  c.push(rev({ as: "belfry", name: "Belfry", center: [0, 0], profile: [[4300, 0], [5300, 0], [5300, 5200], [5600, 5200], [5600, 5700], [4300, 5700]], base: z + 450, material: M, color: stone, segments: 48, ifc_class: "IfcWall", ...L }));
+  c.push({ name: "boolean", args: { base: "$belfry", op: "difference", tools: [...Array(6).keys()].map((k) => { const a = (k * Math.PI) / 3 + Math.PI / 6; return { shape: "opening", at: [Math.round(4800 * Math.cos(a)), Math.round(4800 * Math.sin(a)), z + 1300], dir_deg: (k * 60 + 30) + 90, width: 1600, height: 3200, depth: 1600, arch: "semi", ...L }; }) } });
+  c.push(rev({ name: "Belfry floor", center: [0, 0], profile: cyl(4400, 450), base: z + 450, material: M, color: "#e4dccb", segments: 48, ifc_class: "IfcSlab", ...L }));
+  c.push({ name: "family", args: { name: "Church bell", ifc_class: "IfcBuildingElementProxy", uniclass: { code: "Pr_40_70_08", title: "Bells" }, material: "Bronze", color: "#b08d3c", parameters: { Mouth_mm: 1400 }, psets: { Pset_BIMja_Heritage: { Note: "Seven bells, one per note of the major scale" } },
+    parts: [{ shape: "revolve", center: [0, 0], profile: [[0, 0], [700, 0], [640, 200], [480, 700], [420, 1150], [260, 1350], [0, 1400]], segments: 24 }, { shape: "box", min: [-500, -120, 1400], max: [500, 120, 1650] }] } });
+  for (const [k, a] of ring(2600, 6).entries()) c.push({ name: "place", args: { family: "Church bell", at: [a[0], a[1], z + 2200], rotation_deg: k * 60, mark: `BELL-0${k + 1}`, ...L } });
+  c.push({ name: "place", args: { family: "Church bell", at: [0, 0, z + 2500], mark: "BELL-07", ...L } });
   for (const [k, a] of ring(5450, 12).entries()) c.push(rev({ name: `Belfry column ${k + 1}`, center: a, profile: cyl(200, 3600), base: z + 900, material: M, color: "#f6f2ea", segments: 8, ifc_class: "IfcColumn", ...L }));
-  return { id: "pisa", plans: [{ title: "Ground storey plan", cut_z: 1200 }, { title: "Gallery plan, third storey", cut_z: 26000 }], name: "Leaning Tower of Pisa", credit: "Campanile of Pisa Cathedral, begun 1173 (attributed to Bonanno Pisano; completed by Tommaso di Andrea Pisano, 1372). LOD 350 study built from BIMja commands: 8 storeys, ~56 m, 3.97° lean, blind arcade on the base drum, six open loggias of 30 columns carrying round-arched arcades.", commands: c };
+  return { id: "pisa", plans: [{ title: "Ground storey plan", cut_z: 1200 }, { title: "Gallery plan, third storey", cut_z: 26000 }, { title: "Belfry plan", cut_z: 53500 }], name: "Leaning Tower of Pisa", credit: "Campanile of Pisa Cathedral, begun 1173 (attributed to Bonanno Pisano; completed by Tommaso di Andrea Pisano, 1372). LOD 350 study built from BIMja commands: 8 storeys, ~56 m, 3.97° lean, blind arcade on the base drum, six open loggias of 30 columns carrying round-arched arcades, gallery doorways, entrance portal, hollow belfry with arched openings and its seven bells as a family, on the Piazza dei Miracoli lawn.", commands: c };
 }
 
 // ---------------------------------------------------------------- Taj Mahal
@@ -136,29 +145,60 @@ function fallingwater() {
   c.push({ name: "array", args: { source: "$step", count: 12, step: [0, -280, -230] } });
   c.push(mass({ as: "trellis", name: "Trellis beam", outline: rect(-9000, 4500, -8800, 9500), base: 3100, height: 450, material: "Concrete", color: cream, ifc_class: "IfcBeam" }));
   c.push({ name: "array", args: { source: "$trellis", count: 9, step: [1000, 0, 0] } });
-  return { id: "fallingwater", plans: [{ title: "Living level plan", cut_z: 1200 }, { title: "Bedroom level plan", cut_z: 4600 }, { title: "Study level plan", cut_z: 7800 }], name: "Fallingwater", credit: "Fallingwater (Kaufmann Residence), Mill Run, Pennsylvania, 1936–1939, by Frank Lloyd Wright. LOD 350 study built from BIMja commands: stone core, stacked cantilevered terraces with rounded parapets over the falls of Bear Run, Cherokee red sash, hatch stair and trellis.", commands: c };
+  // bedroom and study sash, the north stone wall with its window slots, the hearth boulder, study parapet
+  c.push(mass({ as: "bsash", name: "Bedroom sash", outline: rect(-6200, -1060, -6130, -940), base: 3450, height: 2900, material: "Steel", color: red, ifc_class: "IfcMember" }));
+  c.push({ name: "array", args: { source: "$bsash", count: 8, step: [1250, 0, 0] } });
+  c.push(mass({ as: "ssash", name: "Study sash", outline: rect(-3700, 440, -3630, 560), base: 6650, height: 2700, material: "Steel", color: red, ifc_class: "IfcMember" }));
+  c.push({ name: "array", args: { source: "$ssash", count: 5, step: [1150, 0, 0] } });
+  c.push(mass({ as: "nwall", name: "North stone wall", outline: rect(-9000, 3500, 6000, 4100), base: 0, height: 3100, material: "Stone", color: stone, ifc_class: "IfcWall" }));
+  c.push({ name: "boolean", args: { base: "$nwall", op: "difference", tools: [-6500, -2500, 3500].map((x) => ({ shape: "opening", at: [x, 3800, 900], dir_deg: 0, width: 1400, height: 1800, depth: 1200, arch: "rect" })) } });
+  c.push(rev({ name: "Hearth boulder", center: [-300, 2600], profile: [[0, 0], [1300, 0], [1200, 250], [800, 420], [0, 480]], base: 0, segments: 9, material: "Stone", color: "#7d7466", ifc_class: "IfcBuildingElementProxy" }));
+  c.push({ name: "sweep", args: { name: "Study terrace parapet", profile: [[-180, 0], [180, 0], [180, 500], [100, 700], [0, 740], [-100, 700], [-180, 500]], path: [[1500, 500, 7100], [1500, -3500, 7100], [-6000, -3500, 7100], [-6000, 500, 7100]], material: "Concrete", color: cream, ifc_class: "IfcRailing" } });
+  // the entrance drive bridge over Bear Run
+  c.push(mass({ name: "Drive bridge deck", outline: rect(-25000, -27500, -19500, -4500), base: -3200, height: 600, material: "Concrete", color: cream, ifc_class: "IfcSlab" }));
+  for (const y of [-26500, -5500]) c.push(mass({ name: "Bridge abutment", outline: rect(-25300, y - 1000, -19200, y + 1000), base: -9000, height: 5800, material: "Stone", color: stone, ifc_class: "IfcFooting" }));
+  return { id: "fallingwater", plans: [{ title: "Stream level plan", cut_z: -2000 }, { title: "Living level plan", cut_z: 1200 }, { title: "Bedroom level plan", cut_z: 4600 }, { title: "Study level plan", cut_z: 7800 }], name: "Fallingwater", credit: "Fallingwater (Kaufmann Residence), Mill Run, Pennsylvania, 1936–1939, by Frank Lloyd Wright. LOD 350 study built from BIMja commands: stone core, stacked cantilevered terraces with rounded parapets over the falls of Bear Run, Cherokee red sash on every level, north stone wall, hearth boulder, hatch stair, trellis and the drive bridge over Bear Run.", commands: c };
 }
 
 // ---------------------------------------------------------------- Burj Khalifa
 function burj() {
-  const c = []; const glass = "#a9c4d2";
-  c.push(mass({ name: "Podium", outline: ring(70000, 6).map((p) => rot(p, 30)), base: -0, height: 12000, material: "Glass", color: "#7f97a3", ifc_class: "IfcSlab" }));
+  const c = []; const glass = "#a9c4d2", steel = "#c7ced4", dark = "#56656e";
+  // Burj Lake and the Dubai Fountain promenade (context)
+  c.push(mass({ name: "Burj Lake", outline: [[-260000, -120000], [-60000, -150000], [140000, -140000], [230000, -90000], [210000, -60000], [-40000, -95000], [-240000, -80000]], base: -1500, height: 1200, material: "Water", color: "#3d6f8c", ifc_class: "IfcGeographicElement" }));
+  c.push(mass({ name: "Plaza and park", outline: ring(118000, 24).map((p) => rot(p, 7)), base: -300, height: 300, material: "Paving", color: "#cfc8b8", ifc_class: "IfcSlab" }));
+  // podium with three entrance pavilions, one at the end of each wing (residential, hotel, corporate)
+  c.push(mass({ as: "podium", name: "Podium", outline: ring(70000, 6).map((p) => rot(p, 30)), height: 12000, material: "Glass", color: "#7f97a3", ifc_class: "IfcSlab" }));
+  c.push({ name: "boolean", args: { base: "$podium", op: "difference", tools: [0, 1, 2].map((i) => ({ shape: "opening", at: [...rot([60500, 0], 90 + i * 120), 0], dir_deg: 90 + i * 120 + 90, width: 16000, height: 9000, depth: 6000, arch: "segmental" })) } });
+  c.push({ name: "family", args: { name: "Entrance canopy", ifc_class: "IfcBuildingElementProxy", uniclass: { code: "EF_30_10", title: "Roofs" }, material: "Steel", color: steel, parameters: { Span_mm: 18000, Projection_mm: 9000 }, parts: [{ shape: "box", min: [-9000, -4500, 8000], max: [9000, 4500, 8600] }, ...[-8000, 8000].map((x) => ({ shape: "revolve", center: [x, 4000], profile: cyl(300, 8000), segments: 12 }))] } });
+  for (const i of [0, 1, 2]) c.push({ name: "place", args: { family: "Entrance canopy", at: [...rot([71500, 0], 90 + i * 120), 0], rotation_deg: 90 + i * 120, mark: `EC-0${i + 1}` } });
   c.push(rev({ name: "Central core", center: [0, 0], profile: [[0, 0], [17000, 0], [12000, 585000], [0, 585000]], segments: 6, material: "Glass", color: glass, ifc_class: "IfcWall" }));
-  // Y-shaped plan: three wings set back one after another as the tower spirals upward
-  const W = 26000; // wing width
+  // Y-shaped plan (inspired by the Hymenocallis flower): three wings set back one after another as the tower spirals up
+  const W = 26000; const noses = [];
   for (let i = 0; i < 3; i++) {
     let z = 0; const dir = 90 + i * 120;
     for (let j = 0; j < 9; j++) {
       const top = Math.round((585000 * (3 * j + i + 1)) / 28); const Lw = 62000 - j * 6200;
-      const half = W / 2 - j * 600; const end = []; // wing with a rounded end
-      for (let k = 0; k <= 6; k++) { const a = -Math.PI / 2 + (Math.PI * k) / 6; end.push([Lw + half * Math.cos(a) * 0.6, half * Math.sin(a)]); }
+      const half = W / 2 - j * 600; const end = [];
+      for (let k = 0; k <= 8; k++) { const a = -Math.PI / 2 + (Math.PI * k) / 8; end.push([Lw + half * Math.cos(a) * 0.6, half * Math.sin(a)]); }
       const wing = [[0, -half], ...end, [0, half]].map((p) => rot(p, dir));
-      c.push(mass({ name: `Wing ${"ABC"[i]} tier ${j + 1}`, outline: wing, base: z, height: top - z, material: "Glass", color: glass, ifc_class: "IfcWall" }));
+      c.push(mass({ name: `Wing ${"ABC"[i]} tier ${j + 1}`, outline: wing, base: z, height: top - z, material: "Glass", color: glass, ifc_class: "IfcCurtainWall" }));
+      // setback terrace slab + parapet at the top of each tier
+      c.push(mass({ name: `Setback terrace ${"ABC"[i]}${j + 1}`, outline: wing, base: top - 600, height: 600, material: "Steel", color: steel, ifc_class: "IfcSlab" }));
+      // stainless nose fin running up the rounded end of the wing
+      const nose = rot([Lw + half * 0.6, 0], dir); noses.push(nose);
+      c.push(mass({ name: `Nose fin ${"ABC"[i]}${j + 1}`, outline: rect(-450, -450, 450, 450).map((p) => [p[0] + nose[0], p[1] + nose[1]]), base: z, height: top - z, material: "Steel", color: steel, ifc_class: "IfcMember" }));
       z = top;
     }
   }
-  c.push(rev({ name: "Spire", center: [0, 0], profile: [[0, 0], [7000, 0], [2600, 160000], [600, 243000], [0, 243000]], base: 585000, segments: 12, material: "Steel", color: "#c7ced4", ifc_class: "IfcMember" }));
-  return { id: "burj", plans: [{ title: "Plan at +50 m", cut_z: 50000 }, { title: "Plan at +300 m", cut_z: 300000 }, { title: "Plan at +500 m", cut_z: 500000 }], name: "Burj Khalifa", credit: "Burj Khalifa, Dubai, 2004–2010, by Skidmore, Owings & Merrill (Adrian Smith, design partner). Simplified massing study: Y-shaped plan, 27 spiralling setbacks, 828 m. Not affiliated with or endorsed by the owner.", commands: c };
+  // mechanical floors: dark bands around the core every ~30 storeys; observation decks (levels 124, 148)
+  for (const [k, zb] of [[1, 88000], [2, 178000], [3, 268000], [4, 358000], [5, 440000], [6, 520000]]) c.push(rev({ name: `Mechanical floor band ${k}`, center: [0, 0], profile: [[0, 0], [16200 - zb / 117, 0], [16200 - zb / 117, 4500], [0, 4500]], base: zb, segments: 6, material: "Glass", color: dark, ifc_class: "IfcCovering" }));
+  c.push(rev({ name: "Observation deck L124 (At the Top)", center: [0, 0], profile: tube(0, 13200, 5000), base: 452000, segments: 6, material: "Glass", color: "#d9e8f0", ifc_class: "IfcSlab" }));
+  c.push(rev({ name: "Observation deck L148", center: [0, 0], profile: tube(0, 12300, 4500), base: 555000, segments: 6, material: "Glass", color: "#d9e8f0", ifc_class: "IfcSlab" }));
+  // spire: telescoping steel sections with service rings, arrayed up the mast
+  c.push(rev({ name: "Spire", center: [0, 0], profile: [[0, 0], [7000, 0], [2600, 160000], [600, 243000], [0, 243000]], base: 585000, segments: 12, material: "Steel", color: steel, ifc_class: "IfcMember" }));
+  c.push(rev({ as: "sring", name: "Spire service ring", center: [0, 0], profile: tube(0, 6600, 900), base: 600000, segments: 12, material: "Steel", color: "#9aa3ab", ifc_class: "IfcMember" }));
+  c.push({ name: "array", args: { source: "$sring", count: 8, step: [0, 0, 18000] } });
+  return { id: "burj", plans: [{ title: "Plan at +6 m (podium)", cut_z: 6000 }, { title: "Plan at +50 m", cut_z: 50000 }, { title: "Plan at +300 m", cut_z: 300000 }, { title: "Plan at +500 m", cut_z: 500000 }], name: "Burj Khalifa", credit: "Burj Khalifa, Dubai, 2004–2010, by Skidmore, Owings & Merrill (Adrian Smith, design partner). LOD 350 study built from BIMja commands: Y-shaped plan with 27 spiralling setbacks and terraces, stainless nose fins, mechanical floor bands, observation decks at L124 and L148, telescoping spire with service rings, podium entrances and the Burj Lake, 828 m. Not affiliated with or endorsed by the owner.", commands: c };
 }
 
 // ---------------------------------------------------------------- Vitra Fire Station
@@ -172,12 +212,23 @@ function vitra() {
       { shape: "box", min: [3000, 6800, 4300], max: [34000, 9600, 5100] }] } }); }
   c.push(mass({ name: "Hall glazing", outline: [[1500, -150], [30000, 1750], [30000, 1950], [1500, 50]], base: 300, height: 5600, material: "Glass", color: "#6f8790", ifc_class: "IfcWall" }));
   c.push(mass({ name: "Changing rooms wing", outline: [[-2000, 7400], [44000, 10800], [43500, 14200], [-1500, 10600]], height: 4300, material: "Concrete", color: conc, ifc_class: "IfcWall" }));
-  c.push(mass({ name: "Club room (upper)", outline: [[6000, 8200], [40000, 10900], [39200, 14000], [6400, 11400]], base: 4300, height: 3600, material: "Concrete", color: "#d6d4ce", ifc_class: "IfcWall" }));
-  c.push(mass({ name: "Leaning wall plane", outline: [[-6000, -1600], [46000, 2600], [46000, 3000], [-6000, -1200]], height: 9200, lean_deg: -9, lean_dir_deg: 98, material: "Concrete", color: "#bdbbb5", ifc_class: "IfcWall" }));
+  c.push(mass({ as: "club", name: "Club room (upper)", outline: [[6000, 8200], [40000, 10900], [39200, 14000], [6400, 11400]], base: 4300, height: 3600, material: "Concrete", color: "#d6d4ce", ifc_class: "IfcWall" }));
+  { const d = (Math.atan2(2700, 34000) * 180) / Math.PI; c.push({ name: "boolean", args: { base: "$club", op: "difference", tools: [12000, 22000, 32000].map((x) => ({ shape: "opening", at: [x, Math.round(8200 + ((x - 6000) * 2700) / 34000), 5300], dir_deg: d, width: 8000, height: 1500, depth: 1200, arch: "rect" })) } }); }
+  const LW = { lean_deg: -9, lean_dir_deg: 98, pivot: [20000, 700, 0] }; const wd = (Math.atan2(4200, 52000) * 180) / Math.PI;
+  c.push(mass({ as: "lwall", name: "Leaning wall plane", outline: [[-6000, -1600], [46000, 2600], [46000, 3000], [-6000, -1200]], height: 9200, material: "Concrete", color: "#bdbbb5", ifc_class: "IfcWall", ...LW }));
+  c.push({ name: "boolean", args: { base: "$lwall", op: "difference", tools: [2000, 14000, 26000, 36000].map((x) => ({ shape: "opening", at: [x, Math.round(-1400 + ((x + 6000) * 4200) / 52000), 6200], dir_deg: wd, width: 7000, height: 450, depth: 1400, arch: "rect", ...LW })) } });
+  // engine bay doors (a family) and the hall roof plate
+  c.push({ name: "family", args: { name: "Engine bay door", ifc_class: "IfcBuildingElementProxy", uniclass: { code: "Pr_30_59_24", title: "Doors" }, material: "Glass", color: "#7d949c", parameters: { Width_mm: 5000, Height_mm: 5500, Operation: "Sliding" }, parts: [{ shape: "box", min: [-2500, -40, 0], max: [2500, 40, 5500] }, { shape: "box", min: [-2600, -90, 5500], max: [2600, 90, 5700] }] } });
+  { const d = (Math.atan2(2500, 38000) * 180) / Math.PI; [4500, 11000, 17500, 24000, 30500].forEach((x, i) => c.push({ name: "place", args: { family: "Engine bay door", at: [x, Math.round((x * 2500) / 38000) + 300, 0], rotation_deg: d, mark: `BAY-0${i + 1}` } })); }
+  c.push(mass({ name: "Hall roof plate", outline: [[-300, -300], [38300, 2200], [36800, 9500], [900, 7700]], base: 7600, height: 300, material: "Concrete", color: "#d2d0ca", ifc_class: "IfcRoof" }));
+  // upper floor: club room windows cut as a long band; external stair of arrayed treads
+  c.push(mass({ as: "tread", name: "Stair tread", outline: [[44200, 10600], [45600, 10800], [45500, 11900], [44100, 11700]], base: 150, height: 150, material: "Concrete", color: "#bdbbb5", ifc_class: "IfcStair" }));
+  c.push({ name: "array", args: { source: "$tread", count: 24, step: [0, 0, 175] } });
   c.push(mass({ name: "Knife-edge canopy", outline: [[2000, -400], [36000, 1600], [52000, -6500], [37000, -1200]], base: 6800, height: 320, material: "Concrete", color: "#e1dfd9", ifc_class: "IfcSlab" }));
-  c.push(mass({ name: "Canopy strut", outline: [[30000, -900], [30500, -870], [30500, -500], [30000, -530]], height: 6800, lean_deg: 14, lean_dir_deg: 300, material: "Steel", color: "#5b5f63", ifc_class: "IfcMember" }));
+  c.push(mass({ as: "strut", name: "Canopy strut", outline: [[30000, -900], [30500, -870], [30500, -500], [30000, -530]], height: 6800, lean_deg: 14, lean_dir_deg: 300, material: "Steel", color: "#5b5f63", ifc_class: "IfcMember" }));
+  c.push({ name: "array", args: { source: "$strut", count: 3, step: [5200, -2600, 0] } });
   c.push(mass({ name: "Tapering wall (end)", outline: [[38000, 2500], [58000, 4800], [58000, 5300], [38000, 3000]], height: 5800, top_scale: 0.55, material: "Concrete", color: conc, ifc_class: "IfcWall" }));
-  return { id: "vitra", plans: [{ title: "Ground floor plan", cut_z: 1200 }, { title: "Upper floor plan", cut_z: 5800 }], name: "Vitra Fire Station", credit: "Vitra Fire Station, Weil am Rhein, 1990–1993, by Zaha Hadid (her first major built work). LOD 350 study built from BIMja commands: long layered concrete planes, engine bays cut into the hall, leaning walls and a knife-edge canopy. Not affiliated with or endorsed by Vitra.", commands: c };
+  return { id: "vitra", plans: [{ title: "Ground floor plan", cut_z: 1200 }, { title: "Upper floor plan", cut_z: 5800 }], name: "Vitra Fire Station", credit: "Vitra Fire Station, Weil am Rhein, 1990–1993, by Zaha Hadid (her first major built work). LOD 350 study built from BIMja commands: long layered concrete planes, engine bays with sliding door family, cut slot windows in the leaning wall, club-room window band, roof plate, external stair, raking struts and the knife-edge canopy. Not affiliated with or endorsed by Vitra.", commands: c };
 }
 
 export const LANDMARKS = [pisa(), taj(), fallingwater(), burj(), vitra()];
