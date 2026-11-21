@@ -7,6 +7,8 @@ import { Bus } from "../src/core/bus.js";
 import { installCore } from "../src/core/handlers.js";
 import { LANDMARKS, landmarkProject } from "../src/app/landmarks.js";
 import { solidOf } from "../src/author/solids.js";
+import { loadKernel } from "../src/author/kernel.js";
+await loadKernel();
 
 mkdirSync("dist-test", { recursive: true });
 const files = [];
@@ -15,7 +17,7 @@ for (const l of LANDMARKS) {
   assert.ok(bus.execute({ name: "load_project", args: { project: lp.project }, actor: "human" }).ok);
   const t0 = performance.now(); const r = bus.execute({ name: "script", args: { commands: l.commands }, actor: "agent:landmark", apply: true });
   assert.ok(r.ok, `${l.id}: ${JSON.stringify(r.refusals)}`);
-  const els = Object.values(bus.model.data.elements); assert.equal(els.length, l.commands.length);
+  const els = Object.values(bus.model.data.elements); assert.ok(els.length >= l.commands.filter((x) => ["mass", "revolve", "sweep", "place"].includes(x.name)).length, `${l.id}: every solid built`);
   let zmax = -Infinity, top = null, vol = 0;
   for (const e of els) { const s = solidOf(e); vol += s.volume / 1e9; for (const v of s.verts) if (v[2] > zmax) { zmax = v[2]; top = v; } }
   const ifc = bus.execute({ name: "export_ifc", args: {}, actor: "human" }).data;

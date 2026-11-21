@@ -18,7 +18,7 @@ export const REGISTRY = [
   c("undo", "session", "Undo the last change (an agent's whole run is one step)", { kind: "control", ui_path: "#undo" }),
   c("redo", "session", "Redo", { kind: "control", ui_path: "#redo" }),
   c("pause_agents", "session", "Pause or resume agents; their changes queue as proposals", { kind: "control", args: { paused: "boolean?" }, ui_path: "#pauseAgents" }),
-  c("script", "session", "Run many commands as one step; atomic by default", { args: { commands: "[{name,args}]", atomic: "boolean?" }, example: { commands: [{ name: "wall", args: { start: [0, 0], end: [5000, 0] } }] } }),
+  c("script", "session", "Run many commands as one step; atomic by default. Tag a step {as: \"x\"} and use \"$x\" in later args for its id", { args: { commands: "[{name, args, as?}]", atomic: "boolean?" }, example: { commands: [{ name: "mass", as: "slab", args: { outline: [[0, 0], [6000, 0], [6000, 600], [0, 600]], height: 5000 } }, { name: "opening", args: { target: "$slab", at: [3000, 300, 0], width: 2000, height: 3000, depth: 1000, arch: "pointed" } }] } }),
   c("log", "session", "The command log: who did what, in order", { kind: "read", args: { last: "number?" }, ui_path: "#logTab" }),
   c("proposals", "session", "Pending agent proposals", { kind: "read", ui_path: "#logTab" }),
   c("apply_proposal", "session", "Apply an agent's proposal (people only)", { kind: "control", args: { id: "string" }, ui_path: "#logTab" }),

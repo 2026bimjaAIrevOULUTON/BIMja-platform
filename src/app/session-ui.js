@@ -51,7 +51,7 @@ export function initSessionUI({ bus, viewer, run, toast, download, onAuthoredCha
   $("#saveProject").onclick = async () => { const r = await run("save", {}); if (r.ok) download("project.bimja.json", JSON.stringify(r.data, null, 1), "application/json"); };
   $("#projectFile").onchange = async (e) => {
     const f = e.target.files[0]; if (!f) return; e.target.value = "";
-    try { const r = await run("load_project", { project: JSON.parse(await f.text()) }); toast(r.ok ? `Opened ${f.name}` : r.refusals[0].message); } catch (err) { toast(`Not a project file: ${err.message}`); }
+    try { await window.__bimjaKernel; const r = await run("load_project", { project: JSON.parse(await f.text()) }); toast(r.ok ? `Opened ${f.name}` : r.refusals[0].message); } catch (err) { toast(`Not a project file: ${err.message}`); }
   };
   $("#deleteSel").onclick = () => { const id = window.__bimjaSelectedAuthored; if (id) run("delete", { ids: [id] }); else toast("Select an authored element first"); };
   $("#demoHouse").onclick = () => run("script", { commands: SAMPLE_HOUSE });

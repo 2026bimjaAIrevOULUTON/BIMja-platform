@@ -21,11 +21,12 @@ export function installCore(bus) {
 
   // one undo step, all or nothing (atomic) — an agent's batch
   bus.register("script", (args) => {
-    const results = []; const list = args.commands || [];
+    const results = []; const list = args.commands || []; const refs = {}; // a step tagged {as:"arcade"} is referred to later as "$arcade" (its id)
+    const resolve = (v) => typeof v === "string" && /^\$[A-Za-z_][\w-]*$/.test(v) ? (refs[v.slice(1)] ?? (() => { const e = new Error(`unknown reference ${v}`); e.code = "bad_arg"; throw e; })()) : Array.isArray(v) ? v.map(resolve) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, resolve(x)])) : v;
     for (let i = 0; i < list.length; i++) {
       const c = list[i]; const h = bus.handlers.get(c.name);
       if (!h || h.kind !== "write" || c.name === "script") { const e = new Error(`step ${i}: "${c.name}" cannot run in a script`); e.code = "bad_arg"; throw e; }
-      try { results.push({ name: c.name, ok: true, data: h.run(c.args || {}, c, bus) }); }
+      try { const data = h.run(resolve(c.args || {}), c, bus); results.push({ name: c.name, ok: true, data }); if (c.as) refs[c.as] = data?.id ?? data?.family ?? null; }
       catch (e) { if (args.atomic !== false) { e.message = `step ${i} (${c.name}): ${e.message}`; throw e; } results.push({ name: c.name, ok: false, error: e.message, code: e.code }); }
     }
     return { steps: results.length, results };

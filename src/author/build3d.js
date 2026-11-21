@@ -66,7 +66,8 @@ export function buildAuthored(model) {
   }
   const MASS_COLORS = { Glass: 0x9fc6dc, Marble: 0xf1ede4, Stone: 0xb8ab94, Concrete: 0xc4c2bc, Steel: 0x9aa0a8, Brick: 0xb0715a, Timber: 0xa77a4f };
   for (const e of model.elements.filter((x) => x.kind === "mass")) {
-    const sol = solidOf(e); const z = elev(e.level); const pos = [];
+    let sol; try { sol = solidOf(e); } catch (err) { console.warn(`${e.id}: ${err.message}`); continue; } // kernel still loading: skip this solid, the next refresh draws it
+    const z = elev(e.level); const pos = [];
     for (const f of sol.faces) {
       // fan-triangulate planar faces (caps may be concave: use three's triangulator for those)
       if (f.length > 4) { const pts = f.map((i) => sol.verts[i]); const nz = Math.sign(pts.reduce((acc, p, i) => { const q = pts[(i + 1) % pts.length]; return acc + (p[0] * q[1] - q[0] * p[1]); }, 0)) || 1;

@@ -86,7 +86,10 @@ import { triangulate } from "./geom.js";
 import { needKernel, toManifold, fromManifold } from "./kernel.js";
 
 export function specSolid(sp) {
-  switch (sp.shape || "extrude") {
+  const sh = sp.shape || "extrude";
+  if (sp.lean_deg && !["extrude", "revolve", "csg"].includes(sh)) { // lean any other solid the same way (pivot defaults to the origin at its lowest point)
+    const r = specSolid({ ...sp, lean_deg: 0 }); return finish(lean(r.verts.map((v) => v.slice()), sp.lean_deg, sp.lean_dir_deg || 0, sp.pivot || [0, 0, r.zmin ?? 0]), r.faces.map((f) => f.slice())); }
+  switch (sh) {
     case "extrude": return massSolid(sp);
     case "revolve": return revolveSolid(sp);
     case "box": return massSolid({ outline: [[sp.min[0], sp.min[1]], [sp.max[0], sp.min[1]], [sp.max[0], sp.max[1]], [sp.min[0], sp.max[1]]], base: sp.min[2], height: sp.max[2] - sp.min[2] });

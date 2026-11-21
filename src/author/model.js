@@ -274,7 +274,7 @@ def("array", "Copy a solid: {source, count, step:[dx,dy,dz] mm} or {source, pola
 def("family", "Define a reusable family (like a Revit family): {name, ifc_class?, uniclass?:{code,title}, description?, parameters?:{...}, psets?:{Pset_X:{...}}, parts:[geometry specs, origin at 0,0,0]}", (m, c) => {
   const name = String(c.name || fail("a family needs a name")).slice(0, 80); if (!Array.isArray(c.parts) || !c.parts.length) fail("parts: one or more geometry specs (box, extrude, revolve, sweep, opening, csg)");
   const cls = c.ifc_class || "IfcBuildingElementProxy"; if (!MASS_CLASSES.includes(cls)) fail(`ifc_class must be one of ${MASS_CLASSES.join(", ")}`);
-  if (c.uniclass && !/^[A-Z][a-z]_\d{2}(_\d{2}){0,3}$/.test(c.uniclass.code || "")) fail("uniclass.code like Pr_40_50_29 or Ss_25_10");
+  if (c.uniclass && !/^[A-Z][A-Za-z]_\d{2}(_\d{2}){0,3}$/.test(c.uniclass.code || "")) fail("uniclass.code like Pr_40_50_29, Ss_25_10 or EF_30_10");
   checkSpec({ shape: "group", parts: c.parts });
   (m.data.families ||= {})[name] = { name, ifc_class: cls, ...(c.uniclass ? { uniclass: { code: c.uniclass.code, title: String(c.uniclass.title || "") } } : {}), description: String(c.description || ""), parameters: clone(c.parameters || {}), psets: clone(c.psets || {}), parts: clone(c.parts), ...(c.material ? { material: String(c.material) } : {}), ...(c.color ? { color: c.color } : {}) };
   return { family: name, parts: c.parts.length };

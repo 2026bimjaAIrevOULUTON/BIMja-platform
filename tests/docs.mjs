@@ -58,9 +58,10 @@ const ind = house("is-nbc"); ind.run("sheets_auto", {}); const inPlan = ind.run(
 assert.ok(ind.run("drawing", { sheet: inPlan.id, format: "svg" }).data.svg.includes("Area statement"), "IS/NBC plans carry an area statement");
 
 // landmarks get drawings too (masses: cut + hidden lines)
+await (await import("../src/author/kernel.js")).loadKernel();
 const L = installCore(new Bus()); const lp = landmarkProject("taj");
-L.execute({ name: "load_project", args: { project: lp.project }, actor: "human" }); L.execute({ name: "script", args: { commands: lp.landmark.commands }, actor: "human" });
-L.execute({ name: "drawing_setup", args: { project_code: "TAJ" }, actor: "human" }); assert.equal(L.execute({ name: "sheets_auto", args: {}, actor: "human" }).data.sheets, 6);
+L.execute({ name: "load_project", args: { project: lp.project }, actor: "human" }); assert.ok(L.execute({ name: "script", args: { commands: lp.landmark.commands }, actor: "human", apply: true }).ok, "Taj builds");
+L.execute({ name: "drawing_setup", args: { project_code: "TAJ" }, actor: "human" }); assert.equal(L.execute({ name: "sheets_auto", args: {}, actor: "human" }).data.sheets, 7); // the Taj defines three plan levels
 const t0 = performance.now(); const el = L.execute({ name: "drawing", args: { sheet: L.extra.docs.sheets.find((s) => s.kind === "elevations").id, format: "svg" }, actor: "human" }).data;
 assert.ok((el.svg.match(/<line /g) || []).length > 800, "Taj elevations have the dome, chhatris and minarets"); assert.ok(el.svg.includes("Credit: Taj Mahal"));
 console.log(`ok docs: ISO 19650 naming + S/A revisions, US NCS A-101, IS/NBC area statement, deterministic publish, Taj elevations ${Math.round(performance.now() - t0)} ms`);

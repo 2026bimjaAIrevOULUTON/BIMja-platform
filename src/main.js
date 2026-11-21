@@ -18,7 +18,8 @@ import { initPlan } from "./app/plan.js";
 import { exportIFC } from "./author/ifc-export.js";
 import { authoredRecords } from "./author/records.js";
 import { installCoordination } from "./app/coord-ui.js";
-import("./author/kernel.js").then((k) => k.loadKernel()).catch((e) => console.warn("geometry kernel unavailable:", e.message)); // booleans/arches; lazy, off the first paint
+const kernelReady = import("./author/kernel.js").then((k) => k.loadKernel()).catch((e) => console.warn("geometry kernel unavailable:", e.message)); // booleans/arches; lazy, off the first paint
+window.__bimjaKernel = kernelReady;
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -211,7 +212,7 @@ $("#file").onchange = async (e) => { const f = e.target.files[0]; if (f) await l
 async function buildLandmark(id) {
   const lp = landmarkProject(id); if (!lp) return;
   if (state.model) { viewer.clear(); state.model = null; state.selected = null; $("#meta").textContent = "No model loaded."; $("#tree").innerHTML = ""; $("#props").hidden = true; }
-  await run("load_project", { project: lp.project });
+  await kernelReady; await run("load_project", { project: lp.project });
   const r = await run("script", { commands: lp.landmark.commands });
   if (!r.ok) return toast(`Could not build ${lp.landmark.name}: ${r.refusals?.[0]?.message || "error"}`);
   $("#welcome").hidden = true; refreshAuthored(); viewer.fit(); setTimeout(() => viewer.fit(), 150);
