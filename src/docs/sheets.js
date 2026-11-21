@@ -1,7 +1,7 @@
 // Drawing standards, ISO 19650 information-container naming and status codes, and sheet composition:
 // views are scaled into the drawing area with titles, dimensions and a standard title block.
 // Paper coordinates: millimetres, origin bottom-left, y up.
-import { planView, elevationView, sectionView, sitePlanView, siteSectionView } from "./views.js";
+import { planView, elevationView, sectionView, sitePlanView, siteSectionView, isoView } from "./views.js";
 import { schedule } from "../author/model.js";
 import { polygonArea } from "../author/geom.js";
 
@@ -40,10 +40,10 @@ const levelCode = (model, levelId) => { if (!levelId) return "ZZ"; const ls = [.
 /** ISO 19650 container name, and the sheet number the chosen convention shows big in the title block. */
 export function sheetNumber(docs, model, sh) {
   const typeCode = sh.kind === "schedule" || sh.kind === "register" ? "SH" : "DR";
-  const series = { register: 0, site: 100, site_section: 150, plan: 1000, elevations: 2000, sections: 3000, schedule: 6000 }[sh.kind] ?? 9000;
+  const series = { register: 0, site: 100, site_section: 150, plan: 1000, elevations: 2000, sections: 3000, isometric: 4000, schedule: 6000 }[sh.kind] ?? 9000;
   const num = String(series + (sh.seq || 1)).padStart(4, "0");
   const container = [docs.project_code, docs.originator, docs.volume, sh.kind === "plan" ? levelCode(model, sh.level) : "ZZ", typeCode, docs.role, num].join("-");
-  if (docs.standard === "us-ncs") { const t = { register: "G-00", site: "C-10", site_section: "C-30", plan: "A-10", elevations: "A-20", sections: "A-30", schedule: "A-60" }[sh.kind] || "A-90"; return { container, shown: `${t}${sh.seq || 1}` }; }
+  if (docs.standard === "us-ncs") { const t = { register: "G-00", site: "C-10", site_section: "C-30", plan: "A-10", elevations: "A-20", sections: "A-30", isometric: "A-40", schedule: "A-60" }[sh.kind] || "A-90"; return { container, shown: `${t}${sh.seq || 1}` }; }
   if (docs.standard === "is-nbc") return { container, shown: `${sh.kind === "register" ? "G" : "A"}/${String(series / 1000 + (sh.seq || 1) / 100).replace(".", "").padStart(3, "0")}` };
   return { container, shown: container };
 }
@@ -57,6 +57,7 @@ export function chooseScale(boxes, cell) {
 export function sheetViews(model, sh) {
   if (sh.kind === "plan") return [planView(model, sh.level || model.data.levels[0].id, { cut: sh.cut ?? 1200, cut_z: sh.cut_z ?? null, title: sh.view_title || null })];
   if (sh.kind === "elevations") return ["south", "east", "north", "west"].map((d) => elevationView(model, d));
+  if (sh.kind === "isometric") return [isoView(model, "sw"), isoView(model, "ne")];
   if (sh.kind === "sections") return [sectionView(model, { axis: "x", label: "A" }), sectionView(model, { axis: "y", label: "B" })];
   if (sh.kind === "site") return [sitePlanView(model, sh.__site)];
   if (sh.kind === "site_section") return [siteSectionView(model, sh.__site)];
@@ -66,11 +67,12 @@ export function sheetViews(model, sh) {
 // ---------- composition ----------
 export function composeSheet(model, docs, sh, opts = {}) {
   const std = STANDARDS[docs.standard] || STANDARDS["iso19650-uk"];
-  if (!sh.paper && !docs.paper && std.paper === "A1" && ["plan", "elevations", "sections", "site", "site_section"].includes(sh.kind)) {
-    // smallest ISO A sheet that takes the views at 1:100 or larger; otherwise A1 at whatever scale fits
+  if (!sh.paper && !docs.paper && std.paper === "A1" && ["plan", "elevations", "sections", "isometric", "site", "site_section"].includes(sh.kind)) {
+    // smallest ISO A sheet that takes the views at 1:100 or larger; otherwise A1, or A0 if that allows a larger scale
     const views = sheetViews(model, sh);
     for (const target of [50, 100]) for (const p of ["A3", "A2", "A1", "A0"]) { const r = composeOn(model, docs, sh, opts, p, views); if (r.scale <= target) return r; }
-    return composeOn(model, docs, sh, opts, "A1", views);
+    const a1 = composeOn(model, docs, sh, opts, "A1", views), a0 = composeOn(model, docs, sh, opts, "A0", views);
+    return a0.scale < a1.scale ? a0 : a1;
   }
   return composeOn(model, docs, sh, opts, sh.paper || docs.paper || std.paper);
 }
@@ -86,7 +88,7 @@ function composeOn(model, docs, sh, { date = "" } = {}, paper, cachedViews = nul
   // ---- drawing area
   const area = { x0: fx0 + 12, y0: fy0 + 12, x1: sx0 - 12, y1: fy1 - 12 };
   let scale = null;
-  if (["plan", "elevations", "sections", "site", "site_section"].includes(sh.kind)) {
+  if (["plan", "elevations", "sections", "isometric", "site", "site_section"].includes(sh.kind)) {
     const views = cachedViews || sheetViews(model, sh); const n = views.length;
     const pad = (v) => ({ x0: v.box.x0, y0: v.box.y0, x1: v.box.x1, y1: v.box.y1 });
     // pick the grid (1 row of 4 tall towers, 2x2 for houses, ...) that allows the largest scale
@@ -106,7 +108,7 @@ function composeOn(model, docs, sh, { date = "" } = {}, paper, cachedViews = nul
       for (const d of v.prims.dims || []) dimChain(items, d, P, scale, L.dims);
       // view title
       const tx = ox, ty = oy - (v.prims.dims ? 34 : 16); text([tx, ty], `${i + 1}`, 5, { bold: true }); line([tx + 8, ty - 1.5], [tx + Math.max(60, bw), ty - 1.5], 0.35);
-      text([tx + 8, ty], v.title, 3.5, { bold: true }); text([tx + 8, ty - 6], `Scale 1:${scale}`, 2.5);
+      text([tx + 8, ty], v.title, 3.5, { bold: true }); text([tx + 8, ty - 6], v.kind === "isometric" ? "Not to scale (isometric)" : `Scale 1:${scale}`, 2.5);
       if (v.kind === "plan" || v.kind === "site") northArrow(items, [cx0 + cw - 20, cy1 - 25], L.text);
     });
   } else if (sh.kind === "schedule") {
@@ -166,7 +168,7 @@ function titleBlock(items, docs, sh, num, scale, b, std, date, model) {
   t("BIMja", 6, { bold: true }); t(docs.author ? `Originator: ${docs.originator} · ${docs.author}` : docs.originator); rule();
   t("Client", 2, {}); t(docs.client || "—", 3); t("Project", 2); t(docs.project_name || model.data.name, 3.5, { bold: true }); if (docs.address) t(docs.address, 2.5); rule();
   t("Drawing title", 2); for (const part of wrap(sh.title, Math.floor(w / 2.6))) t(part, 4, { bold: true }); rule();
-  t("Scale", 2); t(scale ? `1:${scale} @ ${sh.paper || docs.paper || std.paper}` : "As shown", 3); t("Date", 2); t(last?.date || date || "—", 3); rule();
+  t("Scale", 2); t(sh.kind === "isometric" ? `NTS (isometric) @ ${sh.paper || docs.paper || std.paper}` : scale ? `1:${scale} @ ${sh.paper || docs.paper || std.paper}` : "As shown", 3); t("Date", 2); t(last?.date || date || "—", 3); rule();
   t("Status (suitability)", 2); t(`${status}  ${STATUS[status]?.text || ""}`, 3, { bold: true }); t(`CDE state: ${STATUS[status]?.state || "WIP"}`, 2.5); t("Revision", 2); t(rev, 4, { bold: true }); rule();
   t("Drawn / checked / approved", 2); t(`${docs.author || "—"} / ${docs.checker || "—"} / ${docs.approver || "—"}`, 2.5); rule();
   // revision table

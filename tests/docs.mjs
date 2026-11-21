@@ -19,7 +19,7 @@ const { b, run } = house();
 assert.equal(run("sheet", { kind: "plan", level: "nope" }).refusals[0].code, "bad_arg");
 assert.equal(run("drawing_setup", { standard: "din" }).refusals[0].code, "bad_arg");
 assert.equal(run("publish", { status: "S2" }).refusals[0].code, "bad_arg", "nothing to publish before sheets exist");
-const auto = run("sheets_auto", {}); assert.ok(auto.ok); assert.equal(auto.data.sheets, 5, "register, L1 plan, elevations, sections, schedules");
+const auto = run("sheets_auto", {}); assert.ok(auto.ok); assert.equal(auto.data.sheets, 6, "register, L1 plan, elevations, sections, isometric, schedules");
 const reg = run("register", {}).data; const plan = reg.sheets.find((s) => s.kind === "plan");
 assert.equal(plan.container, "HSE-BJA-ZZ-00-DR-A-1001", "ISO 19650 container name: project-originator-volume-level-type-role-number");
 // the plan drawing really is the model: cut walls, doors with swings, rooms with areas, overall dimension
@@ -40,11 +40,11 @@ const fresh = house(); fresh.run("sheets_auto", {}); const q2 = fresh.run("publi
 assert.equal(q1.data.base64, q2.data.base64, "publish is deterministic");
 const zipPath = "dist-test/house-S2.zip"; writeFileSync(zipPath, Buffer.from(q1.data.base64, "base64"));
 const uz = await unzip(Buffer.from(q1.data.base64, "base64")); const names = uz instanceof Map ? [...uz.keys()] : Array.isArray(uz) ? uz.map((f) => f.name) : Object.keys(uz);
-assert.ok(names.some((n) => n.endsWith("SET_S2.pdf")) && names.filter((n) => n.startsWith("dxf/")).length === 3 && names.some((n) => n.endsWith(".xlsx")), names.join(", "));
+assert.ok(names.some((n) => n.endsWith("SET_S2.pdf")) && names.filter((n) => n.startsWith("dxf/")).length === 4 && names.some((n) => n.endsWith(".xlsx")), names.join(", "));
 const chk = py(["ci/check_deliverables.py", zipPath]);
 if (chk) {
   assert.deepEqual(chk.errors, [], chk.errors.join("; "));
-  const set = Object.entries(chk.pdf).find(([n]) => n.endsWith("SET_S2.pdf"))[1]; assert.equal(set.pages, 5);
+  const set = Object.entries(chk.pdf).find(([n]) => n.endsWith("SET_S2.pdf"))[1]; assert.equal(set.pages, 6);
   for (const [n, d] of Object.entries(chk.dxf)) { assert.equal(d.audit_errors, 0, n); assert.ok(d.entities > 50 && d.types.includes("LINE") && d.types.includes("TEXT"), n); }
   const planDxf = Object.entries(chk.dxf).find(([n]) => n.includes("-00-DR-"))[1]; assert.ok(planDxf.layers.includes("A-Ss_25_10-M_Walls-Cut") && planDxf.types.includes("SOLID"), "Uniclass-style layers and filled cut walls");
   const xl = Object.values(chk.xlsx)[0]; assert.ok(xl["Register (MIDP)"] >= 6 && xl["Door schedule"] >= 4 && xl["Room schedule"] >= 4, JSON.stringify(xl));
@@ -61,7 +61,7 @@ assert.ok(ind.run("drawing", { sheet: inPlan.id, format: "svg" }).data.svg.inclu
 await (await import("../src/author/kernel.js")).loadKernel();
 const L = installCore(new Bus()); const lp = landmarkProject("taj");
 L.execute({ name: "load_project", args: { project: lp.project }, actor: "human" }); assert.ok(L.execute({ name: "script", args: { commands: lp.landmark.commands }, actor: "human", apply: true }).ok, "Taj builds");
-L.execute({ name: "drawing_setup", args: { project_code: "TAJ" }, actor: "human" }); assert.equal(L.execute({ name: "sheets_auto", args: {}, actor: "human" }).data.sheets, 7); // the Taj defines three plan levels
+L.execute({ name: "drawing_setup", args: { project_code: "TAJ" }, actor: "human" }); assert.equal(L.execute({ name: "sheets_auto", args: {}, actor: "human" }).data.sheets, 8); // the Taj defines three plan levels; plus isometric
 const t0 = performance.now(); const el = L.execute({ name: "drawing", args: { sheet: L.extra.docs.sheets.find((s) => s.kind === "elevations").id, format: "svg" }, actor: "human" }).data;
 assert.ok((el.svg.match(/<line /g) || []).length > 800, "Taj elevations have the dome, chhatris and minarets"); assert.ok(el.svg.includes("Credit: Taj Mahal"));
 console.log(`ok docs: ISO 19650 naming + S/A revisions, US NCS A-101, IS/NBC area statement, deterministic publish, Taj elevations ${Math.round(performance.now() - t0)} ms`);

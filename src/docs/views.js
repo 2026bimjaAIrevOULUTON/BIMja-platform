@@ -17,6 +17,9 @@ export const PROJ = {
   plan: (p) => [p[0], p[1], -p[2]],
   south: (p) => [p[0], p[2], p[1]], north: (p) => [-p[0], p[2], -p[1]],
   east: (p) => [p[1], p[2], -p[0]], west: (p) => [-p[1], p[2], p[0]],
+  // isometric (true 30°): viewer above the south-west / north-east corner; u right, v up, depth away from the viewer
+  iso_sw: (p) => [(p[0] - p[1]) / Math.SQRT2, (p[0] + p[1] + 2 * p[2]) / Math.sqrt(6), (p[0] + p[1] - p[2]) / Math.sqrt(3)],
+  iso_ne: (p) => [(p[1] - p[0]) / Math.SQRT2, (-p[0] - p[1] + 2 * p[2]) / Math.sqrt(6), (-p[0] - p[1] - p[2]) / Math.sqrt(3)],
 };
 
 /** Clip a polygon of projected points [u,v,d] to d >= d0. */
@@ -182,6 +185,11 @@ export function elevationView(model, dir = "south") {
   const b = r.box; r.prims.lines.push({ p: [[b.x0 - 3000, 0], [b.x1 + 3000, 0]], layer: "ground", w: 0.7 });
   levelMarks(model, r.prims, b.x0, b.x1);
   return { prims: r.prims, box: bboxOf(r.prims), title: `${DIRS[dir]} elevation`, kind: "elevation", dir };
+}
+/** Isometric view with hidden lines removed (true isometric: equal 0.816 foreshortening on all three axes; drawn true length as is conventional). */
+export function isoView(model, from = "sw") {
+  const els = modelTriangles(model); const r = projectHidden(els, { proj: PROJ[`iso_${from}`] });
+  return { prims: r.prims, box: bboxOf(r.prims), title: `Isometric from ${from === "sw" ? "south-west" : "north-east"}`, kind: "isometric", dir: from, nts: false };
 }
 /** Section: axis "x" cuts at y = at looking north; axis "y" cuts at x = at looking east. */
 export function sectionView(model, { axis = "x", at, label = "A" } = {}) {

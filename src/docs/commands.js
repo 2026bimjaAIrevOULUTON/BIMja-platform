@@ -8,7 +8,7 @@ import { schedule } from "../author/model.js";
 import { solidOf } from "../author/solids.js";
 
 const fail = (m, code = "bad_arg") => { throw Object.assign(new Error(m), { code }); };
-const KINDS = ["register", "site", "site_section", "plan", "elevations", "sections", "schedule"];
+const KINDS = ["register", "site", "site_section", "plan", "elevations", "sections", "isometric", "schedule"];
 
 export function installDocs(bus) {
   const D = () => (bus.extra.docs ||= defaultDocs());
@@ -32,7 +32,7 @@ export function installDocs(bus) {
     const cuts = m.data.drawing_plans;
     if (cuts?.length) cuts.forEach((c) => add({ kind: "plan", level: m.data.levels[0].id, cut_z: c.cut_z, title: c.title, view_title: c.title }));
     else for (const l of [...m.data.levels].sort((x, y) => x.elevation - y.elevation)) if (m.elements.some((e) => e.level === l.id && e.kind !== "roof")) add({ kind: "plan", level: l.id, title: `${l.name} plan` });
-    add({ kind: "elevations", title: "Elevations" }); add({ kind: "sections", title: "Sections A-A and B-B" });
+    add({ kind: "elevations", title: "Elevations" }); add({ kind: "sections", title: "Sections A-A and B-B" }); add({ kind: "isometric", title: "Isometric views" });
     if (m.elements.some((e) => ["door", "window", "room", "wall", "mass"].includes(e.kind))) add({ kind: "schedule", title: "Schedules" });
     return { sheets: d.sheets.length };
   });
@@ -49,7 +49,7 @@ export function installDocs(bus) {
     if (a.scale != null) { s.scale = +a.scale; if (!(s.scale > 0)) fail("scale is the denominator, e.g. 100 for 1:100"); }
     if (a.paper != null) { if (a.paper && !PAPER[a.paper]) fail(`paper must be one of ${Object.keys(PAPER).join(", ")}`); s.paper = a.paper || undefined; }
     if (a.title != null) s.title = String(a.title).slice(0, 120);
-    s.title ||= { site: "Site plan and grading", site_section: "Site section S-S", register: "Drawing register", plan: "Plan", elevations: "Elevations", sections: "Sections", schedule: "Schedules" }[s.kind];
+    s.title ||= { site: "Site plan and grading", site_section: "Site section S-S", register: "Drawing register", plan: "Plan", elevations: "Elevations", sections: "Sections", isometric: "Isometric views", schedule: "Schedules" }[s.kind];
     if (!cur) { s.seq = seqOf(s.kind); d.sheets.push(s); }
     return { id: s.id, number: sheetNumber(d, bus.model, s) };
   });
