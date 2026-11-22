@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node tests/run.mjs && node tests/author.mjs && node tests/bus.mjs && node tests/mcp.mjs && node tests/roundtrip.mjs && node tests/bcf.mjs && node tests/time.mjs && node tests/cost.mjs && node tests/mqtt.mjs && node tests/landmarks.mjs && node tests/docs.mjs && node tests/site.mjs && node tests/kernel.mjs && node tests/twin.mjs && node tests/city.mjs && node tests/team.mjs && node tests/packs.mjs && node tests/parity.mjs",
+    "test": "node tests/run.mjs && node tests/author.mjs && node tests/bus.mjs && node tests/mcp.mjs && node tests/roundtrip.mjs && node tests/bcf.mjs && node tests/time.mjs && node tests/cost.mjs && node tests/mqtt.mjs && node tests/landmarks.mjs && node tests/docs.mjs && node tests/site.mjs && node tests/kernel.mjs && node tests/twin.mjs && node tests/city.mjs && node tests/team.mjs && node tests/packs.mjs && node tests/datacentre.mjs && node tests/parity.mjs",
     "budget": "node scripts/budget.mjs",
     "sbom": "npm sbom --sbom-format cyclonedx --omit dev > dist/sbom.cdx.json",
     "validate-ifc": "python3 ci/validate_ifc.py dist-test/sample-house.ifc dist-test/incomplete.ifc",

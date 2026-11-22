@@ -13,7 +13,7 @@ import { solidOf } from "../author/solids.js";
 const SERVICE = ["M", "E", "P", "F"];
 export const DISC_COLOUR = { M: "#0077cc", E: "#d97800", P: "#1d8a3a", F: "#d0021b", C: "#6b6b6b", L: "#4f7f3a", A: "#000000", S: "#000000" };
 const PIPE = new Set(["IfcPipeSegment"]), DUCT = new Set(["IfcDuctSegment"]), TRAY = new Set(["IfcCableCarrierSegment"]);
-const EQUIP = new Set(["IfcPump", "IfcFan", "IfcChiller", "IfcCoolingTower", "IfcUnitaryEquipment", "IfcElectricGenerator", "IfcTransformer", "IfcElectricDistributionBoard", "IfcElectricFlowStorageDevice", "IfcTank"]);
+const EQUIP = new Set(["IfcPump", "IfcFan", "IfcChiller", "IfcCoolingTower", "IfcUnitaryEquipment", "IfcElectricGenerator", "IfcTransformer", "IfcElectricDistributionBoard", "IfcElectricFlowStorageDevice", "IfcHeatExchanger", "IfcSwitchingDevice", "IfcTank"]);
 const HOSTS = new Set(["IfcWall", "IfcSlab", "IfcRoof", "IfcCurtainWall"]);
 const box0 = () => ({ x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity });
 const grow = (b, p) => { b.x0 = Math.min(b.x0, p[0]); b.y0 = Math.min(b.y0, p[1]); b.x1 = Math.max(b.x1, p[0]); b.y1 = Math.max(b.y1, p[1]); };
@@ -58,10 +58,10 @@ export function servicePlan(model, { discipline, cut_z = null, title = null }) {
   return topDown(model, { focus, cut_z: cz, kind: "service", title: title || `${DISCIPLINES[discipline] || discipline} services`, tag: (e, P) => serviceTag(model, e, P, false) });
 }
 /** Plan cut for services: just above the highest service, but below the soffit of the slab or roof over it (else it hides them). */
-function serviceCut(model) { const top = maxServiceZ(model); let soffit = Infinity;
-  for (const e of model.elements) if (e.ifc_class === "IfcSlab" || e.ifc_class === "IfcRoof") { try { const s = solidOf(e); const z = s.zmin + elevOf(model, e); if (z >= top - 1) soffit = Math.min(soffit, z); } catch {} }
-  return Math.min(top + 300, soffit - 1); }
-function maxServiceZ(model) { let z = -Infinity; for (const e of model.elements) if (isService(e) || isEquip(e)) { try { const s = solidOf(e); z = Math.max(z, s.zmax + elevOf(model, e)); } catch {} } return Number.isFinite(z) ? z : 4000; }
+function serviceCut(model) { // the services under the first roof or upper slab: plant on top of it belongs on the roof plan
+  let soffit = Infinity; for (const e of model.elements) if (e.ifc_class === "IfcSlab" || e.ifc_class === "IfcRoof") { try { const s = solidOf(e); const z = s.zmin + elevOf(model, e); if (z > 2400) soffit = Math.min(soffit, z); } catch {} }
+  const top = maxServiceZ(model, soffit); return Math.min(top + 300, soffit - 1); }
+function maxServiceZ(model, below = Infinity) { let z = -Infinity; for (const e of model.elements) if (isService(e) || isEquip(e)) { try { const s = solidOf(e); const t = s.zmax + elevOf(model, e); if (s.zmin + elevOf(model, e) < below) z = Math.max(z, Math.min(t, below)); } catch {} } return Number.isFinite(z) ? z : 4000; }
 function serviceTag(model, e, P, levels) {
   if (e.shape !== "sweep") { if (isEquip(e)) { try { const s = solidOf(e); P.texts.push({ at: [(s.xmin + s.xmax) / 2, s.ymax + 300], text: e.mark || e.name || e.id, h: 2.2, align: "middle", layer: "tag" }); } catch {} } return; }
   const p = pathOf(model, e); let best = 0, bi = 0; for (let i = 0; i < p.length - 1; i++) { const L = Math.hypot(p[i + 1][0] - p[i][0], p[i + 1][1] - p[i][1]); if (L > best) { best = L; bi = i; } } if (best < 1) return;
@@ -174,14 +174,21 @@ export function containment(model, { spacing_mm = 1500 } = {}) {
 export function whitespace(model) {
   const R = model.elements.filter(isRack).map((e) => ({ e, s: solidOf(e) })); const b = box0(); R.forEach(({ s }) => { grow(b, [s.xmin, s.ymin]); grow(b, [s.xmax, s.ymax]); });
   const around = b.x0 === Infinity ? null : { x0: b.x0 - 3000, y0: b.y0 - 3000, x1: b.x1 + 3000, y1: b.y1 + 3000 };
-  const v = topDown(model, { focus: isRack, cut_z: serviceCut(model), kind: "whitespace", title: "Whitespace layout: racks, cold and hot aisles", around });
-  const rows = []; for (const r of R) { const cy = (r.s.ymin + r.s.ymax) / 2; let row = rows.find((x) => Math.abs(x.cy - cy) < 600); if (!row) rows.push((row = { cy, racks: [] })); row.racks.push(r); } rows.sort((a, b) => a.cy - b.cy);
-  rows.forEach((row, i) => { row.name = String.fromCharCode(65 + i); row.racks.sort((a, b) => a.s.xmin - b.s.xmin); row.racks.forEach((r, k) => v.prims.texts.push({ at: [(r.s.xmin + r.s.xmax) / 2, (r.s.ymin + r.s.ymax) / 2], dy: -0.8, text: `${row.name}${String(k + 1).padStart(2, "0")}`, h: 1.6, align: "middle", layer: "tag" })); });
-  for (let i = 0; i < rows.length - 1; i++) { const a = rows[i], c = rows[i + 1]; const y0 = Math.max(...a.racks.map((r) => r.s.ymax)), y1 = Math.min(...c.racks.map((r) => r.s.ymin)); if (!(y1 > y0)) continue;
-    const x0 = Math.min(...a.racks.concat(c.racks).map((r) => r.s.xmin)), x1 = Math.max(...a.racks.concat(c.racks).map((r) => r.s.xmax)); const cold = i % 2 === 0;
-    v.prims.polys.push({ pts: [[x0, y0], [x1, y0], [x1, y1], [x0, y1]], w: 0, layer: cold ? "cold-aisle" : "hot-aisle", fill: true, col: cold ? "#dceeff" : "#ffe1d6" });
-    v.prims.texts.push({ at: [(x0 + x1) / 2, (y0 + y1) / 2], dy: -0.8, text: cold ? "COLD AISLE (contained)" : "HOT AISLE", h: 2.2, align: "middle", layer: "tag", col: cold ? "#0077cc" : "#c0392b" }); }
-  const kw = (r) => +(r.e.params?.Power_kW ?? r.e.params?.power_kw ?? 0);
+  const top = R.reduce((z, r) => Math.max(z, r.s.zmax + elevOf(model, r.e)), 0);
+  const v = topDown(model, { focus: isRack, cut_z: top + 1200, kind: "whitespace", title: "Whitespace layout: racks, cold and hot aisles", around });
+  // rows run along whichever axis gives fewer, longer lines of racks
+  const group = (key) => { const rows = []; for (const r of R) { const c = key(r); let row = rows.find((x) => Math.abs(x.c - c) < 300); if (!row) rows.push((row = { c, racks: [] })); row.racks.push(r); } return rows.sort((p, q) => p.c - q.c); };
+  const byY = group((r) => (r.s.ymin + r.s.ymax) / 2), byX = group((r) => (r.s.xmin + r.s.xmax) / 2); const alongX = byY.length <= byX.length; const rows = alongX ? byY : byX;
+  const lo = (r) => (alongX ? r.s.ymin : r.s.xmin), hi = (r) => (alongX ? r.s.ymax : r.s.xmax), a0 = (r) => (alongX ? r.s.xmin : r.s.ymin), a1 = (r) => (alongX ? r.s.xmax : r.s.ymax);
+  const name = (i) => (i < 26 ? String.fromCharCode(65 + i) : `${String.fromCharCode(64 + Math.floor(i / 26))}${String.fromCharCode(65 + (i % 26))}`);
+  rows.forEach((row, i) => { row.name = name(i); row.racks.sort((p, q) => a0(p) - a0(q)); row.racks.forEach((r, k) => v.prims.texts.push({ at: [(r.s.xmin + r.s.xmax) / 2, (r.s.ymin + r.s.ymax) / 2], dy: -0.8, text: `${row.name}${String(k + 1).padStart(2, "0")}`, h: 1.4, align: "middle", layer: "tag" })); });
+  // aisles: the gap between neighbouring rows whose extents overlap; racks back to back share a hot aisle, front to front a cold one
+  let n = 0; for (let i = 0; i < rows.length - 1; i++) { const a = rows[i], c = rows[i + 1]; const g0 = Math.max(...a.racks.map(hi)), g1 = Math.min(...c.racks.map(lo)); if (!(g1 > g0) || g1 - g0 > 3000) { n = 0; continue; } // a new pod starts its own hot/cold sequence
+    const s0 = Math.max(Math.min(...a.racks.map(a0)), Math.min(...c.racks.map(a0))), s1 = Math.min(Math.max(...a.racks.map(a1)), Math.max(...c.racks.map(a1))); if (!(s1 > s0)) continue;
+    const hot = n++ % 2 === 0; const pts = alongX ? [[s0, g0], [s1, g0], [s1, g1], [s0, g1]] : [[g0, s0], [g1, s0], [g1, s1], [g0, s1]];
+    v.prims.polys.push({ pts, w: 0, layer: hot ? "hot-aisle" : "cold-aisle", fill: true, col: hot ? "#ffe1d6" : "#dceeff" });
+    v.prims.texts.push({ at: [(pts[0][0] + pts[2][0]) / 2, (pts[0][1] + pts[2][1]) / 2], dy: -0.8, text: hot ? "HOT AISLE (contained)" : "COLD AISLE", h: 2, align: "middle", layer: "tag", col: hot ? "#c0392b" : "#0077cc", ...(alongX ? {} : { rot: 90 }) }); }
+  const kw = (r) => +(r.e.params?.Power_kW ?? r.e.params?.power_kw ?? model.data.families?.[r.e.family]?.parameters?.Nameplate_kW ?? model.data.families?.[r.e.family]?.parameters?.Power_kW ?? 0);
   v.tables = [{ title: "Rack rows", head: ["Row", "Racks", "Design IT load kW"], rows: [...rows.map((r) => [r.name, String(r.racks.length), r.racks.reduce((t, x) => t + kw(x), 0).toFixed(0)]), ["Total", String(R.length), R.reduce((t, x) => t + kw(x), 0).toFixed(0)]] }];
   return v;
 }
@@ -227,8 +234,14 @@ export const PACKS = {
   heritage: ["equipment"],
 };
 /** Which sheets a pack yields for this model (skips building blocks with nothing to draw). */
-export function packSheets(model, kinds) {
+export function packSheets(model, kinds, zoneOf = null) {
   const els = model.elements; const out = []; const has = (pred) => els.some(pred);
+  // zone-cropped sheets (one per data hall, plant yard...) for the blocks that read best at a larger scale
+  if (zoneOf) for (const z of model.data.zones || []) { const zm = zoneOf(model, z.code); const zh = (pred) => zm.elements.some(pred); const nm = (t) => `${t}, ${z.name}`;
+    if (kinds.includes("whitespace") && zh(isRack)) out.push({ kind: "whitespace", zone: z.code, role: "E", title: nm("Whitespace layout") });
+    if (kinds.includes("coordinated") && zh(isService)) out.push({ kind: "coordinated", zone: z.code, role: "M", title: nm("Coordinated services") });
+    if (kinds.includes("plant") && zh(isEquip)) out.push({ kind: "plant", zone: z.code, role: "M", title: nm("Plant layout") });
+    if (kinds.includes("containment") && zh((e) => TRAY.has(e.ifc_class) && e.shape === "sweep")) out.push({ kind: "containment", zone: z.code, role: "E", title: nm("Containment and supports") }); }
   for (const k of kinds) {
     if (k === "service") for (const d of SERVICE) { if (has((e) => disciplineOf(e) === d && (isService(e) || isEquip(e)))) out.push({ kind: "service", discipline: d, role: d, title: `${DISCIPLINES[d]} services` }); }
     if (k === "coordinated" && has(isService)) out.push({ kind: "coordinated", role: "M", title: "Coordinated services" });

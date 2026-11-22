@@ -120,6 +120,10 @@ export function installCoordination({ bus, viewer, getMain, openIfcBytes, run, t
     $("#fedModels").innerHTML = [main ? { fid: "main", name: main.name } : null, ...fed.values()].filter(Boolean).map((m) => `<label class="check"><input type="checkbox" checked data-fid="${m.fid}"> ${esc(m.name)} <small class="note">${m.fid}</small></label>`).join("") || `<p class="note">Open a model, then federate others (structure, MEP…) to clash them.</p>`;
   }
   $("#fedModels").addEventListener("change", (e) => { const f = e.target.dataset.fid; if (f) viewer.setModelVisible(f, e.target.checked); });
+  $("#fedSplit").onclick = async () => { const r = await run("federation", {}); if (!r.ok) return toast(r.refusals[0].message); const box = $("#fedList"); box.textContent = "";
+    for (const m of r.data) { const row = document.createElement("div"); row.className = "row"; const b = document.createElement("button"); b.className = "btn"; b.textContent = "IFC"; b.title = `Download ${m.container}.ifc`;
+      b.onclick = async () => { const x = await run("export_ifc", { discipline: m.discipline }); if (!x.ok) return toast(x.refusals[0].message); download(`${m.container}.ifc`, x.data, "application/x-step"); };
+      const t = document.createElement("span"); t.textContent = `${m.title} · ${m.elements} elements · ${m.container}`; row.append(b, t); box.append(row); } };
   $("#fedFile").onchange = async (e) => { for (const f of e.target.files) { const r = await run("federate", { bytes: new Uint8Array(await f.arrayBuffer()), name: f.name }); if (!r.ok) toast(r.refusals[0].message); } e.target.value = ""; };
   $("#runClash").onclick = async () => {
     $("#clashList").innerHTML = `<p class="note">Running…</p>`;

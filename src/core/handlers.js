@@ -11,10 +11,10 @@ import { installDocs } from "../docs/commands.js";
 import { installGeo } from "../geo/commands.js";
 import { installSimTwin } from "../twin/commands.js";
 import { installTeam } from "../agents/commands.js";
-import { clashModel } from "../coord/model-clash.js";
+import { clashModel, disciplineOf, DISCIPLINES } from "../coord/model-clash.js";
 import { installSite, siteForIfc } from "../site/commands.js";
 
-const AUTHOR = ["level", "wall", "walls", "door", "window", "floor", "room", "roof", "mass", "revolve", "sweep", "boolean", "opening", "array", "family", "place", "connect", "delete", "move", "set", "type"];
+const AUTHOR = ["level", "wall", "walls", "door", "window", "floor", "room", "roof", "mass", "revolve", "sweep", "boolean", "opening", "array", "family", "place", "connect", "zone", "delete", "move", "set", "type"];
 
 export function installCore(bus) {
   const m = () => bus.model;
@@ -39,7 +39,14 @@ export function installCore(bus) {
 
   bus.register("commands", () => REGISTRY.map(({ name, domain, status, ui_path, headless_only, args, example, refusals, help }) => ({ name, domain, status, help, args, example, refusals, ui_path: ui_path || null, headless_only: headless_only || null })), { kind: "read" });
   bus.register("describe", () => describeModel(bus), { kind: "read" });
-  bus.register("export_ifc", () => exportIFC(bus.model, { geo: bus.extra.geo, site: siteForIfc(bus) }), { kind: "read" });
+  bus.register("export_ifc", (a = {}) => { // whole model, or one discipline's model for federation (ISO 19650: one container per task team)
+    if (a.discipline != null && !/^[ASMEPCLF]$/.test(a.discipline)) throw Object.assign(new Error("discipline must be one role code: A, S, M, E, P, C, L or F"), { code: "bad_arg" });
+    const m = a.discipline ? Object.create(bus.model, { elements: { value: bus.model.elements.filter((e) => disciplineOf(e) === a.discipline) } }) : bus.model;
+    return exportIFC(m, { geo: bus.extra.geo, site: siteForIfc(bus), ...(a.discipline ? { projectName: `${bus.model.data.name || "BIMja project"} – ${DISCIPLINES[a.discipline]} model` } : {}) }); }, { kind: "read" });
+  bus.register("federation", () => { // the discipline models this project splits into, with ISO 19650 container names
+    const code = bus.extra.docs?.project_code || "PRJ", orig = bus.extra.docs?.originator || "BJA"; const by = {};
+    for (const e of bus.model.elements) { const d = disciplineOf(e); (by[d] ||= { discipline: d, title: `${DISCIPLINES[d]} model`, elements: 0 }).elements++; }
+    return Object.values(by).sort((p, q) => "ASCLMEPF".indexOf(p.discipline) - "ASCLMEPF".indexOf(q.discipline)).map((x) => ({ ...x, container: `${code}-${orig}-ZZ-ZZ-M3-${x.discipline}-0001` })); }, { kind: "read" });
   bus.register("check_handover", (args) => runCheck(authoredRecords(bus.model), args.rules), { kind: "read" }); // the app overrides this when an IFC is open
   bus.register("save", () => bus.saveProject(), { kind: "read" });
   bus.register("log", (args) => bus.log.slice(-(args.last || 200)), { kind: "read" });

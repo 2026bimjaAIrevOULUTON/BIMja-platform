@@ -1,6 +1,6 @@
 // Drawing deliverables on the bus: set-up (standard + ISO 19650 fields), sheets, preview/render, publish
 // (status, revision, register, zip of PDF + DXF + XLSX). Headless-safe. State: bus.extra.docs.
-import { defaultDocs, composeSheet, sheetNumber, STANDARDS, STATUS, PAPER } from "./sheets.js";
+import { defaultDocs, composeSheet, sheetNumber, STANDARDS, STATUS, PAPER, zoned } from "./sheets.js";
 import { PACKS, SHEET_KINDS, packSheets, penetrations, spools } from "./services.js";
 import { toManifold, needKernel } from "../author/kernel.js";
 import { triangulate } from "../author/geom.js";
@@ -46,7 +46,7 @@ export function installDocs(bus) {
     const kinds = PACKS[pack] || (SHEET_KINDS[pack] ? [pack] : fail(`pack must be a project type (${Object.keys(PACKS).join(", ")}) or a building block (${Object.keys(SHEET_KINDS).join(", ")})`));
     if (kinds.some((k) => ["bwic", "coordinated"].includes(k))) needKernel();
     if (a.replace !== false) d.sheets = d.sheets.filter((x) => !packKinds.includes(x.kind));
-    const want = packSheets(bus.model, kinds); const added = [];
+    const want = packSheets(bus.model, kinds, zoned); const added = [];
     for (const s of want) { const id = `D${d.next++}`; d.sheets.push({ id, seq: d.sheets.filter((x) => x.kind === s.kind).length + 1, ...s }); added.push({ id, kind: s.kind, title: s.title }); }
     const skipped = kinds.filter((k) => !want.some((w) => w.kind === (k === "equipment" ? "equipment" : k)) && k !== "as_built");
     return { pack, added, skipped: skipped.map((k) => `${SHEET_KINDS[k]}: nothing in the model to draw yet`) };
@@ -67,6 +67,7 @@ export function installDocs(bus) {
     if (a.paper != null) { if (a.paper && !PAPER[a.paper]) fail(`paper must be one of ${Object.keys(PAPER).join(", ")}`); s.paper = a.paper || undefined; }
     if (a.title != null) s.title = String(a.title).slice(0, 120);
     if (a.discipline != null) { if (!/^[MEPF]$/.test(a.discipline)) fail("discipline: M, E, P or F"); s.discipline = s.role = a.discipline; }
+    if (a.zone != null) { if (a.zone && !(bus.model.data.zones || []).some((z) => z.code === a.zone)) fail(`no zone ${a.zone}`, "no_such_element"); s.zone = a.zone || undefined; }
     if (a.medium != null) s.medium = String(a.medium); if (a.system != null) s.system = String(a.system).slice(0, 40); if (a.page != null) s.page = Math.max(1, Math.round(+a.page) || 1);
     s.title ||= { site: "Site plan and grading", site_section: "Site section S-S", register: "Drawing register", plan: "Plan", elevations: "Elevations", sections: "Sections", isometric: "Isometric views", schedule: "Schedules", ...SHEET_KINDS }[s.kind];
     if (!cur) { s.seq = seqOf(s.kind); d.sheets.push(s); }

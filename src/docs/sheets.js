@@ -8,6 +8,7 @@ import { clashModel } from "../coord/model-clash.js";
 import { toManifold } from "../author/kernel.js";
 import { triangulate } from "../author/geom.js";
 import { polygonArea } from "../author/geom.js";
+import { solidOf } from "../author/solids.js";
 
 export const PAPER = { A0: [1189, 841], A1: [841, 594], A2: [594, 420], A3: [420, 297], "ARCH D": [914.4, 609.6], "ANSI D": [863.6, 558.8], "ARCH E1": [1066.8, 762] };
 export const SCALES = [50, 100, 200, 250, 500, 1000, 1250, 2000, 2500, 5000, 10000]; // preferred GA scales (ISO 5455)
@@ -46,7 +47,7 @@ export function sheetNumber(docs, model, sh) {
   const typeCode = ["schedule", "register", "equipment"].includes(sh.kind) ? "SH" : sh.kind === "sld" ? "DR" : "DR";
   const series = { register: 0, site: 100, site_section: 150, plan: 1000, elevations: 2000, sections: 3000, isometric: 4000, service: 5000 + 100 * (" MEPF".indexOf(sh.discipline || " ")), coordinated: 5500, piping_iso: 5600, spool: 5700, bwic: 5800, plant: 5900, schedule: 6000, containment: 6100, sld: 6200, whitespace: 6300, equipment: 6400, fire: 7000 }[sh.kind] ?? 9000;
   const num = String(series + (sh.seq || 1)).padStart(4, "0");
-  const container = [docs.project_code, docs.originator, docs.volume, sh.kind === "plan" ? levelCode(model, sh.level) : "ZZ", typeCode, sh.role || docs.role, num].join("-");
+  const container = [docs.project_code, docs.originator, sh.zone || docs.volume, sh.kind === "plan" ? levelCode(model, sh.level) : "ZZ", typeCode, sh.role || docs.role, num].join("-");
   if (docs.standard === "us-ncs") { const t = { register: "G-00", site: "C-10", site_section: "C-30", plan: "A-10", elevations: "A-20", sections: "A-30", isometric: "A-40", schedule: "A-60" }[sh.kind] || "A-90"; return { container, shown: `${t}${sh.seq || 1}` }; }
   if (docs.standard === "is-nbc") return { container, shown: `${sh.kind === "register" ? "G" : "A"}/${String(series / 1000 + (sh.seq || 1) / 100).replace(".", "").padStart(3, "0")}` };
   return { container, shown: container };
@@ -59,7 +60,15 @@ export function chooseScale(boxes, cell) {
 }
 
 /** Views for one sheet. */
+/** The model seen from one zone: elements that lie wholly inside the zone outline (its bounding box); campus-wide runs stay on the site sheets. */
+export function zoned(model, code) {
+  const z = (model.data.zones || []).find((x) => x.code === code); if (!z) return model;
+  const xs = z.outline.map((p) => p[0]), ys = z.outline.map((p) => p[1]); const b = { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
+  const inside = (e) => { try { const s = solidOf(e); return s.xmin >= b.x0 && s.xmax <= b.x1 && s.ymin >= b.y0 && s.ymax <= b.y1; } catch { return false; } };
+  return Object.create(model, { elements: { value: model.elements.filter(inside) } });
+}
 export function sheetViews(model, sh) {
+  if (sh.zone) model = zoned(model, sh.zone);
   if (sh.kind === "plan") return [planView(model, sh.level || model.data.levels[0].id, { cut: sh.cut ?? 1200, cut_z: sh.cut_z ?? null, title: sh.view_title || null })];
   if (sh.kind === "elevations") return ["south", "east", "north", "west"].map((d) => elevationView(model, d));
   if (sh.kind === "isometric") return [isoView(model, "sw"), isoView(model, "ne")];
@@ -134,7 +143,7 @@ function composeOn(model, docs, sh, { date = "" } = {}, paper, cachedViews = nul
         if (pl.dash) for (let k = 0; k < pl.pts.length; k++) items.push({ t: "line", p: [P(pl.pts[k]), P(pl.pts[(k + 1) % pl.pts.length])], w: pl.w ?? 0.25, layer: lay(pl.layer), dash: true, col: pl.col || null }); }
       for (const ln of v.prims.lines) items.push({ t: "line", p: ln.p.map(P), w: ln.w ?? 0.25, layer: lay(ln.layer), dash: !!ln.dash, col: ln.col || null });
       const levelYs = [];
-      for (const tx of v.prims.texts) { const q = P(tx.at); if (tx.layer === "level") { if (levelYs.some((y) => Math.abs(y - q[1]) < 4)) continue; levelYs.push(q[1]); } items.push({ t: "text", at: [q[0], q[1] + (tx.dy || 0)], text: tx.text, h: tx.h, align: tx.align || "start", layer: lay(tx.layer) }); }
+      for (const tx of v.prims.texts) { const q = P(tx.at); if (tx.layer === "level") { if (levelYs.some((y) => Math.abs(y - q[1]) < 4)) continue; levelYs.push(q[1]); } items.push({ t: "text", at: [q[0], q[1] + (tx.dy || 0)], text: tx.text, h: tx.h, align: tx.align || "start", layer: lay(tx.layer), ...(tx.col ? { col: tx.col } : {}), ...(tx.bold ? { bold: true } : {}), ...(tx.rot ? { rot: tx.rot } : {}) }); }
       for (const d of v.prims.dims || []) dimChain(items, d, P, scale, L.dims);
       // view title
       const tx = ox, ty = oy - (v.prims.dims ? 34 : 16); text([tx, ty], `${i + 1}`, 5, { bold: true }); line([tx + 8, ty - 1.5], [tx + Math.max(60, bw), ty - 1.5], 0.35);

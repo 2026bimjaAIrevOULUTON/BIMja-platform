@@ -61,7 +61,7 @@
       <div id="raci" class="raci"></div>
       <h4 class="sec">Run the delivery</h4>
       <div class="note" id="runNote">Pick a sample landmark: the team takes it from brief to handover, each agent working its own stage and discipline at the same time.</div>
-      <div class="row"><select id="runLandmark"><option value="taj">Taj Mahal</option><option value="burj">Burj Khalifa</option><option value="pisa">Leaning Tower of Pisa</option><option value="fallingwater">Fallingwater</option><option value="vitra">Vitra Fire Station</option></select><button class="btn primary" id="runDelivery">Run with the team</button></div>
+      <div class="row"><select id="runLandmark"><option value="taj">Taj Mahal</option><option value="burj">Burj Khalifa</option><option value="pisa">Leaning Tower of Pisa</option><option value="fallingwater">Fallingwater</option><option value="vitra">Vitra Fire Station</option><option value="dc_shadnagar">Data centre: Shadnagar 120 MW</option></select><button class="btn primary" id="runDelivery">Run with the team</button></div>
       <div id="runStatus" class="note"></div>
     </div>
     <div data-pane="model" class="pane on">
@@ -162,6 +162,7 @@
       <h4 class="sec">Models</h4>
       <div id="fedModels"></div>
       <div class="row"><label class="btn" title="Add structure, MEP or other models">Federate IFC…<input type="file" id="fedFile" accept=".ifc" multiple hidden></label></div>
+      <div class="row"><button class="btn" id="fedSplit" title="Split the authored model into one IFC per discipline (ISO 19650 containers)">Discipline models</button></div><div id="fedList" class="note"></div>
       <h4 class="sec">Authored model clash (by discipline)</h4>
       <div class="row"><select id="cmA"><option value="all">All</option><option value="A">A Architecture</option><option value="S" selected>S Structure</option><option value="M">M Mechanical</option><option value="E">E Electrical</option><option value="P">P Public health</option><option value="L">L Landscape</option></select><span class="note">vs</span><select id="cmB"><option value="all">All</option><option value="A" selected>A Architecture</option><option value="S">S Structure</option><option value="M">M Mechanical</option><option value="E">E Electrical</option><option value="P">P Public health</option><option value="L">L Landscape</option></select><button class="btn primary" id="clashModel">Clash</button></div>
       <div class="note" id="cmSummary"></div>

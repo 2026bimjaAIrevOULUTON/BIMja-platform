@@ -1,5 +1,23 @@
 # Status
 
+## 2026-11-22: 120 MW AI factory pilot at Shadnagar (site selection, federation, LOD 400)
+
+**Site selection.** Six Indian locations scored on power, policy, hazard, climate, water, fibre, land and ecosystem; Hyderabad south won (3.90/5) ahead of Jamnagar (3.45). Hypothetical 500 × 330 m plot at 17.0885° N, 78.205° E, ~400 m south-west of the Shadnagar substation on OpenStreetMap, clear of the old NH 7, the railway and overhead lines. Full study, sources and vendor shortlist: the shareable doc "BIMja 120 MW AI data centre pilot: site selection and design basis".
+
+**Design basis (concept sizing, not engineering).** 896 NVIDIA GB300 NVL72 racks (136 kW nameplate, 121.9 MW) in four 30 MW halls; 52 Vertiv CoolChip CDU 2300; 88 adiabatic dry coolers on the roofs; 24 free-cooling chillers and fan walls for the air load; 56 IT + 16 mechanical 2.5 MW power blocks (cast-resin transformer, Galaxy VXL lithium-ion UPS, LV board, busway); 72 × 3,250 kVA generators; on-site 220 kV GIS with 4 × 63 MVA transformers; fuel farm, water plant, fire pumps, roads, fence, trees. Assumed vendors carried as family parameters.
+
+**New in BIMja.**
+- `src/app/datacentre.js`: the pilot as ~1,900 commands (16 LOD 400 families, 1,824 elements, 46 connections, 6 zones) plus stages (geolocate, INR cost, 2027–28 programme, drawing set, data-centre pack, asset register).
+- `zone {name, code, outline}`: zones become the ISO 19650 volume field; drawing packs add per-zone whitespace, coordinated, plant and containment sheets (e.g. HSD-BJA-HA-ZZ-DR-E-6301 at 1:100). `sheet {zone}` too.
+- Federation: `federation` lists the discipline models with container names; `export_ifc {discipline}` writes one IFC per task team (Coordinate → "Discipline models"). Discipline IFCs pass IfcOpenShell validation and geometry build.
+- Team runner: "Data centre: Shadnagar 120 MW" in Run with the team. Big projects are delivered in work packages (28 commands applied atomically and attributed), connections after both ends exist, assets registered by the Asset Manager. Whole delivery ~40 s in the browser.
+- LOD 500: every family carries `AsBuiltStatus: "Assumed – not field-verified"`; asset records hold make, model, planned install date, warranty and maintenance for overwriting from commissioning records.
+- Drawings: services plans cut under the first roof (roof plant belongs on the roof plan); whitespace detects row direction and restarts the hot/cold aisle sequence per pod; rack load from family nameplate; IfcHeatExchanger and IfcSwitchingDevice classes.
+
+**Tests.** `tests/datacentre.mjs` (counts against the design basis, federation completeness, discipline IFC contents, georeference, zone sheets and numbering, Hall A 224 racks = 30,464 kW, SLD, IfcOpenShell). Parity 104/104.
+
+**Open.** OpenUSD export for Omniverse DSX; detection/suppression vendors; Uniclass codes for the data-centre families; ETAP/Cadence verification.
+
 ## 2026-11-22: Red and black UI, seven stages, agent team, drawing packs
 
 **UI.** BIMja red (#e63346) on near-black across the app. The rail is now the seven delivery stages (Brief, Site, Design, Coordinate, Document, Construct, Handover) with a stage bar and status dots; the old panels sit as sub-tabs under each stage. New Brief pane (project brief, team, RACI, run a delivery) and Live twin pane (live data and sensors).
