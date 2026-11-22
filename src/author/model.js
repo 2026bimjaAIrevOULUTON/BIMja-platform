@@ -221,6 +221,9 @@ const massCommon = (m, c, e) => {
   if (c.lean_deg) { e.lean_deg = num(c.lean_deg, "lean_deg", { min: -45, max: 45 }); e.lean_dir_deg = num(c.lean_dir_deg ?? 0, "lean_dir_deg"); }
   if (c.pivot) { if (!Array.isArray(c.pivot) || c.pivot.length !== 3) fail("pivot must be [x, y, z] in mm"); e.pivot = c.pivot.map((v, i) => num(v, `pivot[${i}]`)); }
   if (c.segments != null) e.segments = Math.round(num(c.segments, "segments", { min: 1, max: 96 }));
+  if (c.system != null) { if (!/^[A-Za-z0-9][A-Za-z0-9 ._\/-]{0,39}$/.test(String(c.system))) fail("system: a line or circuit name like CHW-F-01 or LV-A (letters, digits, - . _ /)"); e.system = String(c.system); }
+  if (c.params != null) { if (typeof c.params !== "object" || Array.isArray(c.params) || Object.keys(c.params).length > 24) fail("params: up to 24 {name: number|string|boolean}");
+    e.params = Object.fromEntries(Object.entries(c.params).map(([k, v]) => { if (!/^[A-Za-z][A-Za-z0-9_]{0,39}$/.test(k)) fail(`params name "${k}": letters, digits, _`); if (!["number", "string", "boolean"].includes(typeof v) || (typeof v === "number" && !Number.isFinite(v))) fail(`params.${k} must be a number, text or true/false`); return [k, typeof v === "string" ? v.slice(0, 80) : v]; })); }
   if (c.layer != null) { if (!LAYER_RE.test(c.layer)) fail("layer like C-ROAD or P-SEWER: discipline role code, hyphen, upper-case name (BS EN ISO 13567 style)"); e.layer = c.layer; }
   if (c.discipline != null) { if (!/^[ASMEPCLF]$/.test(c.discipline)) fail("discipline must be one role code: A architecture, S structure, M mechanical, E electrical, P public health, C civil, L landscape, F fire"); e.discipline = c.discipline; }
   let sol; try { sol = solidOf(e); } catch (err) { if (err.code === "unavailable") throw new CommandError(err.message, "unavailable"); fail(`bad geometry: ${err.message}`); } if (!(sol.volume > 1)) fail("the solid has no volume: check the outline/profile");
@@ -275,6 +278,12 @@ def("array", "Copy a solid: {source, count, step:[dx,dy,dz] mm} or {source, pola
   return { ids, count: ids.length + 1 };
 });
 const LAYER_RE = /^[ASMEPCLF]-[A-Z0-9][A-Z0-9-]{1,40}$/;
+const MEDIA = ["power", "data", "chw", "hhw", "cw", "fire", "fuel", "air", "drain", "process"];
+def("connect", "Connect two elements in a system (for single-line diagrams and schematics): {from: id, to: id, medium: power|data|chw|hhw|cw|fire|fuel|air|drain|process, rating?: '2500 kVA', label?}", (m, c) => {
+  const a = m.el(c.from), b = m.el(c.to); if (a.id === b.id) fail("from and to must be different elements"); if (!MEDIA.includes(c.medium)) fail(`medium must be one of ${MEDIA.join(", ")}`);
+  const list = (m.data.connections ||= []); if (list.some((k) => k.from === a.id && k.to === b.id && k.medium === c.medium)) fail("already connected");
+  const k = { id: `K${list.length + 1}`, from: a.id, to: b.id, medium: c.medium, ...(c.rating ? { rating: String(c.rating).slice(0, 40) } : {}), ...(c.label ? { label: String(c.label).slice(0, 60) } : {}) }; list.push(k); return { id: k.id };
+});
 def("family", "Define a reusable family (like a Revit family): {name, ifc_class?, uniclass?:{code,title}, description?, parameters?:{...}, psets?:{Pset_X:{...}}, parts:[geometry specs, origin at 0,0,0]}", (m, c) => {
   const name = String(c.name || fail("a family needs a name")).slice(0, 80); if (!Array.isArray(c.parts) || !c.parts.length) fail("parts: one or more geometry specs (box, extrude, revolve, sweep, opening, csg)");
   const cls = c.ifc_class || "IfcBuildingElementProxy"; if (!MASS_CLASSES.includes(cls)) fail(`ifc_class must be one of ${MASS_CLASSES.join(", ")}`);

@@ -9,7 +9,7 @@ export const DISCIPLINES = { A: "Architecture", S: "Structure", M: "Mechanical",
 const BY_CLASS = { IfcColumn: "S", IfcBeam: "S", IfcSlab: "S", IfcFooting: "S", IfcMember: "S", IfcPile: "S",
   IfcWall: "A", IfcCurtainWall: "A", IfcCovering: "A", IfcRoof: "A", IfcRailing: "A", IfcStair: "A", IfcRamp: "A", IfcPlate: "A", IfcDoor: "A", IfcWindow: "A", IfcFurniture: "A", IfcBuildingElementProxy: "A", IfcSpace: "A",
   IfcPipeSegment: "P", IfcDuctSegment: "M", IfcPump: "M", IfcFan: "M", IfcChiller: "M", IfcCoolingTower: "M", IfcUnitaryEquipment: "M", IfcTank: "M",
-  IfcCableCarrierSegment: "E", IfcElectricGenerator: "E", IfcTransformer: "E", IfcElectricDistributionBoard: "E", IfcGeographicElement: "L" };
+  IfcCableCarrierSegment: "E", IfcElectricFlowStorageDevice: "E", IfcElectricGenerator: "E", IfcTransformer: "E", IfcElectricDistributionBoard: "E", IfcGeographicElement: "L" };
 export const disciplineOf = (e) => e.discipline || BY_CLASS[e.ifc_class || (e.kind === "wall" ? "IfcWall" : e.kind === "floor" ? "IfcSlab" : "IfcBuildingElementProxy")] || "A";
 
 const inSet = (e, sel) => sel === "all" || [].concat(sel).some((s) => s === disciplineOf(e) || s === e.ifc_class || s === e.id);

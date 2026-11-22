@@ -77,7 +77,7 @@ export function projectHidden(elements, { proj, near = -Infinity, cut = false, f
       const vis = []; for (let i = 0; i <= n; i++) { const t = i / n; vis.push(a[2] + (b[2] - a[2]) * t <= zAt(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t) + eps); }
       for (let i = 1; i < n; i++) if (!vis[i] && vis[i - 1] && (vis[i + 1] || (i + 2 <= n && !vis[i + 1] && vis[i + 2] && (vis[i + 1] = true)))) vis[i] = true; // close 1–2 sample gaps (raster noise)
       let start = -1; const at = (i) => [a[0] + (b[0] - a[0]) * (i / n), a[1] + (b[1] - a[1]) * (i / n)];
-      for (let i = 0; i <= n + 1; i++) { const v = i <= n && vis[i]; if (v && start < 0) start = i; if (!v && start >= 0) { if (i - 1 > start) P.lines.push({ p: [at(start), at(i - 1)], layer: "beyond", w: 0.25 }); start = -1; } }
+      for (let i = 0; i <= n + 1; i++) { const v = i <= n && vis[i]; if (v && start < 0) start = i; if (!v && start >= 0) { if (i - 1 > start) P.lines.push({ p: [at(start), at(i - 1)], layer: "beyond", w: 0.25, id: it.el.id }); start = -1; } }
     }
   }
   if (cut && near > -Infinity) for (const it of items) for (const loop of sliceLoops(it.el.tris, proj, near)) P.polys.push({ pts: loop, layer: it.el.kind === "mass" ? "cutmass" : "cut", fill: true, w: 0.5, id: it.el.id });

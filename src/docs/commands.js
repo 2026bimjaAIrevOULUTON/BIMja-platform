@@ -1,6 +1,9 @@
 // Drawing deliverables on the bus: set-up (standard + ISO 19650 fields), sheets, preview/render, publish
 // (status, revision, register, zip of PDF + DXF + XLSX). Headless-safe. State: bus.extra.docs.
 import { defaultDocs, composeSheet, sheetNumber, STANDARDS, STATUS, PAPER } from "./sheets.js";
+import { PACKS, SHEET_KINDS, packSheets, penetrations, spools } from "./services.js";
+import { toManifold, needKernel } from "../author/kernel.js";
+import { triangulate } from "../author/geom.js";
 import { toSVG, toPDF, toDXF } from "./render.js";
 import { xlsx, toBase64 } from "../cost/xlsx.js";
 import { zip } from "../coord/zip.js";
@@ -8,7 +11,7 @@ import { schedule } from "../author/model.js";
 import { solidOf } from "../author/solids.js";
 
 const fail = (m, code = "bad_arg") => { throw Object.assign(new Error(m), { code }); };
-const KINDS = ["register", "site", "site_section", "plan", "elevations", "sections", "isometric", "schedule"];
+const KINDS = ["register", "site", "site_section", "plan", "elevations", "sections", "isometric", "schedule", "service", "coordinated", "piping_iso", "spool", "bwic", "plant", "containment", "sld", "whitespace", "equipment", "fire"];
 
 export function installDocs(bus) {
   const D = () => (bus.extra.docs ||= defaultDocs());
@@ -34,9 +37,23 @@ export function installDocs(bus) {
     else for (const l of [...m.data.levels].sort((x, y) => x.elevation - y.elevation)) if (m.elements.some((e) => e.level === l.id && e.kind !== "roof")) add({ kind: "plan", level: l.id, title: `${l.name} plan` });
     add({ kind: "elevations", title: "Elevations" }); add({ kind: "sections", title: "Sections A-A and B-B" }); add({ kind: "isometric", title: "Isometric views" });
     if (m.elements.some((e) => ["door", "window", "room", "wall", "mass"].includes(e.kind))) add({ kind: "schedule", title: "Schedules" });
+    const pack = a.pack ?? bus.extra.brief?.type; if (pack && PACKS[pack]) for (const x of packSheets(m, PACKS[pack])) add(x);
     return { sheets: d.sheets.length };
   });
 
+  bus.register("drawing_pack", (a) => {
+    const d = D(); const pack = a.pack || bus.extra.brief?.type || "building";
+    const kinds = PACKS[pack] || (SHEET_KINDS[pack] ? [pack] : fail(`pack must be a project type (${Object.keys(PACKS).join(", ")}) or a building block (${Object.keys(SHEET_KINDS).join(", ")})`));
+    if (kinds.some((k) => ["bwic", "coordinated"].includes(k))) needKernel();
+    if (a.replace !== false) d.sheets = d.sheets.filter((x) => !packKinds.includes(x.kind));
+    const want = packSheets(bus.model, kinds); const added = [];
+    for (const s of want) { const id = `D${d.next++}`; d.sheets.push({ id, seq: d.sheets.filter((x) => x.kind === s.kind).length + 1, ...s }); added.push({ id, kind: s.kind, title: s.title }); }
+    const skipped = kinds.filter((k) => !want.some((w) => w.kind === (k === "equipment" ? "equipment" : k)) && k !== "as_built");
+    return { pack, added, skipped: skipped.map((k) => `${SHEET_KINDS[k]}: nothing in the model to draw yet`) };
+  });
+  const packKinds = ["service", "coordinated", "piping_iso", "spool", "bwic", "plant", "containment", "sld", "whitespace", "equipment", "fire"];
+  bus.register("bwic", () => { needKernel(); const list = penetrations(bus.model, { toManifold, triangulate }); return { count: list.length, openings: list }; }, { kind: "read" });
+  bus.register("spools", (a) => { const max = a.max_mm != null ? +a.max_mm : 6000; if (!(max >= 1000 && max <= 12000)) fail("max_mm between 1000 and 12000 (transport length)"); const S = spools(bus.model, { max_mm: max, system: a.system || null }); return { count: S.length, spools: S.map((x) => ({ id: x.id, line: x.line, size: x.size, cuts: x.cuts, shop_welds: x.shop_welds, field_welds: x.field_welds })) }; }, { kind: "read" });
   bus.register("sheet", (a) => {
     const d = D(); const cur = a.id && d.sheets.find((s) => s.id === a.id);
     if (a.delete) { if (!cur) fail(`no sheet ${a.id}`, "no_such_element"); d.sheets = d.sheets.filter((s) => s !== cur); return { deleted: a.id }; }
@@ -49,7 +66,9 @@ export function installDocs(bus) {
     if (a.scale != null) { s.scale = +a.scale; if (!(s.scale > 0)) fail("scale is the denominator, e.g. 100 for 1:100"); }
     if (a.paper != null) { if (a.paper && !PAPER[a.paper]) fail(`paper must be one of ${Object.keys(PAPER).join(", ")}`); s.paper = a.paper || undefined; }
     if (a.title != null) s.title = String(a.title).slice(0, 120);
-    s.title ||= { site: "Site plan and grading", site_section: "Site section S-S", register: "Drawing register", plan: "Plan", elevations: "Elevations", sections: "Sections", isometric: "Isometric views", schedule: "Schedules" }[s.kind];
+    if (a.discipline != null) { if (!/^[MEPF]$/.test(a.discipline)) fail("discipline: M, E, P or F"); s.discipline = s.role = a.discipline; }
+    if (a.medium != null) s.medium = String(a.medium); if (a.system != null) s.system = String(a.system).slice(0, 40); if (a.page != null) s.page = Math.max(1, Math.round(+a.page) || 1);
+    s.title ||= { site: "Site plan and grading", site_section: "Site section S-S", register: "Drawing register", plan: "Plan", elevations: "Elevations", sections: "Sections", isometric: "Isometric views", schedule: "Schedules", ...SHEET_KINDS }[s.kind];
     if (!cur) { s.seq = seqOf(s.kind); d.sheets.push(s); }
     return { id: s.id, number: sheetNumber(d, bus.model, s) };
   });
@@ -57,7 +76,7 @@ export function installDocs(bus) {
   const sheetById = (id) => D().sheets.find((s) => s.id === id) || fail(`no sheet ${id}: run sheets_auto or sheet first`, "no_such_element");
   bus.register("drawing", (a) => {
     const s = sheetById(a.sheet); const comp = composeSheet(bus.model, D(), withSite(s), { date: a.date || "" }); const f = a.format || "svg";
-    const base = { sheet: s.id, number: comp.number, scale: comp.scale, paper: comp.paper };
+    const base = { sheet: s.id, number: comp.number, scale: comp.scale, nts: !!comp.nts, paper: comp.paper };
     if (f === "svg") return { ...base, svg: toSVG(comp) };
     if (f === "dxf") return { ...base, dxf: toDXF(comp) };
     if (f === "pdf") return { ...base, base64: toBase64(toPDF([comp], { title: s.title })) };
@@ -79,7 +98,7 @@ export function installDocs(bus) {
     const revOf = (s) => [...d.register].reverse().find((r) => r.sheet === s.id).rev;
     if (formats.includes("pdf")) { files.push({ name: `${d.project_code}-${d.originator}-SET_${status}.pdf`, data: toPDF(comps.map((x) => x.c), { title: `${d.project_name || bus.model.data.name} drawing set` }) });
       for (const { s, c } of comps) files.push({ name: `pdf/${c.number.container}_${revOf(s)}_${status}.pdf`, data: toPDF([c], { title: s.title }) }); }
-    if (formats.includes("dxf")) for (const { s, c } of comps) if (c.scale) files.push({ name: `dxf/${c.number.container}_${revOf(s)}_${status}.dxf`, data: toDXF(c) });
+    if (formats.includes("dxf")) for (const { s, c } of comps) if (c.scale || c.nts) files.push({ name: `dxf/${c.number.container}_${revOf(s)}_${status}.dxf`, data: toDXF(c) });
     if (formats.includes("xlsx")) files.push({ name: `${d.project_code}-${d.originator}-ZZ-ZZ-SH-A-0002_${status}.xlsx`, data: workbook(bus.model, d) });
     files.push({ name: "README.txt", data: readme(d, bus.model, status, date) });
     const z = zip(files);
@@ -98,7 +117,7 @@ function workbook(model, d) {
 }
 function readme(d, model, status, date) {
   return [`${d.project_name || model.data.name}: drawing issue ${date}, status ${status} (${STATUS[status].text}).`, `Standard: ${STANDARDS[d.standard].label}.`,
-    "Files: SET pdf = all sheets; pdf/ = one file per information container; dxf/ = CAD at true scale (1 unit = 1 mm; title block drawn at the plot scale); xlsx = register (MIDP) and schedules.",
+    "Files: SET pdf = all sheets; pdf/ = one file per information container; dxf/ = CAD at true scale (1 unit = 1 mm; title block drawn at the plot scale; diagrams not to scale are in paper millimetres); xlsx = register (MIDP) and schedules.",
     "DWG: open a DXF in AutoCAD and use Save As > DWG, or batch-convert with the free ODA File Converter.",
     "Generated by BIMja from the model; drawings and schedules come from the same model, so they agree.", model.data.description ? `Credit: ${model.data.description}` : ""].filter(Boolean).join("\n") + "\n";
 }

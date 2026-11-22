@@ -110,6 +110,7 @@
         <button class="btn" id="toolMass" data-cmd="mass" title="Extrude an outline: taper, setback, twist, lean">Mass</button>
         <button class="btn" id="toolRevolve" data-cmd="revolve" title="Dome, minaret, drum, round column">Revolve</button>
         <button class="btn" id="toolSweep" data-cmd="sweep" title="Profile along a path: cornices, rails, pipes">Sweep</button>
+        <button class="btn" id="toolConnect" data-cmd="connect" title="Connect two elements in a system (power, chilled water…) for schematics">Connect</button>
         <button class="btn" id="toolBoolean" data-cmd="boolean" title="Subtract, add or intersect solids">Boolean</button>
         <button class="btn" id="toolOpening" data-cmd="opening" title="Arched or square opening through a solid">Arch</button>
         <button class="btn" id="toolArray" data-cmd="array" title="Linear or polar copies">Array</button>
@@ -198,9 +199,12 @@
       <div class="row"><button class="btn" id="dwgSetup">Apply set-up</button><button class="btn primary" id="sheetsAuto" title="Register, plans, elevations, sections, schedules">Create sheet set</button></div>
       <h4 class="sec">Sheets</h4>
       <div id="sheetList"><p class="note">No sheets yet. Create the sheet set from the model, or add a sheet.</p></div>
-      <div class="row"><select id="sheetKind"><option value="plan">Plan</option><option value="elevations">Elevations</option><option value="sections">Sections</option><option value="schedule">Schedules</option><option value="site">Site plan</option><option value="site_section">Site section</option><option value="register">Register</option></select><input id="sheetCut" type="number" placeholder="Plan cut mm" style="width:110px" title="Plan cut height above ground, mm"><button class="btn" id="sheetAdd">Add sheet</button></div>
+      <div class="row"><select id="sheetKind"><option value="plan">Plan</option><option value="elevations">Elevations</option><option value="sections">Sections</option><option value="schedule">Schedules</option><option value="site">Site plan</option><option value="site_section">Site section</option><option value="register">Register</option><option value="service">Service drawing</option><option value="coordinated">Coordinated services</option><option value="piping_iso">Piping isometric</option><option value="spool">Spools</option><option value="bwic">Builder's work</option><option value="plant">Plant room</option><option value="containment">Containment</option><option value="sld">Single-line diagram</option><option value="whitespace">Whitespace</option><option value="equipment">Equipment schedule</option><option value="fire">Fire strategy</option></select><input id="sheetCut" type="number" placeholder="Plan cut mm" style="width:110px" title="Plan cut height above ground, mm"><button class="btn" id="sheetAdd">Add sheet</button></div>
+      <h4 class="sec">Drawing packs</h4>
+      <div class="row"><select id="packKind"><option value="data_centre">Data centre</option><option value="building">Building</option><option value="process_plant">Process plant</option><option value="airport">Airport</option><option value="institute">Institute</option><option value="infrastructure">Infrastructure</option><option value="excavation">Excavation</option><option value="heritage">Heritage</option></select><button class="btn primary" id="packAdd">Add drawing pack</button><button class="btn" id="sampleServices" title="Plant room and data hall with chilled water, power, sprinklers and drainage">Services sample</button></div>
+      <p class="note">Each pack adds only the sheets the model can fill: services by discipline, coordinated services with clashes ringed, isometrics, spools, builder's work, plant, containment, single-line diagrams, whitespace, equipment and fire strategy.</p>
       <h4 class="sec">Issue</h4>
-      <div class="row"><select id="publishStatus"></select><button class="btn primary" id="publishBtn">Publish (PDF + DXF + Excel)</button></div>
+      <div class="row"><select id="publishStatus"></select><button class="btn primary" id="publishBtn">Publish (PDF + DXF + Excel)</button><button class="btn" id="asBuilt" title="Re-issue every sheet with status CR (as constructed)">Issue as-built</button></div>
       <p class="note">Publishing bumps each sheet's revision (P01… for S codes, C01… once authorised), records it in the register, and downloads one zip. DXF opens in AutoCAD and can be saved as DWG there.</p>
       <div id="registerList"></div>
     </div>

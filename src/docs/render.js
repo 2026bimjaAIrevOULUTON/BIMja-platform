@@ -10,10 +10,10 @@ export function toSVG(sheet) {
   const { w, h } = sheet; const Y = (y) => r3(h - y); const out = [`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}mm" height="${h}mm" font-family="Helvetica, Arial, sans-serif"><rect width="${w}" height="${h}" fill="#fff"/>`];
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   for (const it of sheet.items) {
-    if (it.t === "poly") out.push(`<polygon points="${it.pts.map((p) => `${r3(p[0])},${Y(p[1])}`).join(" ")}" fill="${it.fill || "none"}" stroke="${it.w ? "#000" : "none"}" stroke-width="${it.w || 0}"/>`);
-    else if (it.t === "line") out.push(`<line x1="${r3(it.p[0][0])}" y1="${Y(it.p[0][1])}" x2="${r3(it.p[1][0])}" y2="${Y(it.p[1][1])}" stroke="#000" stroke-width="${it.w}"${it.dash ? ' stroke-dasharray="3 1.5"' : ""} stroke-linecap="round"/>`);
+    if (it.t === "poly") out.push(`<polygon points="${it.pts.map((p) => `${r3(p[0])},${Y(p[1])}`).join(" ")}" fill="${it.fill || "none"}" stroke="${it.w ? it.col || "#000" : "none"}" stroke-width="${it.w || 0}"/>`);
+    else if (it.t === "line") out.push(`<line x1="${r3(it.p[0][0])}" y1="${Y(it.p[0][1])}" x2="${r3(it.p[1][0])}" y2="${Y(it.p[1][1])}" stroke="${it.col || "#000"}" stroke-width="${it.w}"${it.dash ? ' stroke-dasharray="3 1.5"' : ""} stroke-linecap="round"/>`);
     else if (it.t === "text") { const x = r3(it.at[0]), y = Y(it.at[1]); const anchor = it.align === "middle" ? "middle" : it.align === "end" ? "end" : "start";
-      out.push(`<text x="${x}" y="${y}" font-size="${it.h}" text-anchor="${anchor}"${it.bold ? ' font-weight="700"' : ""}${it.rot ? ` transform="rotate(${-it.rot} ${x} ${y})"` : ""}>${esc(it.text)}</text>`); }
+      out.push(`<text x="${x}" y="${y}" font-size="${it.h}" text-anchor="${anchor}"${it.col ? ` fill="${it.col}"` : ""}${it.bold ? ' font-weight="700"' : ""}${it.rot ? ` transform="rotate(${-it.rot} ${x} ${y})"` : ""}>${esc(it.text)}</text>`); }
   }
   out.push("</svg>"); return out.join("\n");
 }
@@ -21,6 +21,7 @@ export function toSVG(sheet) {
 // ---------- PDF ----------
 const WIN = { "€": 0x80, "‚": 0x82, "„": 0x84, "…": 0x85, "–": 0x96, "—": 0x97, "‘": 0x91, "’": 0x92, "“": 0x93, "”": 0x94, "•": 0x95, "™": 0x99 };
 const winAnsi = (s) => { let o = ""; for (const ch of String(s)) { const c = ch.codePointAt(0); const b = c < 0x80 || (c >= 0xa0 && c <= 0xff) ? c : WIN[ch] ?? 0x3f; const x = String.fromCharCode(b); o += x === "(" || x === ")" || x === "\\" ? "\\" + x : x; } return o; };
+const rgb = (col, op) => { if (!col || !/^#[0-9a-f]{6}$/i.test(col)) return op === "RG" ? "0 G" : "0 g"; return `${[1, 3, 5].map((k) => r3(parseInt(col.slice(k, k + 2), 16) / 255)).join(" ")} ${op}`; };
 export function toPDF(sheets, { title = "BIMja drawings" } = {}) {
   const pt = (mm) => r3((mm * 72) / 25.4); const objs = []; const add = (s) => { objs.push(s); return objs.length; };
   const catalog = add(null), pages = add(null), f1 = add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>"), f2 = add("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
@@ -31,12 +32,12 @@ export function toPDF(sheets, { title = "BIMja drawings" } = {}) {
       if (it.t === "poly") {
         const path = it.pts.map((p, i) => `${pt(p[0])} ${pt(p[1])} ${i ? "l" : "m"}`).join(" ") + " h";
         if (it.fill) { const [r, g, b] = [1, 3, 5].map((k) => r3(parseInt(it.fill.slice(k, k + 2), 16) / 255)); c.push(`${r} ${g} ${b} rg ${path} f`); }
-        if (it.w) c.push(`0 G ${pt(it.w)} w [] 0 d ${path} S`);
-      } else if (it.t === "line") c.push(`0 G ${pt(it.w)} w ${it.dash ? "[8.5 4.25] 0 d" : "[] 0 d"} ${pt(it.p[0][0])} ${pt(it.p[0][1])} m ${pt(it.p[1][0])} ${pt(it.p[1][1])} l S`);
+        if (it.w) c.push(`${rgb(it.col, "RG")} ${pt(it.w)} w [] 0 d ${path} S`);
+      } else if (it.t === "line") c.push(`${rgb(it.col, "RG")} ${pt(it.w)} w ${it.dash ? "[8.5 4.25] 0 d" : "[] 0 d"} ${pt(it.p[0][0])} ${pt(it.p[0][1])} m ${pt(it.p[1][0])} ${pt(it.p[1][1])} l S`);
       else if (it.t === "text") {
         const a = ((it.rot || 0) * Math.PI) / 180, cs = r3(Math.cos(a)), sn = r3(Math.sin(a)); const dx = ax(it);
         const x = it.at[0] + dx * Math.cos(a), y = it.at[1] + dx * Math.sin(a);
-        c.push(`0 g BT /${it.bold ? "F2" : "F1"} ${pt(it.h)} Tf ${cs} ${sn} ${-sn} ${cs} ${pt(x)} ${pt(y)} Tm (${winAnsi(it.text)}) Tj ET`);
+        c.push(`${rgb(it.col, "rg")} BT /${it.bold ? "F2" : "F1"} ${pt(it.h)} Tf ${cs} ${sn} ${-sn} ${cs} ${pt(x)} ${pt(y)} Tm (${winAnsi(it.text)}) Tj ET`);
       }
     }
     const content = c.join("\n"); const cs = add(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`);
@@ -53,11 +54,11 @@ export function toPDF(sheets, { title = "BIMja drawings" } = {}) {
 }
 
 // ---------- DXF (R12) ----------
-const ACI = { cut: 8, cutline: 7, beyond: 7, door: 30, window: 4, room: 2, slab: 9, dims: 1, text: 7, tag: 3, level: 5, ground: 7, frame: 7, grid: 1 };
+const DISC_ACI = { M: 5, E: 30, P: 3, F: 1, C: 8, L: 82 }; const ACI = { cut: 8, cutline: 7, beyond: 7, door: 30, window: 4, room: 2, slab: 9, dims: 1, text: 7, tag: 3, level: 5, ground: 7, frame: 7, grid: 1 };
 export function toDXF(sheet) {
   const k = sheet.scale || 1; const S = (p) => [r3(p[0] * k), r3(p[1] * k)];
   const layers = [...new Set(["0", ...sheet.items.map((i) => i.layer)])];
-  const colorOf = (name) => { const key = Object.keys(ACI).find((x) => name.toLowerCase().includes(x)); return ACI[key] || 7; };
+  const colorOf = (name) => { if (/^[MEPFCL]-/.test(name)) return DISC_ACI[name[0]]; if (/BJ-(CLASH|BWIC)/.test(name)) return 1; if (/BJ-BACKGROUND/.test(name)) return 8; const key = Object.keys(ACI).find((x) => name.toLowerCase().includes(x)); return ACI[key] || 7; };
   const L = []; const g = (code, v) => L.push(String(code), String(v));
   g(0, "SECTION"); g(2, "HEADER"); g(9, "$ACADVER"); g(1, "AC1009"); g(9, "$INSBASE"); g(10, 0); g(20, 0); g(30, 0); g(9, "$EXTMIN"); g(10, 0); g(20, 0); g(30, 0); g(9, "$EXTMAX"); g(10, r3(sheet.w * k)); g(20, r3(sheet.h * k)); g(30, 0); g(9, "$LUNITS"); g(70, 2); g(0, "ENDSEC");
   g(0, "SECTION"); g(2, "TABLES");

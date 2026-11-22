@@ -131,7 +131,8 @@ export function exportIFC(model, { projectName, geo, site } = {}) {
     const el = add(`${cls.toUpperCase()}(${g(`el/${e.id}`)},$,${str(e.name || e.id)},$,$,${place(st.pl)},${shape([brep], "Brep")},${str(e.id)},$)`);
     st.contained.push(el);
     if (e.layer) (layerReps[e.layer] ||= []).push(lastRep);
-    if (e.layer || e.discipline) pset(el, "BIMja_Coordination", [...(e.discipline ? [["Discipline", `IFCLABEL(${str(e.discipline)})`]] : []), ...(e.layer ? [["Layer", `IFCLABEL(${str(e.layer)})`]] : [])]);
+    if (e.params) pset(el, "BIMja_Parameters", Object.entries(e.params).map(([k, v]) => [k, typeof v === "boolean" ? bool(v) : typeof v === "number" ? `IFCREAL(${f(v)})` : `IFCLABEL(${str(v)})`]));
+    if (e.layer || e.discipline || e.system) pset(el, "BIMja_Coordination", [...(e.discipline ? [["Discipline", `IFCLABEL(${str(e.discipline)})`]] : []), ...(e.layer ? [["Layer", `IFCLABEL(${str(e.layer)})`]] : []), ...(e.system ? [["System", `IFCLABEL(${str(e.system)})`]] : [])]);
     if (e.material) associate(`m/${e.material}`, material(e.material), [el]);
     if (e.family) { const fam = model.data.families?.[e.family] || {}; pset(el, "BIMja_Family", [["Family", `IFCLABEL(${str(e.family)})`], ...Object.entries(fam.parameters || {}).map(([k, v]) => [k, typeof v === "number" ? `IFCREAL(${f(v)})` : `IFCLABEL(${str(String(v))})`])]);
       for (const [pn, props] of Object.entries(fam.psets || {})) pset(el, pn, Object.entries(props).map(([k, v]) => [k, typeof v === "boolean" ? bool(v) : typeof v === "number" ? `IFCREAL(${f(v)})` : `IFCLABEL(${str(String(v))})`])); }

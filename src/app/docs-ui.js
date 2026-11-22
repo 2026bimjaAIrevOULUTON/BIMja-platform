@@ -1,5 +1,6 @@
 // Drawings workspace: set-up, sheet list, live sheet preview (SVG), publish zip, register.
 import { STATUS } from "../docs/sheets.js";
+import { SAMPLE_SERVICES } from "./sample-services.js";
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -17,7 +18,7 @@ export function installDocsUI({ bus, run, toast, download, downloadBlob }) {
   }
   async function preview(id) {
     current = id; const r = await run("drawing", { sheet: id, format: "svg", date: today() }); if (!r.ok) return toast(r.refusals?.[0]?.message || "Could not draw the sheet");
-    $("#spTitle").textContent = `${r.data.number.shown} · 1:${r.data.scale ?? "—"} @ ${r.data.paper}`; $("#spBody").innerHTML = r.data.svg; $("#sheetPreview").hidden = false; render();
+    $("#spTitle").textContent = `${r.data.number.shown} · ${r.data.scale ? `1:${r.data.scale}` : r.data.nts ? "NTS" : "as shown"} @ ${r.data.paper}`; $("#spBody").innerHTML = r.data.svg; $("#sheetPreview").hidden = false; render();
   }
   $("#sheetList").addEventListener("click", (e) => { const row = e.target.closest("[data-sheet]"); if (row) preview(row.dataset.sheet); });
   $("#spClose").onclick = () => { $("#sheetPreview").hidden = true; current = null; render(); };
@@ -31,9 +32,15 @@ export function installDocsUI({ bus, run, toast, download, downloadBlob }) {
   $("#publishBtn").onclick = async () => { toast("Publishing… drawing every sheet"); const r = await run("publish", { status: $("#publishStatus").value, date: today() });
     if (!r.ok) return toast(r.refusals?.[0]?.message || "Publish failed");
     downloadBlob(r.data.filename, new Blob([b64(r.data.base64)], { type: "application/zip" })); toast(`Published ${r.data.register.length} sheets as ${r.data.status}: ${r.data.files.length} files`); render(); if (current) preview(current); };
+  $("#packAdd").onclick = async () => { const r = await run("drawing_pack", { pack: $("#packKind").value }); if (!r.ok) return toast(r.refusals?.[0]?.message || "Could not add the pack");
+    toast(r.data.added.length ? `Added ${r.data.added.length} sheets from the ${$("#packKind").selectedOptions[0].text.toLowerCase()} pack` : "Nothing in this model for that pack yet: add services first"); await render(); if (r.data.added[0]) preview(r.data.added[0].id); };
+  $("#sampleServices").onclick = async () => { try { await window.__bimjaKernel; } catch {} const r = await run("script", { commands: SAMPLE_SERVICES }); toast(r.ok ? "Services sample built: plant room, data hall, chilled water, power, sprinklers" : r.refusals?.[0]?.message || "Sample failed"); };
+  $("#asBuilt").onclick = async () => { toast("Issuing as-built (CR)…"); const r = await run("publish", { status: "CR", date: today(), note: "As-built" });
+    if (!r.ok) return toast(r.refusals?.[0]?.message || "As-built issue failed");
+    downloadBlob(r.data.filename, new Blob([b64(r.data.base64)], { type: "application/zip" })); toast(`As-built issued: ${r.data.register.length} sheets`); render(); if (current) preview(current); };
   document.querySelector('button[data-tab="docs"]').addEventListener("click", () => setTimeout(render));
   bus.on((ev) => { if (ev.type !== "applied") return; // agents and MCP change the set too: keep the list and the preview current
-    if (["drawing_setup", "sheets_auto", "sheet", "sheet_remove", "publish", "load_project", "undo", "redo"].includes(ev.entry?.name)) { clearTimeout(window.__dwgR); window.__dwgR = setTimeout(render, 150); }
+    if (["drawing_setup", "sheets_auto", "drawing_pack", "sheet", "sheet_remove", "publish", "load_project", "undo", "redo"].includes(ev.entry?.name)) { clearTimeout(window.__dwgR); window.__dwgR = setTimeout(render, 150); }
     if (!$("#sheetPreview").hidden && current) { clearTimeout(window.__dwgT); window.__dwgT = setTimeout(() => preview(current), 400); } });
   return { render, preview };
 }

@@ -23,6 +23,8 @@ A services business funds it: **BIMja Services** offers drafting, permit sets, C
 | 5 | Research: open-source web BIM stack | Done | `reports/Open source web BIM stack.md` (in zip) |
 | 6 | Research: BIMCraft evaluation | Done | `reports/BIMCraft repo evaluation.md` (in zip) |
 
+> **Latest (22 Nov):** seven stage tabs, red and black theme, agent team by job title, and drawing packs (services, coordinated, isometrics, spools, builder's work, plant, containment, SLD, whitespace, equipment, fire, as-built). See `docs/STATUS.md` for details.
+
 ### 2.1 BIMja web app v0 (`bimja-platform`)
 
 **Features:**

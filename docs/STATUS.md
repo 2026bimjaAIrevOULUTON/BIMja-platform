@@ -1,5 +1,29 @@
 # Status
 
+## 2026-11-22: Red and black UI, seven stages, agent team, drawing packs
+
+**UI.** BIMja red (#e63346) on near-black across the app. The rail is now the seven delivery stages (Brief, Site, Design, Coordinate, Document, Construct, Handover) with a stage bar and status dots; the old panels sit as sub-tabs under each stage. New Brief pane (project brief, team, RACI, run a delivery) and Live twin pane (live data and sensors).
+
+**Agent team.** Agents are named by job title (Planner, Surveyor, Architect, Coordinator, Draftsman, Estimator, Asset Manager). The Architect leads a design team (structural, MEP, HVAC, plumbing, electrical, fire, civil, landscape) assembled from the project type: building, data centre, excavation, airport, process plant, institute, infrastructure, heritage. Each agent has its own cursor colour, name tag and log filter; a delivery run puts them to work in parallel through every stage. Commands: `project_brief`, `team_assemble`, `team`, `responsibility_matrix`, `delivery_status`, `handover_mark`.
+
+**Drawing packs.** Reusable building blocks, bundled per project type (`drawing_pack {pack}`; re-running refreshes the pack's sheets):
+- independent service drawings per discipline, and coordinated services with unresolved clashes ringed and tabled (builder's work through walls and slabs, and a service ending in its own equipment, are not counted as clashes);
+- piping isometrics with a bill of materials; spool drawings (max 6 m, shop and field welds; `spools` read command);
+- builder's work in connection: every penetration through a wall or slab, with opening size and the host's fire rating (`bwic`);
+- plant room layout with maintenance clearances; containment with supports every 1.5 m;
+- single-line diagram and chilled water schematic from `connect` (new author command: from, to, medium, rating);
+- whitespace layout (rack rows, cold and hot aisles, design IT load); equipment schedule; fire strategy;
+- as-built: "Issue as-built" re-issues every sheet with status CR.
+Numbering: 5000 + 100 × discipline for services, 5500 coordinated, 5600 isometrics, 5700 spools, 5800 builder's work, 5900 plant, 6100 containment, 6200 diagrams, 6300 whitespace, 6400 equipment, 7000 fire. Elements now carry `system` and up to 24 `params`; IFC writes them to BIMja_Coordination and BIMja_Parameters.
+
+**Layout fixes found in QA.** Services plans cut below the soffit of the slab over them (the roof was hiding everything); cropped views clip at their edge with a dashed matchline; tables go beside or below the drawing, whichever gives the larger scale; diagrams are not to scale and fill their sheet (title block says NTS; DXF in paper millimetres); paper is chosen automatically for the new kinds.
+
+**Sample.** Drawings → "Services sample" builds a plant room and 42-rack data hall (chillers, pumps, transformer, LV board, UPS, CRAH, PDUs, chilled water, supply duct with a deliberate clash, cable tray, sprinklers, drainage, power and chilled water connections). Illustrative sizes, not a design.
+
+**Tests.** `tests/team.mjs`, `tests/packs.mjs` (three penetrations, spools ≤ 6 m summing to each line, every pack sheet to SVG/PDF/DXF, SLD and schematic from connections, clash ringed, aisles, numbering, as-built issue). Parity 102/102. First load 309.7 KB gzipped.
+
+**Next.** Data centre from scratch with multi-model federation (one model per discipline/package), then reels, then Money Maker.
+
 ## 2026-11-22: City context in layers, live site data, faster scripts
 
 **What moved**

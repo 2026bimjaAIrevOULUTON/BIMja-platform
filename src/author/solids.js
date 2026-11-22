@@ -75,8 +75,9 @@ function finish(verts, faces) {
   for (const f of faces) vol += fv(f);
   if (vol < 0) { faces = faces.map((f) => f.slice().reverse()); vol = -vol; }
   let area = 0; for (const f of faces) { let n = [0, 0, 0]; for (let i = 1; i < f.length - 1; i++) { const c = cross(sub3(verts[f[i]], verts[f[0]]), sub3(verts[f[i + 1]], verts[f[0]])); n = [n[0] + c[0], n[1] + c[1], n[2] + c[2]]; } area += Math.hypot(...n) / 2; }
-  let zmin = Infinity, zmax = -Infinity; for (const v of verts) { zmin = Math.min(zmin, v[2]); zmax = Math.max(zmax, v[2]); }
-  return { verts, faces, volume: vol, area, zmin, zmax };
+  let zmin = Infinity, zmax = -Infinity, xmin = Infinity, xmax = -Infinity, ymin = Infinity, ymax = -Infinity;
+  for (const v of verts) { zmin = Math.min(zmin, v[2]); zmax = Math.max(zmax, v[2]); xmin = Math.min(xmin, v[0]); xmax = Math.max(xmax, v[0]); ymin = Math.min(ymin, v[1]); ymax = Math.max(ymax, v[1]); }
+  return { verts, faces, volume: vol, area, zmin, zmax, xmin, xmax, ymin, ymax };
 }
 
 export const solidOf = (e) => (e.kind === "mass" ? specSolid(e) : null);
@@ -172,4 +173,4 @@ export function transformSpec(sp, { dx = 0, dy = 0, dz = 0, rot_deg = 0, cx = 0,
   return o;
 }
 
-export const MASS_CLASSES = ["IfcBuildingElementProxy", "IfcColumn", "IfcBeam", "IfcMember", "IfcSlab", "IfcRoof", "IfcWall", "IfcPlate", "IfcFooting", "IfcCovering", "IfcRailing", "IfcStair", "IfcRamp", "IfcCurtainWall", "IfcGeographicElement", "IfcFurniture", "IfcPipeSegment", "IfcDuctSegment", "IfcCableCarrierSegment", "IfcPump", "IfcFan", "IfcChiller", "IfcCoolingTower", "IfcUnitaryEquipment", "IfcElectricGenerator", "IfcTransformer", "IfcElectricDistributionBoard", "IfcTank"];
+export const MASS_CLASSES = ["IfcBuildingElementProxy", "IfcColumn", "IfcBeam", "IfcMember", "IfcSlab", "IfcRoof", "IfcWall", "IfcPlate", "IfcFooting", "IfcCovering", "IfcRailing", "IfcStair", "IfcRamp", "IfcCurtainWall", "IfcGeographicElement", "IfcFurniture", "IfcPipeSegment", "IfcDuctSegment", "IfcCableCarrierSegment", "IfcPump", "IfcFan", "IfcChiller", "IfcCoolingTower", "IfcUnitaryEquipment", "IfcElectricGenerator", "IfcTransformer", "IfcElectricDistributionBoard", "IfcElectricFlowStorageDevice", "IfcTank"];
