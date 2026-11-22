@@ -9,6 +9,7 @@ import { toManifold } from "../author/kernel.js";
 import { triangulate } from "../author/geom.js";
 import { polygonArea } from "../author/geom.js";
 import { solidOf } from "../author/solids.js";
+import { draftPlan, draftBand, DRAFT_KINDS } from "./draft.js";
 
 export const PAPER = { A0: [1189, 841], A1: [841, 594], A2: [594, 420], A3: [420, 297], "ARCH D": [914.4, 609.6], "ANSI D": [863.6, 558.8], "ARCH E1": [1066.8, 762] };
 export const SCALES = [50, 100, 200, 250, 500, 1000, 1250, 2000, 2500, 5000, 10000]; // preferred GA scales (ISO 5455)
@@ -45,7 +46,7 @@ const levelCode = (model, levelId) => { if (!levelId) return "ZZ"; const ls = [.
 /** ISO 19650 container name, and the sheet number the chosen convention shows big in the title block. */
 export function sheetNumber(docs, model, sh) {
   const typeCode = ["schedule", "register", "equipment"].includes(sh.kind) ? "SH" : sh.kind === "sld" ? "DR" : "DR";
-  const series = { register: 0, site: 100, site_section: 150, plan: 1000, elevations: 2000, sections: 3000, isometric: 4000, service: 5000 + 100 * (" MEPF".indexOf(sh.discipline || " ")), coordinated: 5500, piping_iso: 5600, spool: 5700, bwic: 5800, plant: 5900, schedule: 6000, containment: 6100, sld: 6200, whitespace: 6300, equipment: 6400, fire: 7000 }[sh.kind] ?? 9000;
+  const series = { register: 0, site: 100, site_section: 150, plan: 1000, elevations: 2000, sections: 3000, isometric: 4000, service: 5000 + 100 * (" MEPF".indexOf(sh.discipline || " ")), coordinated: 5500, piping_iso: 5600, spool: 5700, bwic: 5800, plant: 5900, schedule: 6000, containment: 6100, sld: 6200, whitespace: 6300, equipment: 6400, fire: 7000, ga: 1100, mech: 5150, elec: 5250 }[sh.kind] ?? 9000;
   const num = String(series + (sh.seq || 1)).padStart(4, "0");
   const container = [docs.project_code, docs.originator, sh.zone || docs.volume, sh.kind === "plan" ? levelCode(model, sh.level) : "ZZ", typeCode, sh.role || docs.role, num].join("-");
   if (docs.standard === "us-ncs") { const t = { register: "G-00", site: "C-10", site_section: "C-30", plan: "A-10", elevations: "A-20", sections: "A-30", isometric: "A-40", schedule: "A-60" }[sh.kind] || "A-90"; return { container, shown: `${t}${sh.seq || 1}` }; }
@@ -101,6 +102,7 @@ export function composeSheet(model, docs, sh, opts = {}) {
     const a1 = composeOn(model, docs, sh, opts, "A1", views), a0 = composeOn(model, docs, sh, opts, "A0", views);
     return a0.scale < a1.scale ? a0 : a1;
   }
+  if (DRAFT_KINDS[sh.kind]) return composeOn(model, docs, sh, opts, sh.paper || "A0");
   return composeOn(model, docs, sh, opts, sh.paper || docs.paper || std.paper);
 }
 function composeOn(model, docs, sh, { date = "" } = {}, paper, cachedViews = null) {
@@ -115,7 +117,10 @@ function composeOn(model, docs, sh, { date = "" } = {}, paper, cachedViews = nul
   // ---- drawing area
   const area = { x0: fx0 + 12, y0: fy0 + 12, x1: sx0 - 12, y1: fy1 - 12 };
   let scale = null, nts = false;
-  if (["plan", "elevations", "sections", "isometric", "site", "site_section", ...GRAPHIC].includes(sh.kind)) {
+  let qa = null;
+  if (DRAFT_KINDS[sh.kind]) { // drafted plans: fixed scale, composed on paper with grids, dims, tags, legend, notes, key plan
+    const d = draftPlan(model, sh, area, { scale: sh.scale || 100 }); items.push(...d.items); draftBand(model, d, items, docs); scale = d.scale; qa = d.qa;
+  } else if (["plan", "elevations", "sections", "isometric", "site", "site_section", ...GRAPHIC].includes(sh.kind)) {
     const views = cachedViews || sheetViews(model, sh); const n = views.length;
     const pad = (v) => ({ x0: v.box.x0, y0: v.box.y0, x1: v.box.x1, y1: v.box.y1 });
     // not-to-scale views (schematics, isometrics, spools) fill their cell; scaled views take the largest preferred scale
@@ -169,7 +174,7 @@ function composeOn(model, docs, sh, { date = "" } = {}, paper, cachedViews = nul
   }
   if (docs.standard === "is-nbc" && sh.kind === "plan") areaStatement(items, model, [area.x0, area.y0 + 60], L.text);
   titleBlock(items, docs, { ...sh, nts }, num, scale, { x0: sx0, y0: fy0, x1: fx1, y1: fy1 }, std, date, model);
-  return { w: W, h: H, items, number: num, scale: nts ? null : scale, nts, title: sh.title, paper: sh.paper || docs.paper || std.paper, layers: Object.values(L) };
+  return { w: W, h: H, items, number: num, scale: nts ? null : scale, nts, title: sh.title, paper: sh.paper || docs.paper || std.paper, layers: Object.values(L), ...(qa ? { qa } : {}) };
 }
 
 function dimChain(items, d, P, scale, layer) {

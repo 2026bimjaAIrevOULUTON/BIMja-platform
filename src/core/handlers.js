@@ -14,7 +14,7 @@ import { installTeam } from "../agents/commands.js";
 import { clashModel, disciplineOf, DISCIPLINES } from "../coord/model-clash.js";
 import { installSite, siteForIfc } from "../site/commands.js";
 
-const AUTHOR = ["level", "wall", "walls", "door", "window", "floor", "room", "roof", "mass", "revolve", "sweep", "boolean", "opening", "array", "family", "place", "connect", "zone", "delete", "move", "set", "type"];
+const AUTHOR = ["level", "wall", "walls", "door", "window", "floor", "room", "roof", "mass", "revolve", "sweep", "boolean", "opening", "array", "family", "place", "connect", "zone", "grid", "delete", "move", "set", "type"];
 
 export function installCore(bus) {
   const m = () => bus.model;

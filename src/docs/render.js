@@ -11,7 +11,7 @@ export function toSVG(sheet) {
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   for (const it of sheet.items) {
     if (it.t === "poly") out.push(`<polygon points="${it.pts.map((p) => `${r3(p[0])},${Y(p[1])}`).join(" ")}" fill="${it.fill || "none"}" stroke="${it.w ? it.col || "#000" : "none"}" stroke-width="${it.w || 0}"/>`);
-    else if (it.t === "line") out.push(`<line x1="${r3(it.p[0][0])}" y1="${Y(it.p[0][1])}" x2="${r3(it.p[1][0])}" y2="${Y(it.p[1][1])}" stroke="${it.col || "#000"}" stroke-width="${it.w}"${it.dash ? ' stroke-dasharray="3 1.5"' : ""} stroke-linecap="round"/>`);
+    else if (it.t === "line") out.push(`<line x1="${r3(it.p[0][0])}" y1="${Y(it.p[0][1])}" x2="${r3(it.p[1][0])}" y2="${Y(it.p[1][1])}" stroke="${it.col || "#000"}" stroke-width="${it.w}"${it.dash ? ` stroke-dasharray="${it.dash === "center" ? "8 1.5 1 1.5" : it.dash === "hidden" ? "1.5 1" : "3 1.5"}"` : ""} stroke-linecap="${it.dash ? "butt" : "round"}"/>`);
     else if (it.t === "text") { const x = r3(it.at[0]), y = Y(it.at[1]); const anchor = it.align === "middle" ? "middle" : it.align === "end" ? "end" : "start";
       out.push(`<text x="${x}" y="${y}" font-size="${it.h}" text-anchor="${anchor}"${it.col ? ` fill="${it.col}"` : ""}${it.bold ? ' font-weight="700"' : ""}${it.rot ? ` transform="rotate(${-it.rot} ${x} ${y})"` : ""}>${esc(it.text)}</text>`); }
   }
@@ -33,7 +33,7 @@ export function toPDF(sheets, { title = "BIMja drawings" } = {}) {
         const path = it.pts.map((p, i) => `${pt(p[0])} ${pt(p[1])} ${i ? "l" : "m"}`).join(" ") + " h";
         if (it.fill) { const [r, g, b] = [1, 3, 5].map((k) => r3(parseInt(it.fill.slice(k, k + 2), 16) / 255)); c.push(`${r} ${g} ${b} rg ${path} f`); }
         if (it.w) c.push(`${rgb(it.col, "RG")} ${pt(it.w)} w [] 0 d ${path} S`);
-      } else if (it.t === "line") c.push(`${rgb(it.col, "RG")} ${pt(it.w)} w ${it.dash ? "[8.5 4.25] 0 d" : "[] 0 d"} ${pt(it.p[0][0])} ${pt(it.p[0][1])} m ${pt(it.p[1][0])} ${pt(it.p[1][1])} l S`);
+      } else if (it.t === "line") c.push(`${rgb(it.col, "RG")} ${pt(it.w)} w ${it.dash ? (it.dash === "center" ? "[22.7 4.25 2.83 4.25] 0 d" : it.dash === "hidden" ? "[4.25 2.83] 0 d" : "[8.5 4.25] 0 d") : "[] 0 d"} ${pt(it.p[0][0])} ${pt(it.p[0][1])} m ${pt(it.p[1][0])} ${pt(it.p[1][1])} l S`);
       else if (it.t === "text") {
         const a = ((it.rot || 0) * Math.PI) / 180, cs = r3(Math.cos(a)), sn = r3(Math.sin(a)); const dx = ax(it);
         const x = it.at[0] + dx * Math.cos(a), y = it.at[1] + dx * Math.sin(a);
@@ -57,22 +57,25 @@ export function toPDF(sheets, { title = "BIMja drawings" } = {}) {
 const DISC_ACI = { M: 5, E: 30, P: 3, F: 1, C: 8, L: 82 }; const ACI = { cut: 8, cutline: 7, beyond: 7, door: 30, window: 4, room: 2, slab: 9, dims: 1, text: 7, tag: 3, level: 5, ground: 7, frame: 7, grid: 1 };
 export function toDXF(sheet) {
   const k = sheet.scale || 1; const S = (p) => [r3(p[0] * k), r3(p[1] * k)];
-  const layers = [...new Set(["0", ...sheet.items.map((i) => i.layer)])];
+  const layers = [...new Set(["0", ...sheet.items.map((i) => i.layer)])].filter((n) => n !== "BJ-MASK");
   const colorOf = (name) => { if (/^[MEPFCL]-/.test(name)) return DISC_ACI[name[0]]; if (/BJ-(CLASH|BWIC)/.test(name)) return 1; if (/BJ-BACKGROUND/.test(name)) return 8; const key = Object.keys(ACI).find((x) => name.toLowerCase().includes(x)); return ACI[key] || 7; };
   const L = []; const g = (code, v) => L.push(String(code), String(v));
   g(0, "SECTION"); g(2, "HEADER"); g(9, "$ACADVER"); g(1, "AC1009"); g(9, "$INSBASE"); g(10, 0); g(20, 0); g(30, 0); g(9, "$EXTMIN"); g(10, 0); g(20, 0); g(30, 0); g(9, "$EXTMAX"); g(10, r3(sheet.w * k)); g(20, r3(sheet.h * k)); g(30, 0); g(9, "$LUNITS"); g(70, 2); g(0, "ENDSEC");
   g(0, "SECTION"); g(2, "TABLES");
-  g(0, "TABLE"); g(2, "LTYPE"); g(70, 2);
+  g(0, "TABLE"); g(2, "LTYPE"); g(70, 4);
   g(0, "LTYPE"); g(2, "CONTINUOUS"); g(70, 0); g(3, "Solid line"); g(72, 65); g(73, 0); g(40, 0);
-  g(0, "LTYPE"); g(2, "DASHED"); g(70, 0); g(3, "__ __ __"); g(72, 65); g(73, 2); g(40, r3(4.5 * k)); g(49, r3(3 * k)); g(49, r3(-1.5 * k)); g(0, "ENDTAB");
+  g(0, "LTYPE"); g(2, "DASHED"); g(70, 0); g(3, "__ __ __"); g(72, 65); g(73, 2); g(40, r3(4.5 * k)); g(49, r3(3 * k)); g(49, r3(-1.5 * k));
+  g(0, "LTYPE"); g(2, "CENTER"); g(70, 0); g(3, "____ _ ____ _"); g(72, 65); g(73, 4); g(40, r3(12 * k)); g(49, r3(8 * k)); g(49, r3(-1.5 * k)); g(49, r3(1 * k)); g(49, r3(-1.5 * k));
+  g(0, "LTYPE"); g(2, "HIDDEN"); g(70, 0); g(3, "_ _ _ _"); g(72, 65); g(73, 2); g(40, r3(2.5 * k)); g(49, r3(1.5 * k)); g(49, r3(-1 * k)); g(0, "ENDTAB");
   g(0, "TABLE"); g(2, "LAYER"); g(70, layers.length);
   for (const n of layers) { g(0, "LAYER"); g(2, n); g(70, 0); g(62, colorOf(n)); g(6, "CONTINUOUS"); }
   g(0, "ENDTAB"); g(0, "TABLE"); g(2, "STYLE"); g(70, 1); g(0, "STYLE"); g(2, "STANDARD"); g(70, 0); g(40, 0); g(41, 1); g(50, 0); g(71, 0); g(42, 2.5); g(3, "txt"); g(4, ""); g(0, "ENDTAB");
   g(0, "ENDSEC"); g(0, "SECTION"); g(2, "ENTITIES");
   const clean = (s) => String(s).replace(/[\r\n]/g, " ").replace(/²/g, "%%178").replace(/°/g, "%%d").replace(/[^\x20-\x7e%]/g, "?");
   for (const it of sheet.items) {
-    if (it.t === "line") { const a = S(it.p[0]), b = S(it.p[1]); g(0, "LINE"); g(8, it.layer); if (it.dash) g(6, "DASHED"); g(10, a[0]); g(20, a[1]); g(30, 0); g(11, b[0]); g(21, b[1]); g(31, 0); }
+    if (it.t === "line") { const a = S(it.p[0]), b = S(it.p[1]); g(0, "LINE"); g(8, it.layer); if (it.dash) g(6, it.dash === "center" ? "CENTER" : it.dash === "hidden" ? "HIDDEN" : "DASHED"); g(10, a[0]); g(20, a[1]); g(30, 0); g(11, b[0]); g(21, b[1]); g(31, 0); }
     else if (it.t === "poly") {
+      if (it.layer === "BJ-MASK") continue; // wipeouts behind labels are a paper effect; CAD keeps the linework
       if (it.fill) for (const [i, j, m] of triangulate(it.pts)) { const a = S(it.pts[i]), b = S(it.pts[j]), c = S(it.pts[m]); g(0, "SOLID"); g(8, it.layer); g(10, a[0]); g(20, a[1]); g(30, 0); g(11, b[0]); g(21, b[1]); g(31, 0); g(12, c[0]); g(22, c[1]); g(32, 0); g(13, c[0]); g(23, c[1]); g(33, 0); }
       if (it.w || !it.fill) { g(0, "POLYLINE"); g(8, it.layer); g(66, 1); g(10, 0); g(20, 0); g(30, 0); g(70, 1);
         for (const p of it.pts) { const q = S(p); g(0, "VERTEX"); g(8, it.layer); g(10, q[0]); g(20, q[1]); g(30, 0); } g(0, "SEQEND"); g(8, it.layer); }

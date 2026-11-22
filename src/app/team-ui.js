@@ -86,7 +86,7 @@ export function installTeamUI({ bus, run, toast, sim }) {
     // stages 5 + 6 in parallel: Draftsman draws while the Estimator costs and programmes
     status(`Coordinator: ${cl.ok ? cl.data.total : "?"} clashes logged · Draftsman drawing the set while the Estimator costs and programmes…`);
     const D = M("draftsman"), E = M("estimator"); const ds = st.find((x) => x.name === "drawing_setup"), cost = st.find((x) => x.name === "cost"), seq = st.find((x) => x.name === "auto_sequence");
-    await Promise.all([(async () => { await as(D, "drawing_setup", ds.args); await sleep(60); await as(D, "sheets_auto", {}); if (dc) { await sleep(60); await as(D, "drawing_pack", { pack: "data_centre" }); } })(), (async () => { await as(E, "cost", cost.args); await sleep(60); await as(E, "auto_sequence", seq.args); })()]);
+    await Promise.all([(async () => { await as(D, "drawing_setup", ds.args); await sleep(60); if (dc) { for (const x of st.filter((y) => y.name === "sheet")) { await as(D, "sheet", x.args); await sleep(40); } } else await as(D, "sheets_auto", {}); })(), (async () => { await as(E, "cost", cost.args); await sleep(60); await as(E, "auto_sequence", seq.args); })()]);
     // stage 7: the Asset Manager checks the asset data and hands over
     status("Asset Manager: checking the asset data and handing over…"); const A = M("asset_manager");
     if (dc) for (const a of DC_STAGES.assets) { await as(A, "asset", { ...a, installed: "2028-12-29" }); await sleep(40); } // LOD 500 fields: planned dates and assumed makes, not field-verified

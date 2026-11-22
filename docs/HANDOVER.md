@@ -201,3 +201,6 @@ Updated 21 Nov 2026, after D3.
    - landmarks: `src/app/landmarks.js`.
 4. Agents: `node mcp/bimja-mcp.mjs --headless` runs the engine in Node over MCP stdio; attached mode drives the open browser tab.
 5. Money Maker: say "Money Maker status". The engine and state load from Drive.
+
+## Drafted sheets
+See STATUS.md "Drafting engine". Entry points: `draftPlan`/`draftBand` in src/docs/draft.js, called from `composeOn` in src/docs/sheets.js. QA must stay at 0 overlaps / no missing tags.

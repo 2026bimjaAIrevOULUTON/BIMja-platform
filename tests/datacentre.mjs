@@ -42,16 +42,25 @@ const ifcM = rd("export_ifc", { discipline: "M" }).data; const ifcAll = rd("expo
 assert.match(ifcM, /Mechanical model/); assert.match(ifcM, /IFCHEATEXCHANGER/); assert.doesNotMatch(ifcM, /IFCELECTRICGENERATOR\(/); assert.match(ifcAll, /IFCELECTRICGENERATOR\(/);
 assert.match(ifcAll, /IFCMAPCONVERSION/, "georeferenced at Shadnagar"); assert.equal(rd("export_ifc", { discipline: "X" }).ok, false);
 
-// zone sheets: each hall gets its own whitespace, coordinated, plant and containment sheet, numbered in its volume
-const sheets = L.extra.docs.sheets; const zs = sheets.filter((s) => s.zone);
-for (const z of ["HA", "HB", "HC", "HD"]) for (const k of ["whitespace", "coordinated", "plant", "containment"]) assert.ok(zs.some((s) => s.zone === z && s.kind === k), `${k} sheet for ${z}`);
-const wsA = zs.find((s) => s.zone === "HA" && s.kind === "whitespace"); const d = rd("drawing", { sheet: wsA.id, format: "svg" }); assert.ok(d.ok);
-assert.match(d.data.number.container, /^HSD-BJA-HA-ZZ-DR-E-63\d\d$/); assert.ok(d.data.scale <= 200, `hall at a working scale, got 1:${d.data.scale}`);
-assert.match(d.data.svg, /30464/, "224 racks × 136 kW in Hall A"); assert.match(d.data.svg, /HOT AISLE/); assert.match(d.data.svg, /COLD AISLE/);
-assert.equal(rd("sheet", { kind: "plant", zone: "ZZZ" }).ok, false, "unknown zone refused");
-const sld = sheets.find((s) => s.kind === "sld" && (s.medium || "power") === "power"); assert.match(rd("drawing", { sheet: sld.id, format: "svg" }).data.svg, /MSB-33/);
+// drafted sheets: per hall GA, electrical and mechanical at 1:100 on A0, every label placed, none overlapping
+const sheets = L.extra.docs.sheets; const drafted = sheets.filter((s) => ["ga", "elec", "mech"].includes(s.kind));
+assert.equal(drafted.length, 12, "4 halls × GA, electrical, mechanical");
+for (const s of drafted) { const d = rd("drawing", { sheet: s.id, format: "svg" }); assert.ok(d.ok, JSON.stringify(d.refusals));
+  assert.equal(d.data.scale, 100, `${s.title} at 1:100`); assert.equal(d.data.paper, "A0");
+  assert.equal(d.data.qa.overlaps, 0, `${s.title}: overlapping labels`); assert.deepEqual(d.data.qa.missing, [], `${s.title}: labels that found no place`); assert.deepEqual(d.data.qa.small, [], `${s.title}: text under 1.8 mm`);
+  assert.match(d.data.number.container, new RegExp(`^HSD-BJA-${s.zone}-ZZ-DR-${{ ga: "A", elec: "E", mech: "M" }[s.kind]}-`));
+  const svg = d.data.svg; for (const g of ["1", "10", "A", "D"]) assert.match(svg, new RegExp(`>${g}</text>`), `grid bubble ${g}`);
+  assert.match(svg, />9300</, "grid dimension chain"); assert.match(svg, />LEGEND</); assert.match(svg, />GENERAL NOTES</); assert.match(svg, />KEY PLAN</);
+  if (s.kind === "elec") { assert.match(svg, /BW 5000A/); assert.match(svg, /SINGLE LINE/); assert.match(svg, /UPS-H?[A-D]01a|UPS-[A-D]01a/); }
+  if (s.kind === "mech") { assert.match(svg, /CDU-[A-D]01/); assert.match(svg, /DN\d+ +CL \+/); assert.doesNotMatch(svg, /CL \+1[0-9]\./, "roof-level runs are not on the ground plan"); }
+  if (s.kind === "ga") { assert.match(svg, /WHITE SPACE/); assert.match(svg, /ELECTRICAL ROOM SOUTH/); assert.match(svg, /[A-D]-D1[0-3]/, "door marks"); } }
+const gaA = drafted.find((s) => s.zone === "HA" && s.kind === "ga"); const dxf = rd("drawing", { sheet: gaA.id, format: "dxf" }).data.dxf; assert.match(dxf, /CENTER/); assert.doesNotMatch(dxf, /BJ-MASK/, "label wipeouts stay out of CAD");
+assert.equal(L.model.data.grids.filter((g) => g.zone === "HA").length, 14, "10 + 4 grid lines per hall");
+assert.equal(L.model.elements.filter((e) => e.kind === "door").length, 48, "12 doors per hall");
+assert.equal(rd("sheet", { kind: "ga", zone: "ZZZ" }).ok, false, "unknown zone refused");
+const zs = drafted;
 // IfcOpenShell (CI only): the federated discipline files are schema-valid and every element builds
 mkdirSync("dist-test", { recursive: true }); const files = ["M", "E"].map((x) => { const f = `dist-test/dc-${x}.ifc`; writeFileSync(f, rd("export_ifc", { discipline: x }).data); return f; });
 try { execFileSync("python3", ["ci/validate_ifc.py", ...files], { stdio: "inherit" }); const out = execFileSync("python3", ["ci/geometry_check.py", ...files], { encoding: "utf8" }); process.stdout.write(out); assert.ok(!/failed": [1-9]/.test(out), "every element builds"); }
 catch (e) { if (process.env.CI) throw e; console.log("ok datacentre IFC check skipped (IfcOpenShell not installed)"); }
-console.log(`ok datacentre: ${els.length} elements, ${fed.length} discipline models, ${zs.length} zone sheets, ${((performance.now() - t0) / 1000).toFixed(1)} s`);
+console.log(`ok datacentre: ${els.length} elements, ${fed.length} discipline models, ${zs.length} drafted sheets (0 overlaps), ${((performance.now() - t0) / 1000).toFixed(1)} s`);

@@ -53,6 +53,8 @@ const FAMILIES = [
       ...[-1500, 0, 1500].map((x) => cyl(220, 2600, x, 800, 4500))] },
   { name: "Hyosung 220 kV GIS bay", ifc_class: "IfcSwitchingDevice", discipline: "E", layer: "E-HV", color: "#9bb0c1", material: "Aluminium",
     parameters: lod({ Manufacturer: "Hyosung T&D India", Model: "220 kV GIS bay (to confirm)" }), parts: [box(2200, 6000, 4200), cyl(350, 1500, 0, -2000, 4200)] },
+  { name: "Butterfly valve DN200", ifc_class: "IfcValve", discipline: "M", layer: "M-VALVE", color: "#24486e", material: "Ductile iron",
+    parameters: lod({ Manufacturer: "to confirm", Model: "Lugged butterfly valve, gear operated", DN: 200, PN: 16 }), parts: [box(300, 300, 300), cyl(60, 250, 0, 0, 300)] },
   { name: "Fuel tank 300 kL", ifc_class: "IfcTank", discipline: "M", layer: "M-FUEL", color: "#b9b39a", material: "Steel",
     parameters: lod({ Capacity_kL: 300, Fluid: "HSD diesel" }), parts: [cyl(4200, 6000), cyl(4400, 300, 0, 0, -300)] },
   { name: "Treated water tank 1 ML", ifc_class: "IfcTank", discipline: "P", layer: "P-WATER", color: "#a9c7d6", material: "Concrete",
@@ -117,6 +119,10 @@ function build() {
 
   // ---- four data halls
   const HALLS = [{ k: "A", ox: 170000, oy: 54000, yard: -1 }, { k: "B", ox: 290000, oy: 54000, yard: -1 }, { k: "C", ox: 170000, oy: 166000, yard: 1 }, { k: "D", ox: 290000, oy: 166000, yard: 1 }];
+  c.push({ name: "type", owner: "architect", args: { kind: "wall", name: "Precast 300", thickness: 300, isExternal: true, loadBearing: false, material: "Insulated precast concrete" } });
+  c.push({ name: "type", owner: "fire_engineer", args: { kind: "wall", name: "Fire wall 300 EI120", thickness: 300, isExternal: false, loadBearing: false, fireRating: "EI 120", material: "Precast concrete" } });
+  c.push({ name: "type", owner: "architect", args: { kind: "door", name: "Double 1800x2400", width: 1800, height: 2400, fireRating: "None", operation: "DOUBLE_DOOR_SINGLE_SWING", material: "Steel" } });
+  c.push({ name: "type", owner: "fire_engineer", args: { kind: "door", name: "Fire door double 1800x2400", width: 1800, height: 2400, fireRating: "120 min", operation: "DOUBLE_DOOR_SINGLE_SWING", material: "Steel" } });
   for (const h of HALLS) hall(h);
   function hall({ k, ox, oy, yard }) {
     const X = (x) => ox + x, Y = (y) => oy + y, L = 84000, D = 48000, HT = 9000;
@@ -125,10 +131,21 @@ function build() {
     // structure and envelope
     mass(`Hall ${k} ground slab`, rect(X(0), Y(0), X(L), Y(D)), -300, 300, "IfcSlab", "S", "S-SLAB", "#c9c6bf", {}, S);
     mass(`Hall ${k} roof slab`, rect(X(0), Y(0), X(L), Y(D)), HT, 300, "IfcSlab", "S", "S-SLAB", "#c9c6bf", {}, S);
-    for (const [n, o] of [["south", rect(X(0), Y(0), X(L), Y(300))], ["north", rect(X(0), Y(D - 300), X(L), Y(D))], ["west", rect(X(0), Y(300), X(300), Y(D - 300))], ["east", rect(X(L - 300), Y(300), X(L), Y(D - 300))]])
-      mass(`Hall ${k} wall ${n}`, o, 0, HT, "IfcWall", "A", "A-WALL", "#d8d4cc", { material: "Insulated precast" }, A);
-    mass(`Hall ${k} fire wall, south bay`, rect(X(300), Y(9000), X(L - 300), Y(9300)), 0, HT, "IfcWall", "A", "A-FIREWALL", "#cfcac0", { params: { FireRating: 120 } }, "fire_engineer");
-    mass(`Hall ${k} fire wall, north bay`, rect(X(300), Y(38700), X(L - 300), Y(39000)), 0, HT, "IfcWall", "A", "A-FIREWALL", "#cfcac0", { params: { FireRating: 120 } }, "fire_engineer");
+    // envelope and fire walls as real walls (they host the doors and bound the rooms); centrelines 150 in from the slab edge
+    const wall = (name, a, b, type, ref) => c.push({ name: "wall", owner: ref.includes("FW") ? "fire_engineer" : A, as: `${k}_${ref}`, args: { name: `Hall ${k} ${name}`, start: [X(a[0]), Y(a[1])], end: [X(b[0]), Y(b[1])], type, height: HT } });
+    wall("wall south", [150, 150], [L - 150, 150], "Precast 300", "WS"); wall("wall east", [L - 150, 150], [L - 150, D - 150], "Precast 300", "WE");
+    wall("wall north", [L - 150, D - 150], [150, D - 150], "Precast 300", "WN"); wall("wall west", [150, D - 150], [150, 150], "Precast 300", "WW");
+    wall("fire wall, south electrical room", [150, 9150], [L - 150, 9150], "Fire wall 300 EI120", "FWS"); wall("fire wall, north electrical room", [150, 38850], [L - 150, 38850], "Fire wall 300 EI120", "FWN");
+    const door = (ref, offset, type, mark) => c.push({ name: "door", owner: A, args: { wall: `$${k}_${ref}`, offset, type, mark: `${k}-${mark}` } });
+    door("WW", 23850, "Double 1800x2400", "D01"); door("WE", 23850, "Double 1800x2400", "D02");                          // white space: equipment route east-west
+    door("WS", 36850, "Double 1800x2400", "D03"); door("WN", 46850, "Double 1800x2400", "D04");                          // electrical rooms from the MV rooms, in the gap between blocks 4 and 5
+    for (const [i, x] of [8000, 30000, 60000, 76000].entries()) { door("FWS", x, "Fire door double 1800x2400", `D1${i}`); door("FWN", x, "Fire door double 1800x2400", `D2${i}`); }
+    c.push({ name: "room", owner: A, args: { name: "White space", number: `${k}.01`, boundary: rect(X(300), Y(9300), X(L - 300), Y(38700)) } });
+    c.push({ name: "room", owner: A, args: { name: "Electrical room south", number: `${k}.02`, boundary: rect(X(300), Y(300), X(L - 300), Y(9000)) } });
+    c.push({ name: "room", owner: A, args: { name: "Electrical room north", number: `${k}.03`, boundary: rect(X(300), Y(39000), X(L - 300), Y(D - 300)) } });
+    // structural grid: numbers along x at the column lines, letters along y at the wall and fire-wall lines
+    for (let i = 0; i <= 9; i++) { const x = Math.min(L - 300, Math.max(300, i * 9300 + 300)); c.push({ name: "grid", owner: S, args: { name: String(i + 1), zone: `H${k}`, start: [X(x), Y(yard < 0 ? -7500 : -3500)], end: [X(x), Y(yard < 0 ? D + 3500 : D + 7500)] } }); } // clear of the MV room
+    for (const [n, y] of [["A", 150], ["B", 9150], ["C", 38850], ["D", D - 150]]) c.push({ name: "grid", owner: S, args: { name: n, zone: `H${k}`, start: [X(-4000), Y(y)], end: [X(L + 4000), Y(y)] } });
     for (let i = 0; i <= 9; i++) for (const y of [150, 9150, 38850, D - 150]) { const x = Math.min(L - 300, Math.max(300, i * 9300 + 300));
       mass(`Hall ${k} column ${i + 1}/${y}`, rect(X(x - 250), Y(y - 250), X(x + 250), Y(y + 250)), 0, HT, "IfcColumn", "S", "S-COLUMN", "#b7b2a8", { material: "Steel" }, S); }
     for (let i = 0; i <= 9; i++) { const x = Math.min(L - 300, Math.max(300, i * 9300 + 300)); mass(`Hall ${k} roof girder ${i + 1}`, rect(X(x - 200), Y(150), X(x + 200), Y(D - 150)), HT - 1200, 1200, "IfcBeam", "S", "S-BEAM", "#a9a39a", { material: "Steel" }, S); }
@@ -156,7 +173,11 @@ function build() {
       mass(`Hall ${k} hot aisle containment pod ${pod + 1}a`, rect(X(px + 1200), Y(12000), X(px + 2400), Y(28800)), 2236, 1200, "IfcCovering", "A", "A-CONTAINMENT", "#9fb3c2", { material: "Polycarbonate" }, WS);
       mass(`Hall ${k} hot aisle containment pod ${pod + 1}b`, rect(X(px + 7200), Y(12000), X(px + 8400), Y(28800)), 2236, 1200, "IfcCovering", "A", "A-CONTAINMENT", "#9fb3c2", { material: "Polycarbonate" }, WS);
     }
-    for (let i = 0; i < 13; i++) { const cx = i < 7 ? 12600 + i * 1500 : 46600 + (i - 7) * 1500; place("Vertiv CoolChip CDU 2300kW", X(cx), Y(33800), 0, `CDU-${k}${String(i + 1).padStart(2, "0")}`, PC); }
+    for (let i = 0; i < 13; i++) { const cx = i < 7 ? 12600 + i * 1500 : 46600 + (i - 7) * 1500, tag = `${k}${String(i + 1).padStart(2, "0")}`; place("Vertiv CoolChip CDU 2300kW", X(cx), Y(33800), 0, `CDU-${tag}`, PC);
+      // facility water branches: supply from the header to the CDU's primary inlet, return from its outlet, each with an isolating valve
+      pipe(`Hall ${k} FW supply branch CDU-${tag}`, `FW-S-${k}`, 110, [[X(cx - 350), Y(35400), 4200], [X(cx - 350), Y(34400), 4200], [X(cx - 350), Y(34400), 2700]], "M", "M-FW", "#1f5fa8", PC);
+      pipe(`Hall ${k} FW return branch CDU-${tag}`, `FW-R-${k}`, 110, [[X(cx + 350), Y(34400), 2700], [X(cx + 350), Y(34400), 4800], [X(cx + 350), Y(36600), 4800]], "M", "M-FW", "#5f9be0", PC);
+      place("Butterfly valve DN200", X(cx - 350), Y(34900), 4200 - 150, `V-${tag}S`, PC); place("Butterfly valve DN200", X(cx + 350), Y(35400), 4800 - 150, `V-${tag}R`, PC); }
     // facility water: headers along the CDU gallery, riser at the east end, roof headers to the dry coolers
     pipe(`Hall ${k} facility water supply header`, `FW-S-${k}`, 240, [[X(12000), Y(35400), 4200], [X(80000), Y(35400), 4200], [X(80000), Y(35400), HT + 1500], [X(80000), Y(24000), HT + 1500], [X(4000), Y(24000), HT + 1500]], "M", "M-FW", "#1f5fa8", PC);
     pipe(`Hall ${k} facility water return header`, `FW-R-${k}`, 240, [[X(4000), Y(25200), HT + 1900], [X(81200), Y(25200), HT + 1900], [X(81200), Y(36600), HT + 1900], [X(81200), Y(36600), 4800], [X(12000), Y(36600), 4800]], "M", "M-FW", "#5f9be0", PC);
@@ -208,8 +229,9 @@ export function dcStages() {
   return [{ name: "geolocate", args: { ...s.site } },
     { name: "cost", args: { rates: s.rates, currency: s.currency, label: "Illustrative rates for a pilot estimate, excluding IT hardware; not a cost plan" } },
     { name: "auto_sequence", args: { start: s.program[0], finish: s.program[1] } },
-    { name: "drawing_setup", args: { project_code: s.code, project_name: "Shadnagar AI factory, 120 MW (pilot)" } },
-    { name: "sheets_auto", args: {} }, { name: "drawing_pack", args: { pack: "data_centre" } }];
+    { name: "drawing_setup", args: { project_code: s.code, project_name: "Shadnagar AI factory, 120 MW (pilot)", client: "Hypothetical pilot client", author: "BIMja Draftsman (agent)", checker: "—", approver: "—" } },
+    // the drawing set: drafted plans per hall (general arrangement, electrical, mechanical) at 1:100 on A0
+    ...["HA", "HB", "HC", "HD"].flatMap((zone) => ["ga", "elec", "mech"].map((kind) => ({ name: "sheet", args: { kind, zone } })))];
 }
 
 import { newProject } from "../author/model.js";

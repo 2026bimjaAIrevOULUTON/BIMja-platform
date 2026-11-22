@@ -609,3 +609,7 @@ Numbering: 5000 + 100 × discipline for services, 5500 coordinated, 5600 isometr
 **Single next step**
 - M1: the command bus. One `execute({id, name, args, rev, actor, session, dry_run})` drives UI, `window.bimja` and MCP, with a log, replay, attribution, `stale_rev` and soft locks.
 - The attached-mode spike runs first: does a GitHub Pages tab reach `ws://127.0.0.1` in Chrome, Firefox and Safari?
+
+## Drafting engine (Nov 2026)
+`src/docs/draft.js` composes drafted plans (`sheet {kind: ga|elec|mech, zone}`) on paper at a fixed scale (1:100 default, ISO 5455 fallback): poché walls, door swings and marks, grids with bubbles, dimension chains, tagged equipment, services as single lines with size and CL level, busway and tray, legend, general notes, key plan and (E) a typical single-line diagram. A label placer refuses overlaps; every `drawing` returns `qa {overlaps, missing, small, tags}`. The data centre pilot issues 12 drafted sheets (4 halls × GA/E/M), all at 1:100 on A0 with 0 overlaps (asserted in `tests/datacentre.mjs`).
+Not yet redone to this standard: roof plan, sections/elevations, fire/plumbing sheets, the older auto packs; IFC export does not yet carry grids.

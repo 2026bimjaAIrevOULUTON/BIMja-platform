@@ -284,6 +284,13 @@ def("connect", "Connect two elements in a system (for single-line diagrams and s
   const list = (m.data.connections ||= []); if (list.some((k) => k.from === a.id && k.to === b.id && k.medium === c.medium)) fail("already connected");
   const k = { id: `K${list.length + 1}`, from: a.id, to: b.id, medium: c.medium, ...(c.rating ? { rating: String(c.rating).slice(0, 40) } : {}), ...(c.label ? { label: String(c.label).slice(0, 60) } : {}) }; list.push(k); return { id: k.id };
 });
+def("grid", "Add a structural grid line: {name: '1' | 'A', start:[x,y], end:[x,y], zone?: code}. Drafted plans draw it with bubbles and dimension chains", (m, c) => {
+  const name = String(c.name || "").trim(); if (!/^[A-Z0-9][A-Z0-9.'-]{0,5}$/i.test(name)) fail("name: a grid label such as 1, 12 or A");
+  const a = pt(c.start, "start"), b = pt(c.end, "end"); if (dist(a, b) < 1000) fail("a grid line must be at least 1 m long");
+  const zone = c.zone ? String(c.zone).toUpperCase() : null; const list = (m.data.grids ||= []);
+  const i = list.findIndex((g) => g.name === name && (g.zone || null) === zone); const g = { name, a, b, ...(zone ? { zone } : {}) };
+  if (i >= 0) list[i] = g; else list.push(g); return { grid: name };
+});
 def("zone", "Name a zone (a data hall, a plant yard): {name, code: 1-3 letters/digits used as the ISO 19650 volume code, outline: [[x,y],...] mm} or {code, delete: true}. Drawing packs add zone-cropped sheets", (m, c) => {
   const code = String(c.code || "").toUpperCase(); if (!/^[A-Z0-9]{1,3}$/.test(code)) fail("code: 1 to 3 letters or digits, e.g. HA for Hall A");
   const list = (m.data.zones ||= []); const i = list.findIndex((z) => z.code === code);
@@ -304,7 +311,7 @@ def("place", "Place a family instance: {family, at:[x,y,z?] mm, rotation_deg?, l
   const fam = m.data.families?.[c.family] || fail(`no family ${c.family}. Families: ${Object.keys(m.data.families || {}).join(", ") || "none"}`, "no_such_element");
   const [x, y] = pt([c.at?.[0], c.at?.[1]], "at"); const z = num(c.at?.[2] ?? 0, "z"); const rot = num(c.rotation_deg ?? 0, "rotation_deg");
   const parts = fam.parts.map((p) => transformSpec(transformSpec(p, { rot_deg: rot }), { dx: x, dy: y, dz: z }));
-  const e = { kind: "mass", shape: "group", parts, family: fam.name, ...(fam.uniclass ? { uniclass: fam.uniclass } : {}), ...(c.mark ? { mark: String(c.mark) } : {}) };
+  const e = { kind: "mass", shape: "group", parts, family: fam.name, ...(rot ? { rot } : {}), ...(fam.uniclass ? { uniclass: fam.uniclass } : {}), ...(c.mark ? { mark: String(c.mark) } : {}) };
   const r = massCommon(m, { ...c, ifc_class: fam.ifc_class, material: c.material ?? fam.material, color: c.color ?? fam.color, discipline: c.discipline ?? fam.discipline, layer: c.layer ?? fam.layer, name: c.name || `${fam.name}` }, e);
   return { ...r, family: fam.name };
 });
