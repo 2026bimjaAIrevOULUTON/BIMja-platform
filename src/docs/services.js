@@ -24,7 +24,7 @@ const fmt = (mm) => `${mm >= 0 ? "+" : "−"}${(Math.abs(mm) / 1000).toFixed(2)}
 /** DN from a circular-ish profile (mean radius ×2), width × height for ducts and trays */
 export function sizeOf(e) {
   const P = e.profile || []; if (!P.length) return ""; let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity; for (const [u, v] of P) { u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v); }
-  const w = u1 - u0, h = v1 - v0; if (PIPE.has(e.ifc_class)) { const od = (w + h) / 2; const dn = [15, 20, 25, 32, 40, 50, 65, 80, 100, 125, 150, 200, 250, 300, 350, 400, 450, 500, 600].find((d) => d >= od * 0.82) || Math.round(od); return `DN${dn}`; }
+  const w = u1 - u0, h = v1 - v0; if (PIPE.has(e.ifc_class)) { const od = (w + h) / 2; const dn = [15, 20, 25, 32, 40, 50, 65, 80, 100, 125, 150, 200, 250, 300, 350, 400, 450, 500, 600, 700, 800, 900, 1000].find((d) => d >= od * 0.82) || Math.round(od); return `DN${dn}`; }
   return `${Math.round(w)}×${Math.round(h)}`;
 }
 /** absolute path (mm) of a sweep element */

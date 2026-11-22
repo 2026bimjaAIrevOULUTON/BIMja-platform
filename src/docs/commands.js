@@ -11,7 +11,7 @@ import { schedule } from "../author/model.js";
 import { solidOf } from "../author/solids.js";
 
 const fail = (m, code = "bad_arg") => { throw Object.assign(new Error(m), { code }); };
-const KINDS = ["register", "ga", "elec", "mech", "site", "site_section", "plan", "elevations", "sections", "isometric", "schedule", "service", "coordinated", "piping_iso", "spool", "bwic", "plant", "containment", "sld", "whitespace", "equipment", "fire"];
+const KINDS = ["register", "ga", "elec", "mech", "roof", "site", "site_section", "plan", "elevations", "sections", "isometric", "schedule", "service", "coordinated", "piping_iso", "spool", "bwic", "plant", "containment", "sld", "whitespace", "equipment", "fire"];
 
 export function installDocs(bus) {
   const D = () => (bus.extra.docs ||= defaultDocs());
@@ -23,6 +23,11 @@ export function installDocs(bus) {
     if (a.standard != null) { if (!STANDARDS[a.standard]) fail(`standard must be one of ${Object.keys(STANDARDS).join(", ")}`); d.standard = a.standard; }
     for (const k of ["project_code", "originator", "volume", "role"]) if (a[k] != null) { const v = String(a[k]).toUpperCase(); if (!/^[A-Z0-9]{1,6}$/.test(v)) fail(`${k} must be 1–6 letters or digits (ISO 19650 field)`); d[k] = v; }
     for (const k of ["project_name", "client", "address", "author", "checker", "approver"]) if (a[k] != null) d[k] = String(a[k]).slice(0, 120);
+    if (a.notes != null) { if (typeof a.notes !== "object" || Array.isArray(a.notes)) fail("notes: {GA|E|M|R: [\"note\", ...]}"); d.notes = {};
+      for (const [k, v] of Object.entries(a.notes)) { if (!["GA", "E", "M", "R"].includes(k) || !Array.isArray(v)) fail("notes: keys GA, E, M or R, each a list of strings"); d.notes[k] = v.slice(0, 12).map((t) => String(t).replace(/[\u0000-\u001f]/g, " ").slice(0, 200)); } }
+    if (a.sld != null) { if (typeof a.sld !== "object" || Array.isArray(a.sld)) fail("sld: {title, sources:[...], mv, tx, msb, gen, ups, ob, busway, load, note}"); const o = {};
+      for (const k of ["title", "mv", "tx", "msb", "gen", "ups", "ob", "busway", "load", "note"]) if (a.sld[k] != null) o[k] = String(a.sld[k]).replace(/[\u0000-\u001f]/g, " ").slice(0, 120);
+      if (a.sld.sources != null) { if (!Array.isArray(a.sld.sources) || !a.sld.sources.length || a.sld.sources.length > 6) fail("sld.sources: 1 to 6 source names"); o.sources = a.sld.sources.map((x) => String(x).slice(0, 4)); } d.sld = o; }
     if (a.paper != null) { if (a.paper && !PAPER[a.paper]) fail(`paper must be one of ${Object.keys(PAPER).join(", ")} (or empty for automatic)`); d.paper = a.paper || null; }
     return { standard: d.standard, label: STANDARDS[d.standard].label, project_code: d.project_code, originator: d.originator };
   });
@@ -59,7 +64,7 @@ export function installDocs(bus) {
     if (a.delete) { if (!cur) fail(`no sheet ${a.id}`, "no_such_element"); d.sheets = d.sheets.filter((s) => s !== cur); return { deleted: a.id }; }
     if (a.id && !cur) fail(`no sheet ${a.id}`, "no_such_element");
     const s = cur || { id: `D${d.next++}` };
-    if (a.kind != null) { if (!KINDS.includes(a.kind)) fail(`kind must be one of ${KINDS.join(", ")}`); s.kind = a.kind; if ({ ga: 1, elec: 1, mech: 1 }[a.kind]) s.role = { ga: "A", elec: "E", mech: "M" }[a.kind]; }
+    if (a.kind != null) { if (!KINDS.includes(a.kind)) fail(`kind must be one of ${KINDS.join(", ")}`); s.kind = a.kind; if ({ ga: 1, elec: 1, mech: 1, roof: 1 }[a.kind]) s.role = { ga: "A", elec: "E", mech: "M", roof: "M" }[a.kind]; }
     if (!s.kind) fail("a new sheet needs a kind");
     if (a.level != null) s.level = bus.model.level(a.level).id;
     if (a.cut_z != null) { s.cut_z = +a.cut_z; if (!Number.isFinite(s.cut_z)) fail("cut_z must be mm"); }
@@ -69,7 +74,7 @@ export function installDocs(bus) {
     if (a.discipline != null) { if (!/^[MEPF]$/.test(a.discipline)) fail("discipline: M, E, P or F"); s.discipline = s.role = a.discipline; }
     if (a.zone != null) { if (a.zone && !(bus.model.data.zones || []).some((z) => z.code === a.zone)) fail(`no zone ${a.zone}`, "no_such_element"); s.zone = a.zone || undefined; }
     if (a.medium != null) s.medium = String(a.medium); if (a.system != null) s.system = String(a.system).slice(0, 40); if (a.page != null) s.page = Math.max(1, Math.round(+a.page) || 1);
-    if (!s.title && { ga: 1, elec: 1, mech: 1 }[s.kind]) { const z = (bus.model.data.zones || []).find((x) => x.code === s.zone); s.title = `${z ? z.name + " " : ""}${{ ga: "general arrangement plan", elec: "electrical layout", mech: "mechanical layout" }[s.kind]}`; s.title = s.title[0].toUpperCase() + s.title.slice(1); }
+    if (!s.title && { ga: 1, elec: 1, mech: 1, roof: 1 }[s.kind]) { const z = (bus.model.data.zones || []).find((x) => x.code === s.zone); s.title = `${z ? z.name + " " : ""}${{ ga: "general arrangement plan", elec: "electrical layout", mech: "mechanical layout", roof: "roof plant and piping plan" }[s.kind]}`; s.title = s.title[0].toUpperCase() + s.title.slice(1); }
     s.title ||= { site: "Site plan and grading", site_section: "Site section S-S", register: "Drawing register", plan: "Plan", elevations: "Elevations", sections: "Sections", isometric: "Isometric views", schedule: "Schedules", ...SHEET_KINDS }[s.kind];
     if (!cur) { s.seq = seqOf(s.kind); d.sheets.push(s); }
     return { id: s.id, number: sheetNumber(d, bus.model, s) };
@@ -78,7 +83,7 @@ export function installDocs(bus) {
   const sheetById = (id) => D().sheets.find((s) => s.id === id) || fail(`no sheet ${id}: run sheets_auto or sheet first`, "no_such_element");
   bus.register("drawing", (a) => {
     const s = sheetById(a.sheet); const comp = composeSheet(bus.model, D(), withSite(s), { date: a.date || "" }); const f = a.format || "svg";
-    const base = { sheet: s.id, number: comp.number, scale: comp.scale, nts: !!comp.nts, paper: comp.paper, ...(comp.qa ? { qa: { overlaps: comp.qa.overlaps.length, missing: comp.qa.missing, small: comp.qa.small, tags: comp.qa.tags } } : {}) };
+    const base = { sheet: s.id, number: comp.number, scale: comp.scale, nts: !!comp.nts, paper: comp.paper, ...(comp.qa ? { qa: { overlaps: comp.qa.overlaps.length, ...(comp.qa.overlaps.length ? { overlap_pairs: comp.qa.overlaps.slice(0, 5) } : {}), missing: comp.qa.missing, small: comp.qa.small, tags: comp.qa.tags } } : {}) };
     if (f === "svg") return { ...base, svg: toSVG(comp) };
     if (f === "dxf") return { ...base, dxf: toDXF(comp) };
     if (f === "pdf") return { ...base, base64: toBase64(toPDF([comp], { title: s.title })) };

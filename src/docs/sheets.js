@@ -46,9 +46,9 @@ const levelCode = (model, levelId) => { if (!levelId) return "ZZ"; const ls = [.
 /** ISO 19650 container name, and the sheet number the chosen convention shows big in the title block. */
 export function sheetNumber(docs, model, sh) {
   const typeCode = ["schedule", "register", "equipment"].includes(sh.kind) ? "SH" : sh.kind === "sld" ? "DR" : "DR";
-  const series = { register: 0, site: 100, site_section: 150, plan: 1000, elevations: 2000, sections: 3000, isometric: 4000, service: 5000 + 100 * (" MEPF".indexOf(sh.discipline || " ")), coordinated: 5500, piping_iso: 5600, spool: 5700, bwic: 5800, plant: 5900, schedule: 6000, containment: 6100, sld: 6200, whitespace: 6300, equipment: 6400, fire: 7000, ga: 1100, mech: 5150, elec: 5250 }[sh.kind] ?? 9000;
+  const series = { register: 0, site: 100, site_section: 150, plan: 1000, elevations: 2000, sections: 3000, isometric: 4000, service: 5000 + 100 * (" MEPF".indexOf(sh.discipline || " ")), coordinated: 5500, piping_iso: 5600, spool: 5700, bwic: 5800, plant: 5900, schedule: 6000, containment: 6100, sld: 6200, whitespace: 6300, equipment: 6400, fire: 7000, ga: 1100, mech: 5150, elec: 5250, roof: 1300 }[sh.kind] ?? 9000;
   const num = String(series + (sh.seq || 1)).padStart(4, "0");
-  const container = [docs.project_code, docs.originator, sh.zone || docs.volume, sh.kind === "plan" ? levelCode(model, sh.level) : "ZZ", typeCode, sh.role || docs.role, num].join("-");
+  const container = [docs.project_code, docs.originator, sh.zone || docs.volume, sh.kind === "plan" ? levelCode(model, sh.level) : sh.kind === "roof" ? "RF" : ["ga", "elec", "mech"].includes(sh.kind) ? "00" : "ZZ", typeCode, sh.role || docs.role, num].join("-");
   if (docs.standard === "us-ncs") { const t = { register: "G-00", site: "C-10", site_section: "C-30", plan: "A-10", elevations: "A-20", sections: "A-30", isometric: "A-40", schedule: "A-60" }[sh.kind] || "A-90"; return { container, shown: `${t}${sh.seq || 1}` }; }
   if (docs.standard === "is-nbc") return { container, shown: `${sh.kind === "register" ? "G" : "A"}/${String(series / 1000 + (sh.seq || 1) / 100).replace(".", "").padStart(3, "0")}` };
   return { container, shown: container };

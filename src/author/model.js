@@ -291,12 +291,13 @@ def("grid", "Add a structural grid line: {name: '1' | 'A', start:[x,y], end:[x,y
   const i = list.findIndex((g) => g.name === name && (g.zone || null) === zone); const g = { name, a, b, ...(zone ? { zone } : {}) };
   if (i >= 0) list[i] = g; else list.push(g); return { grid: name };
 });
-def("zone", "Name a zone (a data hall, a plant yard): {name, code: 1-3 letters/digits used as the ISO 19650 volume code, outline: [[x,y],...] mm} or {code, delete: true}. Drawing packs add zone-cropped sheets", (m, c) => {
+def("zone", "Name a zone (a data hall, a plant yard): {name, code: 1-3 letters/digits used as the ISO 19650 volume code, outline: [[x,y],...] mm, parent?: code of the zone this one is a part of (a sheet split; it shares the parent's grids)} or {code, delete: true}. Drawing packs add zone-cropped sheets", (m, c) => {
   const code = String(c.code || "").toUpperCase(); if (!/^[A-Z0-9]{1,3}$/.test(code)) fail("code: 1 to 3 letters or digits, e.g. HA for Hall A");
   const list = (m.data.zones ||= []); const i = list.findIndex((z) => z.code === code);
   if (c.delete) { if (i < 0) fail(`no zone ${code}`); list.splice(i, 1); return { deleted: code }; }
   if (!Array.isArray(c.outline) || c.outline.length < 3 || c.outline.some((p) => !Array.isArray(p) || !p.slice(0, 2).every(Number.isFinite))) fail("outline: three or more [x, y] points in mm");
-  const z = { code, name: String(c.name || code).slice(0, 60), outline: c.outline.map((p) => [+p[0], +p[1]]) }; if (i >= 0) list[i] = z; else list.push(z); return { code };
+  const parent = c.parent ? String(c.parent).toUpperCase() : null; if (parent && !list.some((x) => x.code === parent)) fail(`parent: no zone ${parent}`);
+  const z = { code, name: String(c.name || code).slice(0, 60), outline: c.outline.map((p) => [+p[0], +p[1]]), ...(parent ? { parent } : {}) }; if (i >= 0) list[i] = z; else list.push(z); return { code };
 });
 def("family", "Define a reusable family (like a Revit family): {name, ifc_class?, uniclass?:{code,title}, description?, parameters?:{...}, psets?:{Pset_X:{...}}, parts:[geometry specs, origin at 0,0,0]}", (m, c) => {
   const name = String(c.name || fail("a family needs a name")).slice(0, 80); if (!Array.isArray(c.parts) || !c.parts.length) fail("parts: one or more geometry specs (box, extrude, revolve, sweep, opening, csg)");

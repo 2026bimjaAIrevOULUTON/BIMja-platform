@@ -613,3 +613,11 @@ Numbering: 5000 + 100 × discipline for services, 5500 coordinated, 5600 isometr
 ## Drafting engine (Nov 2026)
 `src/docs/draft.js` composes drafted plans (`sheet {kind: ga|elec|mech, zone}`) on paper at a fixed scale (1:100 default, ISO 5455 fallback): poché walls, door swings and marks, grids with bubbles, dimension chains, tagged equipment, services as single lines with size and CL level, busway and tray, legend, general notes, key plan and (E) a typical single-line diagram. A label placer refuses overlaps; every `drawing` returns `qa {overlaps, missing, small, tags}`. The data centre pilot issues 12 drafted sheets (4 halls × GA/E/M), all at 1:100 on A0 with 0 overlaps (asserted in `tests/datacentre.mjs`).
 Not yet redone to this standard: roof plan, sections/elevations, fire/plumbing sheets, the older auto packs; IFC export does not yet carry grids.
+
+## Data hall rebuild from published reference designs (Nov 2026)
+The pilot's halls were re-planned from a study of published GB300 / AI data-hall designs (NVIDIA DSX and SuperPOD, Vertiv RD027–030, Schneider RD108/RD101, OCP ODC 0.7, CEA draft 2022): report `reports/AI data hall drawing study.md` (outside the repo).
+- Each hall is single-bank: electrical gallery (28 line rooms, 4N/3 power, 7 blocks × A–D) south, data hall in the middle (14 pods of 2 × 8 GB300 NVL72 + 2 network racks per row, 7.3 m pitch, contained hot aisle), mechanical gallery (28 CDUs 1 + 1 per pod, 15 fan walls) north; south service block and north back-of-house with dock; transformer / generator yards and a 33 kV substation to the south.
+- Busways 4 × 800 A per row; TCS DN200, FWS DN700, CHW DN400 sized from flow (1.5 L/min/kW, ≤ 2.1 m/s); roof: 22 adiabatic dry coolers + 6 chillers.
+- Drafting engine: sheet parts (`zone {parent}`) with clipping and matchlines, a `roof` plan kind, overhead containment as hidden lines, grouped busway labels, "TYP." labels, room names kept inside their rooms, and project notes / a 4-source SLD from `drawing_setup {notes, sld}`.
+- Hall A issues 8 sheets at 1:100 on A0 (HA1/HA2 × GA, E, M, roof), all with 0 overlaps and no missing labels (tests/datacentre.mjs).
+Still assumed: NBC 2016 egress distances, dry-cooler duty at Hyderabad conditions, room sizes, transformer spacing. Not yet drawn: yard layout, per-block SLD sheets, sections, fire/sprinkler plans.
