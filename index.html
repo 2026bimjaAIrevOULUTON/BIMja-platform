@@ -34,20 +34,36 @@
     <label class="btn primary">Open IFC<input type="file" id="file" accept=".ifc" hidden></label>
   </div>
 </header>
+<div id="stageBar" role="navigation" aria-label="Delivery progress"></div>
 <main id="app">
-  <nav id="tabs" class="rail" aria-label="Workspaces">
-    <button data-tab="model" class="on" title="Model"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l8-4 8 4v8l-8 4-8-4zM4 8l8 4 8-4M12 12v8"/></svg><span>Model</span></button>
-    <button data-tab="site" title="Site and survey"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 19l5-8 4 5 3-4 6 7zM3 21h18"/></svg><span>Site</span></button>
-    <button data-tab="create" title="Create"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13 7l4 4"/></svg><span>Create</span></button>
-    <button data-tab="check" title="Handover check"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10M4 4h9M4 20h16"/></svg><span>Check</span></button>
-    <button data-tab="coord" title="Coordination"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4v10M16 10v10M4 8h8M12 16h8M14 4l-4 4M10 20l4-4"/></svg><span>Clash</span></button>
-    <button data-tab="4d" title="4D schedule"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h6M17 14v6M14 17h6"/></svg><span>4D</span></button>
-    <button data-tab="qto" title="5D: quantities and cost"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12M6 9h12M9 9c3 0 5 2 5 4s-2 3-5 3l7 5M6 14h3"/></svg><span>5D</span></button>
-    <button data-tab="docs" title="Drawings and deliverables"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h10l4 4v14H5zM15 3v4h4M8 12h8M8 16h5"/></svg><span>Drawings</span></button>
-    <button data-tab="twin" title="Geo and twin"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6-7-11a7 7 0 0114 0c0 5-7 11-7 11zM12 12a2 2 0 100-4 2 2 0 000 4z"/></svg><span>Twin</span></button>
+  <nav id="tabs" class="rail" aria-label="Delivery stages">
+    <button data-stage="brief" title="Brief: Project, team and information requirements"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l3 3v15H6zM9 9h6M9 13h6M9 17h4"/></svg><span>Brief</span><i class="st" data-st="brief"></i></button>
+    <button data-stage="site" title="Site: Survey, location, city context and climate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 19l5-8 4 5 3-4 6 7zM3 21h18"/></svg><span>Site</span><i class="st" data-st="site"></i></button>
+    <button data-stage="design" class="on" title="Design: Model by discipline"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l8-4 8 4v8l-8 4-8-4zM4 8l8 4 8-4M12 12v8"/></svg><span>Design</span><i class="st" data-st="design"></i></button>
+    <button data-stage="coordinate" title="Coordinate: Federation, clashes and issues"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4v10M16 10v10M4 8h8M12 16h8M14 4l-4 4M10 20l4-4"/></svg><span>Coordinate</span><i class="st" data-st="coordinate"></i></button>
+    <button data-stage="document" title="Document: Drawing packs and deliverables"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h10l4 4v14H5zM15 3v4h4M8 12h8M8 16h5"/></svg><span>Document</span><i class="st" data-st="document"></i></button>
+    <button data-stage="construct" title="Construct: 4D sequence and 5D cost"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h6M17 14v6M14 17h6"/></svg><span>Construct</span><i class="st" data-st="construct"></i></button>
+    <button data-stage="handover" title="Handover: Asset data, O&M and the live twin"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10M4 4h9M4 20h16"/></svg><span>Handover</span><i class="st" data-st="handover"></i></button>
+    <span class="rail-gap"></span>
     <button data-tab="log" id="logTab" title="Activity"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v5l3 3M12 21a9 9 0 110-18 9 9 0 010 18z"/></svg><span>Activity</span><span id="propCount" class="badge" hidden></span></button>
   </nav>
   <section id="panel">
+    <div id="stageHead"><div id="stageTitle"></div><div id="subtabs" role="tablist"><button data-tab="model" class="on">Model</button><button data-tab="create">Create</button><button data-tab="site">Survey and terrain</button><button data-tab="twin">Location, context and climate</button><button data-tab="coord">Clash and federation</button><button data-tab="check">Asset data</button><button data-tab="4d">4D</button><button data-tab="qto">5D</button><button data-tab="docs">Drawings</button><button data-tab="brief">Brief</button><button data-tab="ops">Live twin</button></div></div>
+    <div data-pane="brief" class="pane">
+      <h2 class="pane-title">Brief</h2>
+      <div class="row"><input id="briefName" placeholder="Project name"><input id="briefClient" placeholder="Client"></div>
+      <div class="row"><select id="briefType"></select><select id="briefLod"><option value="">LOD target</option><option>200</option><option>300</option><option selected>350</option><option>400</option><option>500</option></select><button class="btn primary" id="briefSave">Save brief</button></div>
+      <h4 class="sec">Delivery team</h4>
+      <div class="note">The Planner assembles the team from the project type: a lead agent for every stage, the Architect's design team, and the specialists this type needs.</div>
+      <div class="row"><select id="teamAddRole"></select><button class="btn" id="teamAdd">Add role</button><button class="btn primary" id="teamAssemble">Assemble team</button></div>
+      <div id="teamList"></div>
+      <h4 class="sec">Responsibility matrix</h4>
+      <div id="raci" class="raci"></div>
+      <h4 class="sec">Run the delivery</h4>
+      <div class="note" id="runNote">Pick a sample landmark: the team takes it from brief to handover, each agent working its own stage and discipline at the same time.</div>
+      <div class="row"><select id="runLandmark"><option value="taj">Taj Mahal</option><option value="burj">Burj Khalifa</option><option value="pisa">Leaning Tower of Pisa</option><option value="fallingwater">Fallingwater</option><option value="vitra">Vitra Fire Station</option></select><button class="btn primary" id="runDelivery">Run with the team</button></div>
+      <div id="runStatus" class="note"></div>
+    </div>
     <div data-pane="model" class="pane on">
       <h2 class="pane-title">Model</h2>
       <div class="meta" id="meta">No model loaded.</div>
@@ -109,7 +125,7 @@
     <div data-pane="log" class="pane">
       <h2 class="pane-title">Activity</h2>
       <div id="proposals"></div>
-      <div class="row"><button class="btn" id="exportLog">Export log</button></div>
+      <div class="row"><select id="logAgent" title="Show one agent"><option value="">Everyone</option></select><button class="btn" id="exportLog">Export log</button></div>
       <div id="log"></div>
     </div>
     <div data-pane="check" class="pane">
@@ -189,7 +205,7 @@
       <div id="registerList"></div>
     </div>
     <div data-pane="twin" class="pane">
-      <h2 class="pane-title">Location and simulation twin</h2>
+      <h2 class="pane-title">Location, context and climate</h2>
       <h4 class="sec">Location</h4>
       <div class="row"><input id="locLat" placeholder="lat (or paste lat, lon)" style="flex:1"><input id="locLon" placeholder="lon" style="flex:1"></div>
       <div class="row"><input id="locTz" placeholder="UTC offset h" title="Standard time offset from UTC, hours" style="width:96px"><input id="locOrient" placeholder="orient °" title="Building turned anticlockwise from true north, degrees" style="width:80px"><input id="locH" placeholder="ground m" title="Ground level above sea level, metres" style="width:80px"><button class="btn primary" id="geoLocate">Locate</button></div>
@@ -218,6 +234,9 @@
       <div class="row"><input id="overlayUrl" placeholder="GeoJSON / ArcGIS REST (f=geojson) URL"><button class="btn" id="addOverlay">Overlay</button></div>
       <canvas id="twinMap"></canvas>
       </details>
+    </div>
+    <div data-pane="ops" class="pane">
+      <h2 class="pane-title">Live twin</h2>
       <h4 class="sec">Live data at the site</h4>
       <div class="row"><label class="chk"><input type="checkbox" id="liveWeather"> Weather and wind</label><label class="chk"><input type="checkbox" id="liveAir"> Air quality</label><label class="chk"><input type="checkbox" id="liveQuakes"> Earthquakes</label></div>
       <div id="liveCards" class="livecards"></div>
@@ -231,6 +250,8 @@
       <div class="row"><input type="range" id="twinScrub" min="0" max="0" value="0" style="flex:1"><span class="note" id="twinScrubLabel"></span><button class="btn" id="twinHistory" title="Readings kept in this browser across reloads">History CSV</button></div>
       <h4 class="sec">Alerts</h4>
       <div id="alertList"></div>
+      <h4 class="sec">Handover</h4>
+      <div class="row"><button class="btn" id="handoverMark">Mark handed over</button></div>
     </div>
   </section>
   <div id="center">

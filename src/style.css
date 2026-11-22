@@ -1,13 +1,13 @@
-/* BIMja UI. Tokens first: warm graphite chrome, a mid-grey viewport, one accent for primary actions only.
+/* BIMja UI. Tokens first: BIMja black chrome, a dark viewport, BIMja crimson for primary actions and the active stage only.
    Selection, agents and status each get their own colour so they never get confused with "click me". */
 :root{
-  --bg:#16171a; --panel:#1c1d21; --raised:#24252a; --sunk:#131416; --line:#2e3035; --line-2:#3c3e44;
-  --text:#ecebe7; --muted:#a3a19b; --faint:#706e69;
-  --accent:#ff8a3d; --accent-ink:#1a0f06;           /* primary actions only */
+  --bg:#0a0a0c; --panel:#111114; --raised:#19191d; --sunk:#060607; --line:#25252b; --line-2:#36363e;
+  --text:#f3f0ea; --muted:#a6a3a0; --faint:#6f6c6a;
+  --accent:#e63346; --accent-ink:#ffffff; --accent-soft:#2a0d12; --accent-line:#6e1c26; /* BIMja crimson: primary actions, active stage */
   --sel:#3aa0ff;                                      /* selection */
   --agent:#a98bff; --agent-bg:#1f1a33; --agent-line:#4a3d7a; /* anything an agent did or proposes */
-  --hi:#f0524f; --med:#e8b339; --low:#56c8e8; --ok:#46c37b;  /* status: clash/high, warning, info, done */
-  --view:#3a3d42;
+  --hi:#ff6b57; --med:#e8b339; --low:#56c8e8; --ok:#46c37b;  /* status: clash/high, warning, info, done */
+  --view:#1f2024;
   --r:8px; --r-lg:12px;
   --rail:68px; --panel-w:340px; --insp-w:300px;
   --font:Inter,"Inter var",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
@@ -40,7 +40,7 @@ code,kbd{font-family:var(--mono);font-size:11.5px}
 .btn.icon{width:30px;padding:0}.btn.icon svg{width:16px;height:16px}
 .btn.on{border-color:var(--sel);color:#cfe6ff;background:#16263a}
 .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:650}
-.btn.primary:hover{background:#ff9a57}
+.btn.primary:hover{background:#ff4b5e}
 .btn.mini{min-height:22px;padding:1px 8px;font-size:12px;margin-left:6px}
 .btn.agents{border-color:var(--agent-line);color:#d9ccff;background:var(--agent-bg)}
 .btn.agents::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--agent)}
@@ -205,7 +205,7 @@ th{color:var(--muted);font-weight:500}tr.click{cursor:pointer}tr.click:hover{bac
 .legend span { display: inline-block; width: 120px; height: 10px; border-radius: 3px; }
 details.adv { margin-top: 12px; } details.adv summary { cursor: pointer; color: var(--muted, #9aa3ad); font-size: 12px; padding: 6px 0; }
 label.chk { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; }
-#simSun.on { background: var(--accent, #ff8a3d); color: #111; }
+#simSun.on { background: var(--accent); color: var(--accent-ink); }
 #locInfo a, .pane a { color: #7cc0ff; }
 
 #layerList { display: grid; gap: 2px; margin: 4px 0 10px; } label.lay { font-size: 12px; } label.lay .num { margin-left: auto; color: var(--muted, #9aa3ad); }
@@ -213,3 +213,38 @@ label.chk { display: inline-flex; gap: 6px; align-items: center; font-size: 12px
 .livecards { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 6px 0; }
 .livecard { background: #ffffff08; border: 1px solid #ffffff14; border-radius: 6px; padding: 6px 8px; font-size: 12px; }
 .livecard b { display: block; font-size: 18px; color: #f3f0ea; } .livecard .k { color: var(--muted, #9aa3ad); }
+
+/* ---------- delivery stages ---------- */
+#stageBar{flex:none;display:flex;gap:2px;padding:0 10px;height:30px;align-items:center;border-bottom:1px solid var(--line);background:var(--bg);overflow-x:auto}
+#stageBar button{flex:1;min-width:92px;display:flex;align-items:center;gap:7px;height:22px;padding:0 10px;background:none;border:0;color:var(--muted);font:inherit;font-size:11.5px;cursor:pointer;position:relative;white-space:nowrap}
+#stageBar button::after{content:"";position:absolute;left:4px;right:4px;bottom:-4px;height:3px;border-radius:2px;background:var(--line)}
+#stageBar button[data-status=in_progress]::after{background:linear-gradient(90deg,var(--accent) 50%,var(--line) 50%)}
+#stageBar button[data-status=done]::after{background:var(--accent)}
+#stageBar button.on{color:var(--text)}
+#stageBar b{font-weight:600}#stageBar small{color:var(--faint)}
+.rail .rail-gap{flex:1}
+.rail button i.st{position:absolute;top:6px;right:10px;width:6px;height:6px;border-radius:50%;background:transparent}
+.rail button i.st[data-status=in_progress]{background:transparent;box-shadow:inset 0 0 0 1.5px var(--accent)}
+.rail button i.st[data-status=done]{background:var(--accent)}
+#stageHead{margin:-2px 0 10px}
+#stageTitle{font-size:11px;letter-spacing:.06em;color:var(--accent);font-weight:700;margin-bottom:6px}
+#subtabs{display:flex;gap:4px;flex-wrap:wrap}
+#subtabs button{background:var(--sunk);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:3px 11px;font:inherit;font-size:12px;cursor:pointer}
+#subtabs button.on{background:var(--accent-soft);border-color:var(--accent-line);color:var(--text)}
+/* team */
+.member{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;font-size:12.5px}
+.member:hover{background:var(--raised)}
+.member .dot{width:9px;height:9px;border-radius:50%;background:var(--who);flex:none;box-shadow:0 0 8px var(--who)}
+.member .t{flex:1}.member .t small{display:block;color:var(--faint);font-size:11px}
+.member.sub{padding-left:22px}.member.sub2{padding-left:38px}
+.member .x{opacity:0;cursor:pointer;color:var(--faint);background:none;border:0;font:inherit}.member:hover .x{opacity:1}
+.member .busy{font-size:10.5px;color:var(--who)}
+.team-stage{font-size:10.5px;letter-spacing:.05em;color:var(--faint);margin:8px 0 2px;text-transform:none}
+.raci{overflow-x:auto}.raci table{border-collapse:collapse;font-size:11px}.raci th,.raci td{border:1px solid var(--line);padding:3px 5px;text-align:center}
+.raci th{writing-mode:vertical-rl;transform:rotate(180deg);font-weight:500;color:var(--muted);height:110px}.raci td:first-child{text-align:left;min-width:150px}
+.raci td.R{background:var(--accent-soft);color:#ff9aa5;font-weight:700}.raci td.A{color:var(--text);font-weight:700}.raci td.C{color:var(--muted)}
+.who-chip{display:inline-block;padding:0 6px;border-radius:999px;font-size:11px;font-weight:600;color:#0a0a0c;background:var(--who)}
+.ghost-cursor.team{background:var(--who);color:#0a0a0c}
+.ghost-cursor.team::before{content:"";position:absolute;left:50%;bottom:-6px;width:0;height:0;border:5px solid transparent;border-top-color:var(--who);transform:translateX(-50%)}
+@media (max-width:760px){#stageBar{display:none}.rail .rail-gap{display:none}}
+.member .num{font-size:10px;color:var(--faint);border:1px solid var(--line-2);border-radius:4px;padding:0 4px;margin-left:4px}

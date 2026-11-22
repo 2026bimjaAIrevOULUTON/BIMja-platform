@@ -71,7 +71,10 @@ export function initSessionUI({ bus, viewer, run, toast, download, onAuthoredCha
       <code class="args">${esc(JSON.stringify(p.cmd.args).slice(0, 220))}</code>
       <div class="note">${p.diff.added.length + p.diff.modified.length + p.diff.removed.length ? `Adds ${p.diff.added.length} · changes ${p.diff.modified.length} · removes ${p.diff.removed.length} elements` : "No element changes (schedule, cost or settings data)"}. Nothing changes until you apply.</div>
       <div class="row"><button class="btn primary" data-apply="${p.id}">Apply</button><button class="btn" data-reject="${p.id}">Reject</button></div></div>`).join("");
-    $("#log").innerHTML = bus.log.slice(-200).reverse().map((e) => `<div class="logrow ${e.actor.startsWith("agent") ? "agent" : "human"}"><b>${esc(e.name)}</b> · ${esc(e.actor)}${e.approvedBy ? ` (applied by ${esc(e.approvedBy)})` : ""} <small>rev ${e.rev} · ${e.changed.length} changed</small><br><small>${esc(JSON.stringify(e.args).slice(0, 200))}</small></div>`).join("") || `<p class="note">No changes yet.</p>`;
+    const who = $("#logAgent")?.value || ""; const team = bus.extra.team?.members || [];
+    if ($("#logAgent") && $("#logAgent").dataset.n !== String(team.length)) { $("#logAgent").dataset.n = team.length; $("#logAgent").innerHTML = `<option value="">Everyone</option><option value="human">People</option>${team.map((m) => `<option value="${esc(m.actor)}">${esc(m.title)}</option>`).join("")}`; $("#logAgent").value = who; }
+    const label = (a) => { const m = member(a); return m ? `<span class="who-chip" style="--who:${esc(m.colour)}">${esc(m.title)}</span>` : esc(a); };
+    $("#log").innerHTML = bus.log.filter((e) => !who || e.actor === who).slice(-200).reverse().map((e) => `<div class="logrow ${e.actor.startsWith("agent") ? "agent" : "human"}"><b>${esc(e.name)}</b> · ${label(e.actor)}${e.approvedBy ? ` (applied by ${esc(e.approvedBy)})` : ""} <small>rev ${e.rev} · ${e.changed.length} changed</small><br><small>${esc(JSON.stringify(e.args).slice(0, 200))}</small></div>`).join("") || `<p class="note">No changes yet.</p>`;
     $("#rev").textContent = `rev ${bus.rev}`;
     $("#pauseAgents").textContent = bus.paused ? "Agents: paused" : "Agents: on"; $("#pauseAgents").classList.toggle("on", bus.paused);
   };
@@ -79,14 +82,16 @@ export function initSessionUI({ bus, viewer, run, toast, download, onAuthoredCha
     const a = e.target.closest("[data-apply]"), r = e.target.closest("[data-reject]");
     if (a) run("apply_proposal", { id: a.dataset.apply }); if (r) run("reject_proposal", { id: r.dataset.reject });
   });
+  $("#logAgent").onchange = () => renderLog();
   $("#exportLog").onclick = () => download("bimja-log.json", JSON.stringify(bus.log, null, 1), "application/json");
 
-  // ---------- agent ghost cursors ----------
-  const ghosts = new Map();
+  // ---------- agent ghost cursors (one per team member, in its colour) ----------
+  const ghosts = new Map(); const member = (actor) => bus.extra.team?.members?.find((m) => m.actor === actor);
   function ghost(actor, ids) {
     const id = ids.find((x) => viewer.byId.has(x)); if (!id) return; const p = viewer.screenPos(id); if (!p) return;
     let el = ghosts.get(actor); if (!el) { el = document.createElement("div"); el.className = "ghost-cursor"; $("#ghosts").appendChild(el); ghosts.set(actor, el); }
-    el.textContent = actor.replace(/^agent:/, "🤖 "); el.style.left = `${p.x}px`; el.style.top = `${p.y}px`; el.style.opacity = 1;
+    const m = member(actor); el.textContent = m ? m.title : actor.replace(/^agent:/, ""); el.style.setProperty("--who", m?.colour || ""); el.classList.toggle("team", !!m);
+    el.style.left = `${p.x}px`; el.style.top = `${p.y}px`; el.style.opacity = 1;
     clearTimeout(el._t); el._t = setTimeout(() => (el.style.opacity = 0), 4000);
   }
 

@@ -10,7 +10,7 @@ export class Viewer {
     this.renderer.localClippingEnabled = true;
     container.appendChild(this.renderer.domElement);
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color("#3a3d42");
+    this.scene.background = new THREE.Color("#1f2024");
     this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 5000);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;

@@ -8,6 +8,7 @@ import { installDocsUI } from "./app/docs-ui.js";
 import { siteForIfc } from "./site/commands.js";
 import { installSiteUI } from "./app/site-ui.js";
 import { installSimUI } from "./app/sim-ui.js";
+import { installTeamUI } from "./app/team-ui.js";
 import { DEFAULT_RULES, runCheck, quantities, toCSV } from "./rules.js";
 import { Viewer } from "./viewer.js";
 import { REGISTRY } from "./commands/registry.js";
@@ -201,14 +202,31 @@ $("#showAll").onclick = () => { viewer.setVisible((u) => !u.isSpace || spaces); 
 $("#section").oninput = (e) => run("section", { height: +e.target.value });
 $("#shot").onclick = () => { if (embedded) return toast("Screenshots download from the GitHub/Cloudflare version"); const a = document.createElement("a"); a.href = viewer.screenshot(); a.download = `${stem()}.png`; a.click(); };
 document.body.dataset.ws = "model";
-$("#tabs").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return;
-  // clicking the open workspace again folds the panel away (more room for the model); any other opens it
-  if (e.isTrusted && b.classList.contains("on") && document.body.dataset.ws === b.dataset.tab) { document.body.classList.toggle("panel-off"); return; }
+// Delivery stages on the rail; each stage shows its workspaces as sub-tabs. Workspaces keep their data-tab ids, so
+// anything that opens a workspace (code, agents, tests) still works and lands in the right stage.
+const STAGE_TABS = { brief: ["brief"], site: ["twin", "site"], design: ["create", "model"], coordinate: ["coord"], document: ["docs"], construct: ["4d", "qto"], handover: ["check", "ops"] };
+const TAB_STAGE = Object.fromEntries(Object.entries(STAGE_TABS).flatMap(([st, tabs]) => tabs.map((t) => [t, st]))); TAB_STAGE.log = "activity";
+const STAGE_TITLE = { brief: "Brief", site: "Site", design: "Design", coordinate: "Coordinate", document: "Document", construct: "Construct", handover: "Handover", activity: "Activity" };
+const lastTab = {};
+function showTab(tab, trusted) {
+  const stage = TAB_STAGE[tab] || "design"; const b = document.querySelector(`#subtabs button[data-tab="${tab}"], #logTab`);
+  if (trusted && document.body.dataset.ws === tab && document.body.dataset.stage === stage && !document.body.classList.contains("panel-off") && tab === "log") { document.body.classList.toggle("panel-off"); return; }
   document.body.classList.remove("panel-off");
-  if (document.body.dataset.ws === "4d" && b.dataset.tab !== "4d" && timeUI.date) timeUI.off(); // the 4D view belongs to the 4D workspace
-  document.body.dataset.ws = b.dataset.tab; if (b.dataset.tab !== "docs") $("#sheetPreview").hidden = true;
-  document.querySelectorAll("#tabs button").forEach((x) => { x.classList.toggle("on", x === b); x.setAttribute("aria-current", x === b ? "page" : "false"); });
-  document.querySelectorAll(".pane").forEach((p) => p.classList.toggle("on", p.dataset.pane === b.dataset.tab)); });
+  if (document.body.dataset.ws === "4d" && tab !== "4d" && timeUI.date) timeUI.off(); // the 4D view belongs to the 4D workspace
+  document.body.dataset.ws = tab; document.body.dataset.stage = stage; lastTab[stage] = tab; if (tab !== "docs") $("#sheetPreview").hidden = true;
+  document.querySelectorAll("#tabs [data-stage]").forEach((x) => { const on = x.dataset.stage === stage; x.classList.toggle("on", on); x.setAttribute("aria-current", on ? "page" : "false"); });
+  $("#logTab").classList.toggle("on", tab === "log");
+  document.querySelectorAll("#subtabs button").forEach((x) => { x.hidden = TAB_STAGE[x.dataset.tab] !== stage; x.classList.toggle("on", x.dataset.tab === tab); });
+  $("#subtabs").hidden = (STAGE_TABS[stage] || []).length < 2; $("#stageTitle").textContent = STAGE_TITLE[stage];
+  document.querySelectorAll(".pane").forEach((p) => p.classList.toggle("on", p.dataset.pane === tab));
+}
+document.addEventListener("click", (e) => {
+  const st = e.target.closest("#tabs [data-stage]");
+  if (st) { const stage = st.dataset.stage; if (e.isTrusted && document.body.dataset.stage === stage && !document.body.classList.contains("panel-off")) { document.body.classList.toggle("panel-off"); return; } showTab(lastTab[stage] || STAGE_TABS[stage][0], e.isTrusted); return; }
+  const b = e.target.closest("button[data-tab]"); if (b) showTab(b.dataset.tab, e.isTrusted);
+});
+window.__bimjaShowStage = (stage) => showTab(lastTab[stage] || STAGE_TABS[stage][0]);
+showTab("model");
 $("#file").onchange = async (e) => { const f = e.target.files[0]; if (f) await loadBytes(await f.arrayBuffer(), f.name); e.target.value = ""; };
 async function buildLandmark(id) {
   const lp = landmarkProject(id); if (!lp) return;
@@ -344,6 +362,7 @@ $("#clashModel").onclick = async () => { $("#cmSummary").textContent = "Intersec
   $("#cmList").innerHTML = d.clashes.slice(0, 60).map((c, i) => `<div class="sheet-row" data-cm="${i}"><span class="grow"><b>${esc(c.a_name)}</b> × <b>${esc(c.b_name)}</b><br><span class="num">${c.a_discipline}/${c.b_discipline} · ${c.volume_m3} m³</span></span></div>`).join("");
   $("#cmList").onclick = (e) => { const row = e.target.closest("[data-cm]"); if (!row) return; const c = d.clashes[+row.dataset.cm]; selectAuthored(c.a, true); }; };
 const simUI = installSimUI({ bus, viewer, run, toast, rebuild: () => refreshAuthored() }); window.__bimjaSim = simUI;
+const teamUI = installTeamUI({ bus, run, toast, sim: simUI }); window.__bimjaTeam = teamUI;
 // window.bimja: one function per registered command (same names, args, refusals as MCP), plus run() and helpers
 window.bimja = { version: "0.3.0", run: (name, args, opts = {}) => run(name, args, { actor: "agent:console", ...opts }) };
 for (const r of REGISTRY) window.bimja[r.name] = (args = {}, opts = {}) => window.bimja.run(r.name, args, opts);

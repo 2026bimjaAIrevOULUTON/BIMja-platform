@@ -10,6 +10,7 @@ import { installCost } from "../cost/commands.js";
 import { installDocs } from "../docs/commands.js";
 import { installGeo } from "../geo/commands.js";
 import { installSimTwin } from "../twin/commands.js";
+import { installTeam } from "../agents/commands.js";
 import { clashModel } from "../coord/model-clash.js";
 import { installSite, siteForIfc } from "../site/commands.js";
 
@@ -57,6 +58,7 @@ export function installCore(bus) {
   installDocs(bus);
   installGeo(bus);
   installSimTwin(bus);
+  installTeam(bus);
   bus.register("clash_model", (a) => { const r = clashModel(bus.model, { a: a.a ?? "all", b: a.b ?? "all", min_volume_m3: a.min_volume_m3 ?? 0.001, ignore_same_discipline: !!a.ignore_same_discipline, ignore_same_class: !!a.ignore_same_class, limit: Math.min(2000, +a.limit || 200) }); bus.lastModelClash = r; return r; }, { kind: "read" });
   installSite(bus);
   return bus;
