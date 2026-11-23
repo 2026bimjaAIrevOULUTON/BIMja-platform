@@ -621,3 +621,9 @@ The pilot's halls were re-planned from a study of published GB300 / AI data-hall
 - Drafting engine: sheet parts (`zone {parent}`) with clipping and matchlines, a `roof` plan kind, overhead containment as hidden lines, grouped busway labels, "TYP." labels, room names kept inside their rooms, and project notes / a 4-source SLD from `drawing_setup {notes, sld}`.
 - Hall A issues 8 sheets at 1:100 on A0 (HA1/HA2 × GA, E, M, roof), all with 0 overlaps and no missing labels (tests/datacentre.mjs).
 Still assumed: NBC 2016 egress distances, dry-cooler duty at Hyderabad conditions, room sizes, transformer spacing. Not yet drawn: yard layout, per-block SLD sheets, sections, fire/sprinkler plans.
+
+## Pilot drawing set completed (Nov 2026)
+`dcStages()` now issues 46 sheets: drawing register, site plan (1:1000), Hall A at 1:100 in two parts (GA, electrical, mechanical, roof, fire and sprinkler), Hall A yards (1:200), sections A-A (1:100) and B-B (1:200), seven power-block single lines (4N/3, with line-load tables), and GA / E / M / roof plans for halls B–D.
+New drafting: `src/docs/draft2.js` (`block_sld`, `hall_section` with `cut {axis, at, look, depth, from, to, name}`, `site_plan`), `fire_plan` kind in draft.js (rated walls, FD ratings, exits, sprinklers), yard fire walls and roads, `drawing_setup {notes: {…, F}}`. Pre-action sprinklers are modelled (valve set, DN150 main, DN50 branches).
+QA: every scaled sheet has 0 overlapping labels and nothing unplaced (tests/datacentre.mjs).
+Still open: section markers on the plans, P&ID, equipment schedules by hall, a re-recorded build video.

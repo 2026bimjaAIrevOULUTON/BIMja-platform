@@ -27,7 +27,7 @@ assert.equal(fam("CG Power 63 MVA 220/33 kV transformer"), 4, "3 + 1 grid transf
 const famDef = L.model.data.families["NVIDIA GB300 NVL72 rack"];
 assert.equal(famDef.parameters.Nameplate_kW, 136); assert.equal(famDef.parameters.LOD, 400); assert.match(famDef.parameters.AsBuiltStatus, /not field-verified/);
 const itMW = 896 * famDef.parameters.Nameplate_kW / 1000; assert.ok(itMW > 120 && itMW < 123, `IT nameplate ${itMW} MW`);
-assert.equal(L.model.data.zones.length, 14, "four halls (each with two sheet parts), substation, utilities");
+assert.equal(L.model.data.zones.length, 18, "four halls (each with two plan parts and a yard), substation, utilities");
 // planning rules: ≤ 8 GPU racks per row, 7.3 m pod pitch, 4 × 800 A busways per row
 const gpuRows = {}; for (const e of els.filter((e) => e.family === "NVIDIA GB300 NVL72 rack")) { const k = e.mark.replace(/-\d+$/, ""); gpuRows[k] = (gpuRows[k] || 0) + 1; }
 assert.equal(Object.keys(gpuRows).length, 112, "28 rows per hall"); assert.ok(Object.values(gpuRows).every((n) => n === 8), "8 GPU racks per row");
@@ -48,18 +48,27 @@ assert.match(ifcM, /Mechanical model/); assert.match(ifcM, /IFCHEATEXCHANGER/); 
 assert.match(ifcAll, /IFCMAPCONVERSION/, "georeferenced at Shadnagar"); assert.equal(rd("export_ifc", { discipline: "X" }).ok, false);
 
 // drafted sheets: per hall GA, electrical and mechanical at 1:100 on A0, every label placed, none overlapping
-const sheets = L.extra.docs.sheets; const drafted = sheets.filter((s) => ["ga", "elec", "mech", "roof"].includes(s.kind));
-assert.equal(drafted.length, 8, "Hall A, two parts × GA, electrical, mechanical, roof");
+const sheets = L.extra.docs.sheets; const drafted = sheets.filter((s) => ["ga", "elec", "mech", "roof", "fire_plan"].includes(s.kind) && /^H[A-D][12]$/.test(s.zone));
+assert.equal(drafted.length, 34, "Hall A: two parts × GA, E, M, roof, fire; halls B–D: two parts × GA, E, M, roof");
 for (const s of drafted) { const d = rd("drawing", { sheet: s.id, format: "svg" }); assert.ok(d.ok, JSON.stringify(d.refusals));
   assert.equal(d.data.scale, 100, `${s.title} at 1:100`); assert.equal(d.data.paper, "A0");
   assert.equal(d.data.qa.overlaps, 0, `${s.title}: overlapping labels ${JSON.stringify(d.data.qa.overlap_pairs)}`); assert.deepEqual(d.data.qa.missing, [], `${s.title}: labels that found no place`); assert.deepEqual(d.data.qa.small, [], `${s.title}: text under 1.8 mm`);
-  assert.match(d.data.number.container, new RegExp(`^HSD-BJA-${s.zone}-${s.kind === "roof" ? "RF" : "00"}-DR-${{ ga: "A", elec: "E", mech: "M", roof: "M" }[s.kind]}-`));
-  const svg = d.data.svg; const g = s.zone === "HA1" ? ["1", "10", "A", "G"] : ["11", "20", "A", "G"]; for (const n of g) assert.match(svg, new RegExp(`>${n}</text>`), `grid bubble ${n}`);
-  assert.match(svg, />7300</, "grid dimension chain"); assert.match(svg, />LEGEND</); assert.match(svg, />GENERAL NOTES</); assert.match(svg, />KEY PLAN</); assert.match(svg, /MATCHLINE — SEE HALL A PART [12]/);
-  if (s.kind === "elec") { assert.match(svg, /BW-A\d\d 4×800A BUSWAY/); assert.match(svg, /4N\/3, LINES A–D/); assert.match(svg, /A-UPS-L\d[A-D]/); assert.match(svg, /LADDER BOT \+4\.70/); }
-  if (s.kind === "mech") { assert.match(svg, /A-CDU-P\d\d[AB]/); assert.match(svg, /TCS-AP\d\d DN200 +CL \+2\.[67]0/); assert.match(svg, /FWS-S-A DN700/); assert.doesNotMatch(svg, /CL \+(9|10)\.\d0/, "roof-level runs are not on the ground plan"); }
-  if (s.kind === "roof") { assert.match(svg, /A-(DC|CH)-\d\d/); assert.match(svg, /CL \+(9\.90|10\.90)/); assert.doesNotMatch(svg, /A-CDU-P/, "ground-floor plant stays off the roof plan"); }
-  if (s.kind === "ga") { assert.match(svg, /DATA HALL/); assert.match(svg, /LINE ROOM/); assert.match(svg, /A-D\d{3}/, "door marks"); assert.match(svg, /ROW A\d\d · 8 × NVL72/); } }
+  assert.match(d.data.number.container, new RegExp(`^HSD-BJA-${s.zone}-${s.kind === "roof" ? "RF" : "00"}-DR-${{ ga: "A", elec: "E", mech: "M", roof: "M", fire_plan: "F" }[s.kind]}-`));
+  const svg = d.data.svg; const K = s.zone[1]; const g = s.zone.endsWith("1") ? ["1", "10", "A", "G"] : ["11", "20", "A", "G"]; for (const n of g) assert.match(svg, new RegExp(`>${n}</text>`), `grid bubble ${n}`);
+  assert.match(svg, />7300</, "grid dimension chain"); assert.match(svg, />LEGEND</); assert.match(svg, />GENERAL NOTES</); assert.match(svg, />KEY PLAN</); assert.match(svg, new RegExp(`MATCHLINE — SEE HALL ${K} PART [12]`));
+  if (s.kind === "elec") { assert.match(svg, new RegExp(`BW-${K}\\d\\d 4×800A BUSWAY`)); assert.match(svg, /4N\/3, LINES A–D/); assert.match(svg, new RegExp(`${K}-UPS-L\\d[A-D]`)); assert.match(svg, /LADDER BOT \+4\.70/); }
+  if (s.kind === "mech") { assert.match(svg, new RegExp(`${K}-CDU-P\\d\\d[AB]`)); assert.match(svg, new RegExp(`TCS-${K}P\\d\\d DN200 +CL \\+2\\.[67]0`)); assert.match(svg, new RegExp(`FWS-S-${K} DN700`)); assert.doesNotMatch(svg, /CL \+(9|10)\.\d0/, "roof-level runs are not on the ground plan"); }
+  if (s.kind === "roof") { assert.match(svg, new RegExp(`${K}-(DC|CH)-\\d\\d`)); assert.match(svg, /CL \+(9\.90|10\.90)/); assert.doesNotMatch(svg, /-CDU-P/, "ground-floor plant stays off the roof plan"); }
+  if (s.kind === "fire_plan") { assert.match(svg, /FD120/); assert.match(svg, />EXIT</); assert.match(svg, /SPR-A DN150/); }
+  if (s.kind === "ga") { assert.match(svg, /DATA HALL/); assert.match(svg, /LINE ROOM/); assert.match(svg, new RegExp(`${K}-D\\d{3}`), "door marks"); assert.match(svg, new RegExp(`ROW ${K}\\d\\d · 8 × NVL72`)); } }
+// the rest of the set: yard plan, sections, site plan (placed labels, no overlaps) and the seven block single lines
+for (const s of sheets.filter((s) => s.zone === "HAY" || ["hall_section", "site_plan"].includes(s.kind))) { const d = rd("drawing", { sheet: s.id, format: "svg" }); assert.ok(d.ok, JSON.stringify(d.refusals));
+  assert.equal(d.data.qa.overlaps, 0, `${s.title}: ${JSON.stringify(d.data.qa.overlap_pairs)}`); assert.deepEqual(d.data.qa.missing, [], `${s.title}: labels that found no place`);
+  if (s.kind === "hall_section") { assert.match(d.data.svg, /SECTION [AB]-[AB]/); assert.match(d.data.svg, /\+0\.00 FFL/); assert.match(d.data.svg, /PLENUM \/ TOP OF CONTAINMENT/); }
+  if (s.zone === "HAY") { assert.equal(d.data.scale, 200); assert.match(d.data.svg, /A-GEN-L7D/); assert.match(d.data.svg, /A-TX-L1A/); }
+  if (s.kind === "site_plan") { assert.match(d.data.svg, /HA — HALL A/); assert.match(d.data.svg, /520 m/); } }
+const slds = sheets.filter((s) => s.kind === "block_sld"); assert.equal(slds.length, 7, "one single line per power block");
+{ const d = rd("drawing", { sheet: slds[6].id, format: "svg" }).data; assert.ok(d.nts); assert.match(d.svg, /POWER BLOCK B7/); for (const t of ["A-TX-L7A", "A-GEN-L7D", "A-UPS-L7B", "A-OB-L7C", "ROW A25", "ROW A28"]) assert.match(d.svg, new RegExp(t)); assert.match(d.svg, />1488</, "line load with one line out"); }
 const gaA = drafted.find((s) => s.zone === "HA1" && s.kind === "ga"); const dxf = rd("drawing", { sheet: gaA.id, format: "dxf" }).data.dxf; assert.match(dxf, /CENTER/); assert.doesNotMatch(dxf, /BJ-MASK/, "label wipeouts stay out of CAD");
 assert.equal(L.model.data.grids.filter((g) => g.zone === "HA").length, 27, "20 numbered + 7 lettered grid lines per hall");
 assert.ok(L.model.elements.filter((e) => e.kind === "door").length > 4 * 100, "doors to every line room, battery room and exit");

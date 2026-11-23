@@ -30,7 +30,7 @@ export function installDocsUI({ bus, run, toast, download, downloadBlob }) {
   $("#sheetsAuto").onclick = async () => { const r = await run("sheets_auto", {}); if (r.ok) { toast(`${r.data.sheets} sheets created`); await render(); const first = document.querySelector("[data-sheet]:nth-child(2)") || document.querySelector("[data-sheet]"); if (first) preview(first.dataset.sheet); } };
   const zones = () => { const sel = $("#sheetZone"); const cur = sel.value; sel.innerHTML = '<option value="">Whole site</option>' + (bus.model.data.zones || []).map((z) => `<option value="${z.code}">${z.name.replace(/[<>&"]/g, "")}</option>`).join(""); sel.value = cur; };
   $("#sheetKind").onfocus = zones; $("#sheetZone").onfocus = zones;
-  $("#sheetAdd").onclick = async () => { const k = $("#sheetKind").value; const cut = $("#sheetCut").value; const z = $("#sheetZone").value; const drafted = ["ga", "elec", "mech", "roof"].includes(k);
+  $("#sheetAdd").onclick = async () => { const k = $("#sheetKind").value; const cut = $("#sheetCut").value; const z = $("#sheetZone").value; const drafted = ["ga", "elec", "mech", "roof", "fire_plan", "block_sld", "hall_section"].includes(k);
     const r = await run("sheet", { kind: k, ...(drafted && z ? { zone: z } : {}), ...(k === "plan" && cut ? { cut_z: +cut, title: `Plan at +${(+cut / 1000).toFixed(2)} m` } : {}) }); if (r.ok) { await render(); preview(r.data.id); } else toast(r.refusals?.[0]?.message || "Could not add the sheet"); };
   $("#publishBtn").onclick = async () => { toast("Publishing… drawing every sheet"); const r = await run("publish", { status: $("#publishStatus").value, date: today() });
     if (!r.ok) return toast(r.refusals?.[0]?.message || "Publish failed");

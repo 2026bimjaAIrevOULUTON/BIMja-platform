@@ -1,6 +1,7 @@
 // Drawing standards, ISO 19650 information-container naming and status codes, and sheet composition:
 // views are scaled into the drawing area with titles, dimensions and a standard title block.
 // Paper coordinates: millimetres, origin bottom-left, y up.
+import { draftBlockSLD, draftSection, draftSite } from "./draft2.js";
 import { planView, elevationView, sectionView, sitePlanView, siteSectionView, isoView } from "./views.js";
 import { schedule } from "../author/model.js";
 import { servicePlan, coordinatedPlan, pipingIso, spoolSheet, penetrations, bwicPlan, plantRoom, containment, whitespace, fireStrategy, schematic, equipmentRows } from "./services.js";
@@ -46,9 +47,9 @@ const levelCode = (model, levelId) => { if (!levelId) return "ZZ"; const ls = [.
 /** ISO 19650 container name, and the sheet number the chosen convention shows big in the title block. */
 export function sheetNumber(docs, model, sh) {
   const typeCode = ["schedule", "register", "equipment"].includes(sh.kind) ? "SH" : sh.kind === "sld" ? "DR" : "DR";
-  const series = { register: 0, site: 100, site_section: 150, plan: 1000, elevations: 2000, sections: 3000, isometric: 4000, service: 5000 + 100 * (" MEPF".indexOf(sh.discipline || " ")), coordinated: 5500, piping_iso: 5600, spool: 5700, bwic: 5800, plant: 5900, schedule: 6000, containment: 6100, sld: 6200, whitespace: 6300, equipment: 6400, fire: 7000, ga: 1100, mech: 5150, elec: 5250, roof: 1300 }[sh.kind] ?? 9000;
+  const series = { register: 0, site: 100, site_section: 150, plan: 1000, elevations: 2000, sections: 3000, isometric: 4000, service: 5000 + 100 * (" MEPF".indexOf(sh.discipline || " ")), coordinated: 5500, piping_iso: 5600, spool: 5700, bwic: 5800, plant: 5900, schedule: 6000, containment: 6100, sld: 6200, whitespace: 6300, equipment: 6400, fire: 7000, ga: 1100, mech: 5150, elec: 5250, roof: 1300, fire_plan: 1500, block_sld: 6010, hall_section: 3000, site_plan: 1000 }[sh.kind] ?? 9000;
   const num = String(series + (sh.seq || 1)).padStart(4, "0");
-  const container = [docs.project_code, docs.originator, sh.zone || docs.volume, sh.kind === "plan" ? levelCode(model, sh.level) : sh.kind === "roof" ? "RF" : ["ga", "elec", "mech"].includes(sh.kind) ? "00" : "ZZ", typeCode, sh.role || docs.role, num].join("-");
+  const container = [docs.project_code, docs.originator, sh.zone || docs.volume, sh.kind === "plan" ? levelCode(model, sh.level) : sh.kind === "roof" ? "RF" : ["ga", "elec", "mech", "fire_plan"].includes(sh.kind) ? "00" : "ZZ", typeCode, sh.role || docs.role, num].join("-");
   if (docs.standard === "us-ncs") { const t = { register: "G-00", site: "C-10", site_section: "C-30", plan: "A-10", elevations: "A-20", sections: "A-30", isometric: "A-40", schedule: "A-60" }[sh.kind] || "A-90"; return { container, shown: `${t}${sh.seq || 1}` }; }
   if (docs.standard === "is-nbc") return { container, shown: `${sh.kind === "register" ? "G" : "A"}/${String(series / 1000 + (sh.seq || 1) / 100).replace(".", "").padStart(3, "0")}` };
   return { container, shown: container };
@@ -102,7 +103,7 @@ export function composeSheet(model, docs, sh, opts = {}) {
     const a1 = composeOn(model, docs, sh, opts, "A1", views), a0 = composeOn(model, docs, sh, opts, "A0", views);
     return a0.scale < a1.scale ? a0 : a1;
   }
-  if (DRAFT_KINDS[sh.kind]) return composeOn(model, docs, sh, opts, sh.paper || "A0");
+  if (DRAFT_KINDS[sh.kind] || ["block_sld", "hall_section", "site_plan"].includes(sh.kind)) return composeOn(model, docs, sh, opts, sh.paper || (sh.kind === "block_sld" ? "A1" : "A0"));
   return composeOn(model, docs, sh, opts, sh.paper || docs.paper || std.paper);
 }
 function composeOn(model, docs, sh, { date = "" } = {}, paper, cachedViews = null) {
@@ -118,7 +119,10 @@ function composeOn(model, docs, sh, { date = "" } = {}, paper, cachedViews = nul
   const area = { x0: fx0 + 12, y0: fy0 + 12, x1: sx0 - 12, y1: fy1 - 12 };
   let scale = null, nts = false;
   let qa = null;
-  if (DRAFT_KINDS[sh.kind]) { // drafted plans: fixed scale, composed on paper with grids, dims, tags, legend, notes, key plan
+  if (["block_sld", "hall_section", "site_plan"].includes(sh.kind)) { // drafted diagrams, sections and the site plan
+    const d = sh.kind === "block_sld" ? draftBlockSLD(model, sh, area, docs) : sh.kind === "hall_section" ? (sh.cut ? draftSection(model, sh, area, docs) : { items: [], scale: 100, qa: null }) : draftSite(model, sh, area, docs);
+    items.push(...d.items); if (d.nts) nts = true; else scale = d.scale; qa = d.qa ? { ...d.qa } : null;
+  } else if (DRAFT_KINDS[sh.kind]) { // drafted plans: fixed scale, composed on paper with grids, dims, tags, legend, notes, key plan
     const d = draftPlan(model, sh, area, { scale: sh.scale || 100 }); items.push(...d.items); draftBand(model, d, items, docs); scale = d.scale; qa = d.qa;
   } else if (["plan", "elevations", "sections", "isometric", "site", "site_section", ...GRAPHIC].includes(sh.kind)) {
     const views = cachedViews || sheetViews(model, sh); const n = views.length;

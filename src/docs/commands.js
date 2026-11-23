@@ -11,7 +11,7 @@ import { schedule } from "../author/model.js";
 import { solidOf } from "../author/solids.js";
 
 const fail = (m, code = "bad_arg") => { throw Object.assign(new Error(m), { code }); };
-const KINDS = ["register", "ga", "elec", "mech", "roof", "site", "site_section", "plan", "elevations", "sections", "isometric", "schedule", "service", "coordinated", "piping_iso", "spool", "bwic", "plant", "containment", "sld", "whitespace", "equipment", "fire"];
+const KINDS = ["register", "ga", "elec", "mech", "roof", "fire_plan", "block_sld", "hall_section", "site_plan", "site", "site_section", "plan", "elevations", "sections", "isometric", "schedule", "service", "coordinated", "piping_iso", "spool", "bwic", "plant", "containment", "sld", "whitespace", "equipment", "fire"];
 
 export function installDocs(bus) {
   const D = () => (bus.extra.docs ||= defaultDocs());
@@ -24,7 +24,7 @@ export function installDocs(bus) {
     for (const k of ["project_code", "originator", "volume", "role"]) if (a[k] != null) { const v = String(a[k]).toUpperCase(); if (!/^[A-Z0-9]{1,6}$/.test(v)) fail(`${k} must be 1–6 letters or digits (ISO 19650 field)`); d[k] = v; }
     for (const k of ["project_name", "client", "address", "author", "checker", "approver"]) if (a[k] != null) d[k] = String(a[k]).slice(0, 120);
     if (a.notes != null) { if (typeof a.notes !== "object" || Array.isArray(a.notes)) fail("notes: {GA|E|M|R: [\"note\", ...]}"); d.notes = {};
-      for (const [k, v] of Object.entries(a.notes)) { if (!["GA", "E", "M", "R"].includes(k) || !Array.isArray(v)) fail("notes: keys GA, E, M or R, each a list of strings"); d.notes[k] = v.slice(0, 12).map((t) => String(t).replace(/[\u0000-\u001f]/g, " ").slice(0, 200)); } }
+      for (const [k, v] of Object.entries(a.notes)) { if (!["GA", "E", "M", "R", "F"].includes(k) || !Array.isArray(v)) fail("notes: keys GA, E, M, R or F, each a list of strings"); d.notes[k] = v.slice(0, 12).map((t) => String(t).replace(/[\u0000-\u001f]/g, " ").slice(0, 200)); } }
     if (a.sld != null) { if (typeof a.sld !== "object" || Array.isArray(a.sld)) fail("sld: {title, sources:[...], mv, tx, msb, gen, ups, ob, busway, load, note}"); const o = {};
       for (const k of ["title", "mv", "tx", "msb", "gen", "ups", "ob", "busway", "load", "note"]) if (a.sld[k] != null) o[k] = String(a.sld[k]).replace(/[\u0000-\u001f]/g, " ").slice(0, 120);
       if (a.sld.sources != null) { if (!Array.isArray(a.sld.sources) || !a.sld.sources.length || a.sld.sources.length > 6) fail("sld.sources: 1 to 6 source names"); o.sources = a.sld.sources.map((x) => String(x).slice(0, 4)); } d.sld = o; }
@@ -64,7 +64,7 @@ export function installDocs(bus) {
     if (a.delete) { if (!cur) fail(`no sheet ${a.id}`, "no_such_element"); d.sheets = d.sheets.filter((s) => s !== cur); return { deleted: a.id }; }
     if (a.id && !cur) fail(`no sheet ${a.id}`, "no_such_element");
     const s = cur || { id: `D${d.next++}` };
-    if (a.kind != null) { if (!KINDS.includes(a.kind)) fail(`kind must be one of ${KINDS.join(", ")}`); s.kind = a.kind; if ({ ga: 1, elec: 1, mech: 1, roof: 1 }[a.kind]) s.role = { ga: "A", elec: "E", mech: "M", roof: "M" }[a.kind]; }
+    if (a.kind != null) { if (!KINDS.includes(a.kind)) fail(`kind must be one of ${KINDS.join(", ")}`); s.kind = a.kind; if ({ ga: 1, elec: 1, mech: 1, roof: 1, fire_plan: 1, block_sld: 1, hall_section: 1, site_plan: 1 }[a.kind]) s.role = { ga: "A", elec: "E", mech: "M", roof: "M", fire_plan: "F", block_sld: "E", hall_section: "A", site_plan: "A" }[a.kind]; }
     if (!s.kind) fail("a new sheet needs a kind");
     if (a.level != null) s.level = bus.model.level(a.level).id;
     if (a.cut_z != null) { s.cut_z = +a.cut_z; if (!Number.isFinite(s.cut_z)) fail("cut_z must be mm"); }
@@ -72,9 +72,15 @@ export function installDocs(bus) {
     if (a.paper != null) { if (a.paper && !PAPER[a.paper]) fail(`paper must be one of ${Object.keys(PAPER).join(", ")}`); s.paper = a.paper || undefined; }
     if (a.title != null) s.title = String(a.title).slice(0, 120);
     if (a.discipline != null) { if (!/^[MEPF]$/.test(a.discipline)) fail("discipline: M, E, P or F"); s.discipline = s.role = a.discipline; }
+    if (a.block != null) { if (!Number.isInteger(a.block) || a.block < 1 || a.block > 50) fail("block: power block number 1–50"); s.block = a.block; }
+    if (a.cut != null) { const q = a.cut; if (typeof q !== "object" || !["x", "y"].includes(q.axis) || !Number.isFinite(+q.at)) fail("cut: {axis: x|y, at: mm, look?: 1|-1, depth?: mm, from?: mm, to?: mm, name?: letter}");
+      s.cut = { axis: q.axis, at: +q.at, look: q.look === -1 ? -1 : 1, depth: Math.min(20000, Math.max(0, +q.depth || 3000)), ...(Number.isFinite(+q.from) && q.from != null ? { from: +q.from } : {}), ...(Number.isFinite(+q.to) && q.to != null ? { to: +q.to } : {}), name: String(q.name || "A").replace(/[^A-Z0-9]/gi, "").slice(0, 2).toUpperCase() || "A" }; }
     if (a.zone != null) { if (a.zone && !(bus.model.data.zones || []).some((z) => z.code === a.zone)) fail(`no zone ${a.zone}`, "no_such_element"); s.zone = a.zone || undefined; }
     if (a.medium != null) s.medium = String(a.medium); if (a.system != null) s.system = String(a.system).slice(0, 40); if (a.page != null) s.page = Math.max(1, Math.round(+a.page) || 1);
-    if (!s.title && { ga: 1, elec: 1, mech: 1, roof: 1 }[s.kind]) { const z = (bus.model.data.zones || []).find((x) => x.code === s.zone); s.title = `${z ? z.name + " " : ""}${{ ga: "general arrangement plan", elec: "electrical layout", mech: "mechanical layout", roof: "roof plant and piping plan" }[s.kind]}`; s.title = s.title[0].toUpperCase() + s.title.slice(1); }
+    if (!s.title && s.kind === "block_sld") { const z = (bus.model.data.zones || []).find((x) => x.code === s.zone); s.title = `${z ? z.name + " " : ""}power block B${s.block || 1} single line diagram`; }
+    if (!s.title && s.kind === "hall_section") { const z = (bus.model.data.zones || []).find((x) => x.code === s.zone); const n = s.cut?.name || "A"; s.title = `${z ? z.name + " " : ""}section ${n}-${n}`; }
+    if (!s.title && s.kind === "site_plan") s.title = "Site plan";
+    if (!s.title && { ga: 1, elec: 1, mech: 1, roof: 1, fire_plan: 1 }[s.kind]) { const z = (bus.model.data.zones || []).find((x) => x.code === s.zone); s.title = `${z ? z.name + " " : ""}${{ ga: "general arrangement plan", elec: "electrical layout", mech: "mechanical layout", roof: "roof plant and piping plan", fire_plan: "fire compartmentation, escape and sprinkler plan" }[s.kind]}`; s.title = s.title[0].toUpperCase() + s.title.slice(1); }
     s.title ||= { site: "Site plan and grading", site_section: "Site section S-S", register: "Drawing register", plan: "Plan", elevations: "Elevations", sections: "Sections", isometric: "Isometric views", schedule: "Schedules", ...SHEET_KINDS }[s.kind];
     if (!cur) { s.seq = seqOf(s.kind); d.sheets.push(s); }
     return { id: s.id, number: sheetNumber(d, bus.model, s) };

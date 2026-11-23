@@ -27,6 +27,8 @@ const FAMILIES = [
   { name: "Vertiv CoolChip CDU 2300kW", ifc_class: "IfcHeatExchanger", discipline: "M", layer: "M-CDU", color: "#7fb4d9", material: "Steel",
     parameters: lod({ Manufacturer: "Vertiv", Model: "CoolChip CDU 2300kW", Capacity_kW: 2300, Approach_K: 4, Facility_class: "ASHRAE W45" }),
     parts: [box(1200, 1200, 2400), box(400, 20, 500, 0, -610, 1500), cyl(120, 300, -350, 0, 2400), cyl(120, 300, 350, 0, 2400), cyl(80, 300, -350, 400, 2400), cyl(80, 300, 350, 400, 2400)] },
+  { name: "Pre-action valve set DN150", ifc_class: "IfcValve", discipline: "F", layer: "F-SPRINKLER", color: "#c8102e", material: "Ductile iron",
+    parameters: lod({ Manufacturer: "to confirm (UL / FM listed)", Model: "Double-interlock pre-action valve set DN150" }), parts: [box(1600, 1200, 1800)] },
   { name: "Network rack 14 kW", ifc_class: "IfcFurniture", discipline: "E", layer: "E-WHITESPACE", color: "#3b4048", material: "Steel",
     parameters: lod({ Manufacturer: "to confirm", Model: "42U network / storage rack, air-cooled", Nameplate_kW: 14, Feed: "2N from busways A/C or B/D" }), parts: [box(1200, 600, 2286)] },
   { name: "Thermax adiabatic dry cooler 1.4 MW", ifc_class: "IfcCoolingTower", discipline: "M", layer: "M-HEATREJECTION", color: "#9aa7b4", material: "Galvanised steel",
@@ -156,6 +158,7 @@ function build() {
     c.push({ name: "zone", owner: "planner", args: { name: `Hall ${k}`, code: `H${k}`, outline: R(-26000, -55000, 142000, 72000) } });
     c.push({ name: "zone", owner: "planner", args: { name: `Hall ${k} part 1 (grids 1–10)`, code: `H${k}1`, parent: `H${k}`, outline: R(-3000, -3000, MID, 58600) } });
     c.push({ name: "zone", owner: "planner", args: { name: `Hall ${k} part 2 (grids 11–20)`, code: `H${k}2`, parent: `H${k}`, outline: R(MID, -3000, 141700, 58600) } });
+    c.push({ name: "zone", owner: "planner", args: { name: `Hall ${k} yards`, code: `H${k}Y`, parent: `H${k}`, outline: R(-26000, -55000, 142000, 0) } });
     // structure: slab on grade, roof deck at +9.00, columns on the numbered grids at lines A, C, E, F, G
     mass(`Hall ${k} ground slab`, R(-150, -150, L + 150, D + 150), -300, 300, "IfcSlab", "S", "S-SLAB", "#c9c6bf", {}, S);
     mass(`Hall ${k} roof deck`, R(-150, -150, L + 150, D + 150), ROOF, 300, "IfcSlab", "S", "S-SLAB", "#c9c6bf", {}, S);
@@ -258,6 +261,10 @@ function build() {
     loopMain("FWS supply main", `FWS-S-${k}`, 49800, 42000, 9900, 14600, 98550, "#1f5fa8"); loopMain("FWS return main", `FWS-R-${k}`, 50800, 43200, 10900, 15400, 99350, "#5f9be0");
     pipe(`Hall ${k} CHW supply main`, `CHW-S-${k}`, 245, [[14600, 51600, 4800], [120450, 51600, 4800], [120450, 51600, 9900], [120450, 42200, 9900], [99800, 42200, 9900]].map(([u, v, z]) => [X(u), Y(v), z]), "M", "M-CHW", "#36a3c9", HV);
     pipe(`Hall ${k} CHW return main`, `CHW-R-${k}`, 245, [[99800, 43000, 10900], [121200, 43000, 10900], [121200, 52300, 10900], [121200, 52300, 4800], [14600, 52300, 4800]].map(([u, v, z]) => [X(u), Y(v), z]), "M", "M-CHW", "#7cc4dc", HV);
+    // pre-action sprinklers: valve set in the fire and water services room, DN150 main along the hall, DN50 branches on the cold aisles
+    place("Pre-action valve set DN150", X(5800), Y(36300), 0, `${k}-PAV-01`, "fire_engineer");
+    pipe(`Hall ${k} sprinkler main`, `SPR-${k}`, 85, [[X(5800), Y(36300), 1500], [X(5800), Y(36300), 6200], [X(124100), Y(36300), 6200]], "F", "F-SPRINKLER", "#c8102e", "fire_engineer");
+    for (let m = 0; m < 15; m++) { const u = 18250 + PIT * m; pipe(`Hall ${k} sprinkler branch ${z2(m + 1)}`, `SPR-${k}`, 30, [[X(u), Y(29500), 6000], [X(u), Y(43100), 6000]], "F", "F-SPRINKLER", "#c8102e", "fire_engineer"); }
     // pumps (south block): FWS 4 + 1, CHW 2 + 1; buffer tanks in the north yard
     for (let i = 0; i < 5; i++) place("FWS pump 160 L/s", X(1500 + 2100 * i), Y(46200), 0, `${k}-P-FWS-${z2(i + 1)}`, PC);
     for (let i = 0; i < 3; i++) place("CHW pump 82 L/s", X(1500 + 2100 * i), Y(52200), 0, `${k}-P-CHW-${z2(i + 1)}`, HV);
@@ -311,20 +318,25 @@ export const DC_NOTES = {
     "Exit distances and fire ratings are assumed and must be checked against NBC 2016 Part 4 by the fire engineer."],
   E: ["Power is 4N/3 distributed redundant: 7 blocks × 4 lines (A–D). Each line: 2.5 MVA 33/0.433 kV Dyn11 transformer, 4000 A MSB, 2000 kVA Li-ion UPS (≥ 5 min), 3200 A output board, 2.5 MVA generator.",
     "Each row: 4 × 800 A busways (A, C over the front half; B, D over the rear; A/B at +2.90, C/D at +3.40 BOB). Each GPU rack: 8 × 63 A tap-offs, 2 per source; network racks 2N.",
-    "Line load 1,116 kW normal, 1,508 kW with one line out, 1,708 kW at 155 kW rack peak (85 % of the UPS).",
+    "Line load 1,116 kW normal, 1,488 kW with one line out, about 1,700 kW at the 155 kW rack peak (85 % of the UPS).",
     "Transformers (bunded, fire walls between) and generators stand in the south yards; mechanical loads on 2N supplies MA / MB in the south block."],
   M: ["Technology cooling (TCS) 40 / 50 °C, PG25, 1.5 L/min per kW: 2.89 L/s per rack, 46.3 L/s per pod. Pod mains and row headers DN200 at +2.60 / +2.70 CL, ring per pod.",
     "Facility water (FWS) 36 / 46 °C, 638 L/s: DN700 mains at +4.80 in the gallery, risers at grid 3 and grid 14–15 to the roof dry coolers.",
     "Chilled water 23 / 33 °C, DN400 mains to 15 fan walls (13 duty + 2), branches DN100 over the mains at +5.70; supply air 28 °C.",
     "CDUs 2300 kW at 4 K approach, 1 duty + 1 standby per pod, isolating valves on every branch; rack hoses (DN50) not shown. No automatic air vents above IT.",
     "Pipe sizes from flow at ≤ 2.1 m/s (ASHRAE TC 9.6)."],
+  F: ["Compartments (assumed): data hall, each line room, each Li-ion battery room, mechanical gallery, pump room, MMRs; 2 h walls, 2 h doors (FD120).",
+    "Data hall: pre-action double-interlock sprinklers, DN150 main at +6.20 CL, DN50 branches on the cold aisles at +6.00; heads below the plenum and inside each contained hot aisle.",
+    "Very early smoke detection (aspirating) in the hall and galleries; leak detection under every TCS header and CDU; Li-ion rooms to the battery vendor's large-scale fire test.",
+    "Exits: data hall 2 to the south corridor, 2 equipment doors to back-of-house, 3 through the mechanical-gallery passages; every line room has a door to the yard and to the gallery corridor.",
+    "Travel distances, exit widths and ratings are assumptions to be checked against NBC 2016 Part 4 and NFPA 75/76 by the fire engineer."],
   R: ["22 adiabatic dry coolers (20 duty + 2) on grids 4–14; duty at 42 °C DB / 24 °C WB to be confirmed by the vendor (monsoon wet bulb to be verified).",
     "6 free-cooling chillers (5 + 1) on grids 15–17 serve the 23 / 33 °C loop for the fan walls and the electrical gallery.",
     "Plant on dunnage at +10.00 over the roof deck (+9.30); headers in the 2.8 m zone between the unit rows; FWS supply +9.90, return +10.90 CL."],
 };
 export const DC_SLD = { title: "Typical power block B1 — 4N/3, lines A–D", sources: ["A", "B", "C", "D"], mv: "33 kV from MV-A", tx: "TX-L1{s} 2.5 MVA Dyn11", msb: "MSB-L1{s} 4000 A", gen: "GEN-L1{s} 2.5 MVA",
   ups: "UPS-L1{s} 2000 kVA Li-ion", ob: "OB-L1{s} 3200 A", busway: "4 × 800 A busways to rows 1–4", load: "Every GPU rack: 8 × 63 A tap-offs, 2 from each source",
-  note: "Line load 1,116 kW normal; 1,508 kW with one line out (4 make 3)." };
+  note: "Line load 1,116 kW normal; 1,488 kW with one line out (4 make 3)." };
 export function dcStages() {
   const s = DC_STAGES;
   return [{ name: "geolocate", args: { ...s.site } },
@@ -332,7 +344,15 @@ export function dcStages() {
     { name: "auto_sequence", args: { start: s.program[0], finish: s.program[1] } },
     { name: "drawing_setup", args: { project_code: s.code, project_name: "Shadnagar AI factory, 120 MW (pilot)", client: "Hypothetical pilot client", author: "BIMja Draftsman (agent)", checker: "—", approver: "—", notes: DC_NOTES, sld: DC_SLD } },
     // the drawing set: Hall A's 1:100 plans on A0, split at the matchline between pods 7 and 8 (general arrangement, electrical, mechanical, roof)
-    ...["HA1", "HA2"].flatMap((zone) => ["ga", "elec", "mech", "roof"].map((kind) => ({ name: "sheet", args: { kind, zone } })))];
+    { name: "sheet", args: { kind: "register" } },
+    { name: "sheet", args: { kind: "site_plan" } },
+    ...["HA1", "HA2"].flatMap((zone) => ["ga", "elec", "mech", "roof", "fire_plan"].map((kind) => ({ name: "sheet", args: { kind, zone } }))),
+    { name: "sheet", args: { kind: "elec", zone: "HAY" } },
+    { name: "sheet", args: { kind: "hall_section", zone: "HA", cut: { axis: "x", at: 116300, look: -1, depth: 3000, from: 68000, to: 140000, name: "A" } } },
+    { name: "sheet", args: { kind: "hall_section", zone: "HA", cut: { axis: "y", at: 116300, look: 1, depth: 3000, from: 47000, to: 191700, name: "B" } } },
+    ...[1, 2, 3, 4, 5, 6, 7].map((block) => ({ name: "sheet", args: { kind: "block_sld", zone: "HA", block } })),
+    // halls B–D repeat Hall A (typical); their plans are issued so every hall has its own setting-out
+    ...["HB", "HC", "HD"].flatMap((h) => [`${h}1`, `${h}2`].flatMap((zone) => ["ga", "elec", "mech", "roof"].map((kind) => ({ name: "sheet", args: { kind, zone } }))))];
 }
 
 import { newProject } from "../author/model.js";

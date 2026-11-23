@@ -18,8 +18,8 @@ const PIPE = new Set(["IfcPipeSegment"]), TRAY = new Set(["IfcCableCarrierSegmen
 const EQUIP_E = new Set(["IfcTransformer", "IfcElectricDistributionBoard", "IfcElectricFlowStorageDevice", "IfcElectricGenerator", "IfcSwitchingDevice"]);
 const EQUIP_M = new Set(["IfcHeatExchanger", "IfcUnitaryEquipment", "IfcChiller", "IfcCoolingTower", "IfcPump", "IfcValve"]);
 const isRack = (e) => /rack/i.test(`${e.family || ""}`);
-export const DRAFT_KINDS = { ga: "GA", elec: "E", mech: "M", roof: "R" };
-const TITLES = { GA: "General arrangement plan", E: "Electrical layout", M: "Mechanical layout", R: "Roof plant and piping plan" };
+export const DRAFT_KINDS = { ga: "GA", elec: "E", mech: "M", roof: "R", fire_plan: "F" };
+const TITLES = { GA: "General arrangement plan", E: "Electrical layout", M: "Mechanical layout", R: "Roof plant and piping plan", F: "Fire compartmentation, escape and sprinkler plan" };
 
 /** Draft one plan into `area` (paper mm). Returns paper items, the scale, and a QA report. */
 export function draftPlan(model, sh, area, { scale = 100, layers } = {}) {
@@ -45,6 +45,7 @@ export function draftPlan(model, sh, area, { scale = 100, layers } = {}) {
   for (const g of grids) { grow(g.a); grow(g.b); } for (const w of wallsIn) { grow(w.a); grow(w.b); }
   const bld = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity }; for (const w of wallsIn) for (const p of [w.a, w.b]) { bld.x0 = Math.min(bld.x0, p[0]); bld.y0 = Math.min(bld.y0, p[1]); bld.x1 = Math.max(bld.x1, p[0]); bld.y1 = Math.max(bld.y1, p[1]); }
   for (const e of masses) if (/BUILDING/.test(e.layer || "")) { const b = solidOf(e); grow([b.xmin, b.ymin]); grow([b.xmax, b.ymax]); }
+  if (parentZone) Object.assign(ext, zb); // a sheet part shows exactly its zone
   if (zb) { ext.x0 = Math.max(ext.x0, zb.x0); ext.y0 = Math.max(ext.y0, zb.y0); ext.x1 = Math.min(ext.x1, zb.x1); ext.y1 = Math.min(ext.y1, zb.y1); }
   if (!Number.isFinite(ext.x0)) return { items, scale: s, qa: { overlaps: [], small: [], empty: true } };
   // the requested scale, or the next ISO 5455 step that fits above the legend band
@@ -90,12 +91,17 @@ export function draftPlan(model, sh, area, { scale = 100, layers } = {}) {
   for (const q of arch.prims.polys) poly(q.pts.map(P), { fill: disc === "GA" ? POCHE : POCHE_BG, w: 0, layer: L("cut") });
   for (const l of arch.prims.lines) line(P(l.p[0]), P(l.p[1]), l.layer === "cutline" ? (disc === "GA" ? 0.5 : 0.35) : l.w || 0.18, { col: archCol, layer: L(l.layer === "cutline" ? "cut" : l.layer) });
   // buildings drawn as masses (MV rooms, plant buildings): outline + name
+  // yards: fire walls cut (poché), roads as kerb lines; both clipped to the sheet
+  const clipR = (b) => [[Math.max(b.xmin, ext.x0), Math.max(b.ymin, ext.y0)], [Math.min(b.xmax, ext.x1), Math.max(b.ymin, ext.y0)], [Math.min(b.xmax, ext.x1), Math.min(b.ymax, ext.y1)], [Math.max(b.xmin, ext.x0), Math.min(b.ymax, ext.y1)]];
+  if (!roof) for (const e of masses.filter((e) => /FIREWALL/.test(e.layer || "") && overlaps(e))) { const b = solidOf(e); if (b.xmax <= ext.x0 || b.xmin >= ext.x1 || b.ymax <= ext.y0 || b.ymin >= ext.y1) continue; poly(clipR(b).map(P), { w: 0.25, fill: disc === "GA" ? POCHE : "#bdbdbd", layer: L("cut") }); }
+  for (const e of masses.filter((e) => /C-ROAD/.test(e.layer || "") && overlaps(e))) { const b = solidOf(e); if (b.xmax <= ext.x0 || b.xmin >= ext.x1 || b.ymax <= ext.y0 || b.ymin >= ext.y1) continue; const q = clipR(b).map(P);
+    line(q[0], q[1], 0.25, { col: GREY, layer: L("site") }); line(q[3], q[2], 0.25, { col: GREY, layer: L("site") }); }
   for (const e of masses.filter((e) => /BUILDING/.test(e.layer || "") && cin(e))) { const b = solidOf(e); const r = [[b.xmin, b.ymin], [b.xmax, b.ymin], [b.xmax, b.ymax], [b.xmin, b.ymax]].map(P); poly(r, { w: disc === "GA" ? 0.5 : 0.35, col: archCol, layer: L("cut") }); }
   // columns: solid at the cut
   if (!roof) for (const e of masses.filter((e) => e.ifc_class === "IfcColumn" && e.outline && cin(e))) poly(e.outline.map(P), { fill: disc === "GA" ? BLACK : GREY, w: 0.25, col: archCol, layer: L("column") });
 
   // ---- 3. equipment and racks: footprints (plan of the parts), primary discipline black and tagged, others grey
-  const primary = (e) => disc === "GA" ? true : disc === "E" ? EQUIP_E.has(e.ifc_class) || isRack(e) : EQUIP_M.has(e.ifc_class);
+  const primary = (e) => disc === "GA" ? true : disc === "F" ? disciplineOf(e) === "F" : disc === "E" ? EQUIP_E.has(e.ifc_class) || isRack(e) : EQUIP_M.has(e.ifc_class);
   const floor = (e) => { const b = solidOf(e); return roof ? b.zmin >= ROOF - 100 : b.zmin < cut + 200 || (disc === "M" && EQUIP_M.has(e.ifc_class) && b.zmin < ROOF - 100); };
   const inExt = (e) => cin(e, ext) && cin(e); // parts of a split sheet: an item belongs to the part holding its centre
   const touchesExt = (e) => { try { const b = solidOf(e); return b.xmax > ext.x0 && b.xmin < ext.x1 && b.ymax > ext.y0 && b.ymin < ext.y1; } catch { return false; } };
@@ -111,7 +117,7 @@ export function draftPlan(model, sh, area, { scale = 100, layers } = {}) {
   if (!roof) for (const e of masses.filter((e) => /CONTAINMENT/.test(e.layer || "") && e.ifc_class === "IfcCovering" && cin(e))) { const b = solidOf(e); const a = P([b.xmin, b.ymin]), c = P([b.xmax, b.ymax]);
     const q = [[a[0], a[1]], [c[0], a[1]], [c[0], c[1]], [a[0], c[1]]]; for (let i = 0; i < 4; i++) line(q[i], q[(i + 1) % 4], 0.25, { col: disc === "GA" ? BLACK : GREY, dash: "hidden", layer: L("containment") }); }
   // ---- 4. services: single lines with flow, risers, size and level
-  const svc = masses.filter((e) => e.shape === "sweep" && touchesExt(e) && (disc === "E" ? TRAY.has(e.ifc_class) : disc === "M" || roof ? PIPE.has(e.ifc_class) && disciplineOf(e) === "M" : false));
+  const svc = masses.filter((e) => e.shape === "sweep" && touchesExt(e) && (disc === "E" ? TRAY.has(e.ifc_class) : disc === "M" || roof ? PIPE.has(e.ifc_class) && disciplineOf(e) === "M" : disc === "F" ? PIPE.has(e.ifc_class) && disciplineOf(e) === "F" : false));
   const runLabels = []; const soft = [];
   for (const e of svc) { const z0 = e.base || 0; const path = e.path.map((p) => [p[0], p[1], (p[2] || 0) + z0]); const ret = /return|-R-|R-0|FW-R/i.test(`${e.name} ${e.system}`);
     const isTray = TRAY.has(e.ifc_class); const wTray = isTray ? Math.abs(e.profile[1][0] - e.profile[0][0]) : 0; const busway = /busway/i.test(e.name);
@@ -183,9 +189,16 @@ export function draftPlan(model, sh, area, { scale = 100, layers } = {}) {
     let done = false; for (const c of cands) { const r = rectOfText(c.at, label, 2.5, c.align, c.rot); if (!hit(r, placed) && !hit(r, hard, 0.2) && inRect(r, planBox)) { mask(r); text(c.at, label, 2.5, { align: c.align, rot: c.rot, layer: L("tag") }); placed.push(Object.assign(r, { txt: label })); qa.tags++; done = true; break; } }
     if (!done) qa.missing.push(label); }
   // equipment tags (primary discipline only; GA tags the major plant)
-  for (const f of fps.filter((f) => !isRack(f.e) && primary(f.e))) { if (f.e.ifc_class === "IfcValve") continue; /* valves read from the symbol and the legend */ const t = f.e.mark || f.e.name; if (!t) continue; tag(f, t, { h: f.e.ifc_class === "IfcValve" ? 2 : 2.5, layer: L("tag") }); }
+  for (const f of fps.filter((f) => !isRack(f.e) && primary(f.e))) { if (f.e.ifc_class === "IfcValve" && disc !== "F") continue; /* valves read from the symbol and the legend */ const t = f.e.mark || f.e.name; if (!t) continue; tag(f, t, { h: f.e.ifc_class === "IfcValve" ? 2 : 2.5, layer: L("tag") }); }
   // service runs: system, size, level
   labelRuns((r) => !r.isTray || r.busway); for (const f of failedLab) qa.missing.push(f);
+  // fire plan: rated walls overlaid in red; fire doors marked with their rating; exits flagged
+  const RED = "#c8102e";
+  if (disc === "F") { for (const w of wallsIn) { const t = model.data.types.wall?.[w.type]; if (!t || !t.fireRating || /none/i.test(t.fireRating)) continue; line(P(w.a), P(w.b), 1.0, { col: RED, layer: L("fire-wall") }); }
+    for (const o of ops) { const w = model.data.elements[o.wall || o.host]; const dt = model.data.types.door?.[o.type]; if (!w || !dt) continue; const sp = model.openingSpan(o); const dir = norm2(sub2(w.b, w.a)); const mid = [w.a[0] + dir[0] * (sp.from + sp.to) / 2, w.a[1] + dir[1] * (sp.from + sp.to) / 2]; const pm = P(mid);
+      const ext_ = model.data.types.wall?.[w.type]?.isExternal; const lab = ext_ ? "EXIT" : /\d+ ?min/i.test(dt.fireRating || "") ? `FD${parseInt(dt.fireRating)}` : null; if (!lab) continue;
+      if (ext_) poly([[pm[0] - 1.6, pm[1] - 1.2], [pm[0] + 1.6, pm[1] - 1.2], [pm[0], pm[1] + 1.6]], { fill: "#1a7f37", w: 0, layer: L("exit") });
+      tag({ x0: pm[0] - 1.6, y0: pm[1] - 1.6, x1: pm[0] + 1.6, y1: pm[1] + 1.6 }, lab, { h: 2.2, inside: false, layer: L("tag"), ...(ext_ ? { col: "#1a7f37", bold: true } : {}) }); } }
   if (disc === "GA") for (const o of ops) { const w = model.data.elements[o.wall || o.host]; if (!w) continue; const sp = model.openingSpan(o); const dir = norm2(sub2(w.b, w.a)); const mid = [w.a[0] + dir[0] * (sp.from + sp.to) / 2, w.a[1] + dir[1] * (sp.from + sp.to) / 2]; const pm = P(mid);
     tag({ x0: pm[0] - 1, y0: pm[1] - 1, x1: pm[0] + 1, y1: pm[1] + 1 }, o.mark, { h: 2.2, inside: false, layer: L("tag") }); }
 
@@ -220,8 +233,8 @@ function clipGrid(g, box) { if (!box) return g; const c = clipSeg3([...g.a, 0], 
   return { ...g, a: c[0].slice(0, 2), b: c[1].slice(0, 2), bubA: same(c[0], g.a), bubB: same(c[1], g.b) }; }
 const nearestEdge = (r, p) => [Math.max(r.x0, Math.min(p[0], r.x1)), Math.max(r.y0, Math.min(p[1], r.y1))];
 function arrow(items, m, d, layer) { const n = [-d[1], d[0]]; const tip = [m[0] + d[0] * 1.6, m[1] + d[1] * 1.6], b1 = [m[0] - d[0] * 1.2 + n[0], m[1] - d[1] * 1.2 + n[1]], b2 = [m[0] - d[0] * 1.2 - n[0], m[1] - d[1] * 1.2 - n[1]]; items.push({ t: "poly", pts: [tip, b1, b2], fill: "#000000", w: 0, layer }); }
-function north(items, c, layer) { items.push({ t: "poly", pts: [[c[0], c[1] + 9], [c[0] + 3.5, c[1] - 4], [c[0], c[1] - 1.5]], fill: "#000000", w: 0.25, layer }, { t: "poly", pts: [[c[0], c[1] + 9], [c[0] - 3.5, c[1] - 4], [c[0], c[1] - 1.5]], w: 0.25, layer }); items.push({ t: "text", at: [c[0], c[1] + 11], text: "N", h: 3.5, align: "middle", bold: true, layer }); }
-function scaleBar(items, at, s, layer) { const seg = 5000 / s; for (let i = 0; i < 4; i++) items.push({ t: "poly", pts: [[at[0] + i * seg, at[1]], [at[0] + (i + 1) * seg, at[1]], [at[0] + (i + 1) * seg, at[1] + 1.5], [at[0] + i * seg, at[1] + 1.5]], fill: i % 2 ? "#ffffff" : "#000000", w: 0.18, layer });
+export function north(items, c, layer) { items.push({ t: "poly", pts: [[c[0], c[1] + 9], [c[0] + 3.5, c[1] - 4], [c[0], c[1] - 1.5]], fill: "#000000", w: 0.25, layer }, { t: "poly", pts: [[c[0], c[1] + 9], [c[0] - 3.5, c[1] - 4], [c[0], c[1] - 1.5]], w: 0.25, layer }); items.push({ t: "text", at: [c[0], c[1] + 11], text: "N", h: 3.5, align: "middle", bold: true, layer }); }
+export function scaleBar(items, at, s, layer) { const seg = 5000 / s; for (let i = 0; i < 4; i++) items.push({ t: "poly", pts: [[at[0] + i * seg, at[1]], [at[0] + (i + 1) * seg, at[1]], [at[0] + (i + 1) * seg, at[1] + 1.5], [at[0] + i * seg, at[1] + 1.5]], fill: i % 2 ? "#ffffff" : "#000000", w: 0.18, layer });
   for (let i = 0; i <= 4; i++) items.push({ t: "text", at: [at[0] + i * seg, at[1] + 2.5], text: `${i * 5}`, h: 2, align: "middle", layer }); items.push({ t: "text", at: [at[0] + 4 * seg + 3, at[1] + 0.2], text: "m", h: 2, layer }); }
 
 // ---------- legend, notes, key plan and the typical single-line diagram (the band under the plan) ----------
@@ -240,6 +253,8 @@ export function draftBand(model, d, items, docs = {}) {
   if (disc !== "R") row(ln(0.25, "hidden"), "Hot-aisle containment (overhead)");
   if (disc === "E") { row((x0, y0) => { ln(0.35)(x0, y0 + 1); ln(0.35)(x0, y0 - 1); }, "Busway over rack row (double line), A–D sources"); row((x0, y0) => { ln(0.25)(x0, y0 + 1); ln(0.25)(x0, y0 - 1); }, "Cable ladder (rungs at 1.5 m)"); row(box(null), "Electrical equipment, tagged"); row(box(null, 0.18), "Rack (thick edge = front)"); }
   if (disc === "M" || disc === "R") { row(ln(0.5), "Supply (FWS / TCS / CHW), flow arrow"); row(ln(0.35, "dash"), "Return"); row(dot("#000000"), "Riser"); if (disc === "M") row((x0, y0) => { box(null, 0.25)(x0, y0); items.push({ t: "line", p: [[x0 + 3, y0 - 2], [x0 + 13, y0 + 2]], w: 0.25, layer: "BJ-LEGEND" }); }, "Isolating valve"); row(box(null), disc === "R" ? "Roof plant, tagged" : "Mechanical equipment, tagged"); }
+  if (disc === "F") { row(ln(1.0, null, "#c8102e"), "Fire-rated wall (EI 120 unless noted)"); row((x0, y0) => items.push({ t: "text", at: [x0 + 8, y0 - 0.8], text: "FD120", h: 2.2, align: "middle", layer: "BJ-LEGEND" }), "Fire door, rating in minutes");
+    row((x0, y0) => items.push({ t: "poly", pts: [[x0 + 6.4, y0 - 1.2], [x0 + 9.6, y0 - 1.2], [x0 + 8, y0 + 1.6]], fill: "#1a7f37", w: 0, layer: "BJ-LEGEND" }), "Final exit to open air"); row(ln(0.5), "Pre-action sprinkler main / branch"); }
   if (disc === "GA") { row(box(null, 0.18), "Equipment and racks (outline)"); row((x0, y0) => { items.push({ t: "text", at: [x0 + 8, y0 - 0.8], text: `${K}-D01`, h: 2.2, align: "middle", layer: "BJ-LEGEND" }); }, "Door mark (see door schedule)"); }
   if (z?.parent) row(ln(0.7, "center"), "Matchline to the adjoining part");
   // general notes: three standard ones, then the project's notes for this discipline
