@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: pump-room-services-qa
+expected_outcome: |
+  Pumps and chiller are placed as families with marks and connected; supply and return mains are sweeps labelled DN150; clash_model is run and reported; outputs hold a mechanical layout PDF whose QA shows 0 overlaps and no missing labels, and a COBie XLSX; assumptions are stated.

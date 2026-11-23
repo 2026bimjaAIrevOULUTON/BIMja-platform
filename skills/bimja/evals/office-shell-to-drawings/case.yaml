@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: office-shell-to-drawings
+expected_outcome: |
+  A BIMja model of the office is built headlessly; outputs contain a GA plan PDF drafted at 1:100 with grids/dimensions whose QA reports 0 overlaps and no missing labels, an IFC file, and the project is geolocated to Pune.

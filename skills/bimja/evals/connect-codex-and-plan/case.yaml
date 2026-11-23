@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: connect-codex-and-plan
+expected_outcome: |
+  Outputs contain a Codex config.toml with an [mcp_servers.bimja] entry running mcp/bimja-mcp.mjs --headless (absolute path), guidance to call describe/commands first, and a JSON plan that runs without refusals headlessly and produces an IFC.

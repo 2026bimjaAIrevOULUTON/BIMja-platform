@@ -146,7 +146,9 @@ export function draftPlan(model, sh, area, { scale = 100, layers } = {}) {
       const r = axis === "x" ? rectOfText([m[0], m[1] + 0.8], String(v), 2.5, "middle") : rectOfText([m[0] - 0.8, m[1]], String(v), 2.5, "middle", 90);
       if (axis === "x") text([m[0], m[1] + 0.8], v, 2.5, { align: "middle", layer: L("dims") }); else text([m[0] - 0.8, m[1]], v, 2.5, { align: "middle", rot: 90, layer: L("dims") }); placed.push(r); } };
   const northBlocked = masses.some((e) => /BUILDING/.test(e.layer || "") && solidOf(e).ymin >= bld.y1 - 1); const sx = northBlocked ? -1 : 1; // x-chains go on the open side
-  dimRow(xs, "x", 10 * sx); dimRow([xs[0], xs.at(-1)], "x", 18 * sx); dimRow(ys, "y", 10); dimRow([ys[0], ys.at(-1)], "y", 18);
+  // with no grids, chain the building's overall size instead
+  const xs_ = xs.length >= 2 ? xs : Number.isFinite(bld.x0) ? [bld.x0, bld.x1] : [], ys_ = ys.length >= 2 ? ys : Number.isFinite(bld.y0) ? [bld.y0, bld.y1] : [];
+  if (xs_.length >= 2) { if (xs_.length > 2) dimRow(xs_, "x", 10 * sx); dimRow([xs_[0], xs_.at(-1)], "x", 18 * sx); } if (ys_.length >= 2) { if (ys_.length > 2) dimRow(ys_, "y", 10); dimRow([ys_[0], ys_.at(-1)], "y", 18); }
 
   // ---- matchlines where this part meets its neighbour (sheet splits of one building)
   if (parentZone) { const pz = bboxOfPts(parentZone.outline); const pw = model.elements.filter((e) => e.kind === "wall" && [e.a, e.b].every((p) => inBox(p, pz))); const pb = pw.length ? bboxOfPts(pw.flatMap((w) => [w.a, w.b])) : pz; const sib = zones.filter((z) => z.parent === zone.parent && z.code !== zone.code);
@@ -212,7 +214,8 @@ export function draftPlan(model, sh, area, { scale = 100, layers } = {}) {
   north(items, [planBox.x1 - 12, planBox.y1 - 16], L("north"));
   scaleBar(items, [area.x0 + 160, ty - 6], s, L("scalebar"));
   const band = { x0: area.x0, x1: area.x1, y0: area.y0, y1: ty - 14 };
-  return { items, scale: s, qa, band, disc, zone, ext, planBox, legendFor: disc };
+  const has = { hac: masses.some((e) => /CONTAINMENT/.test(e.layer || "") && cin(e)), racks: fps.some((f) => isRack(f.e)), equip: fps.length > 0 };
+  return { items, scale: s, qa, band, disc, zone, ext, planBox, legendFor: disc, has };
 }
 
 // ---------- small geometry helpers ----------
@@ -248,20 +251,19 @@ export function draftBand(model, d, items, docs = {}) {
   const box = (fill, w = 0.35) => (x0, y0) => items.push({ t: "poly", pts: [[x0 + 3, y0 - 2], [x0 + 13, y0 - 2], [x0 + 13, y0 + 2], [x0 + 3, y0 + 2]], fill, w, layer: "BJ-LEGEND" });
   const dot = (fill) => (x0, y0) => items.push({ t: "poly", pts: circ([x0 + 8, y0], 1.6), fill, w: 0.25, layer: "BJ-LEGEND" });
   if (disc === "R") row((x0, y0) => { ln(0.5)(x0, y0 + 1); ln(0.25)(x0, y0 - 1); }, "Roof edge and parapet");
-  else row(box(disc === "GA" ? "#4d4d4d" : "#d4d4d4", 0), disc === "GA" ? "Wall cut (2 h fire-rated where shown on the schedule)" : "Walls (architecture, for reference)");
+  else row(box(disc === "GA" ? "#4d4d4d" : "#d4d4d4", 0), disc === "GA" ? "Wall cut" : "Walls (architecture, for reference)");
   row(ln(0.18, "center", "#8a8a8a"), "Structural grid");
-  if (disc !== "R") row(ln(0.25, "hidden"), "Hot-aisle containment (overhead)");
-  if (disc === "E") { row((x0, y0) => { ln(0.35)(x0, y0 + 1); ln(0.35)(x0, y0 - 1); }, "Busway over rack row (double line), A–D sources"); row((x0, y0) => { ln(0.25)(x0, y0 + 1); ln(0.25)(x0, y0 - 1); }, "Cable ladder (rungs at 1.5 m)"); row(box(null), "Electrical equipment, tagged"); row(box(null, 0.18), "Rack (thick edge = front)"); }
+  if (disc !== "R" && d.has?.hac) row(ln(0.25, "hidden"), "Hot-aisle containment (overhead)");
+  if (disc === "E") { row((x0, y0) => { ln(0.35)(x0, y0 + 1); ln(0.35)(x0, y0 - 1); }, "Busway over rack row (double line), A–D sources"); row((x0, y0) => { ln(0.25)(x0, y0 + 1); ln(0.25)(x0, y0 - 1); }, "Cable ladder (rungs at 1.5 m)"); row(box(null), "Electrical equipment, tagged"); if (d.has?.racks) row(box(null, 0.18), "Rack (thick edge = front)"); }
   if (disc === "M" || disc === "R") { row(ln(0.5), "Supply (FWS / TCS / CHW), flow arrow"); row(ln(0.35, "dash"), "Return"); row(dot("#000000"), "Riser"); if (disc === "M") row((x0, y0) => { box(null, 0.25)(x0, y0); items.push({ t: "line", p: [[x0 + 3, y0 - 2], [x0 + 13, y0 + 2]], w: 0.25, layer: "BJ-LEGEND" }); }, "Isolating valve"); row(box(null), disc === "R" ? "Roof plant, tagged" : "Mechanical equipment, tagged"); }
   if (disc === "F") { row(ln(1.0, null, "#c8102e"), "Fire-rated wall (EI 120 unless noted)"); row((x0, y0) => items.push({ t: "text", at: [x0 + 8, y0 - 0.8], text: "FD120", h: 2.2, align: "middle", layer: "BJ-LEGEND" }), "Fire door, rating in minutes");
     row((x0, y0) => items.push({ t: "poly", pts: [[x0 + 6.4, y0 - 1.2], [x0 + 9.6, y0 - 1.2], [x0 + 8, y0 + 1.6]], fill: "#1a7f37", w: 0, layer: "BJ-LEGEND" }), "Final exit to open air"); row(ln(0.5), "Pre-action sprinkler main / branch"); }
-  if (disc === "GA") { row(box(null, 0.18), "Equipment and racks (outline)"); row((x0, y0) => { items.push({ t: "text", at: [x0 + 8, y0 - 0.8], text: `${K}-D01`, h: 2.2, align: "middle", layer: "BJ-LEGEND" }); }, "Door mark (see door schedule)"); }
+  if (disc === "GA") { if (d.has?.equip) row(box(null, 0.18), d.has?.racks ? "Equipment and racks (outline)" : "Equipment and furniture (outline)"); row((x0, y0) => { items.push({ t: "text", at: [x0 + 8, y0 - 0.8], text: `${K}-D01`, h: 2.2, align: "middle", layer: "BJ-LEGEND" }); }, "Door mark (see door schedule)"); }
   if (z?.parent) row(ln(0.7, "center"), "Matchline to the adjoining part");
   // general notes: three standard ones, then the project's notes for this discipline
   x = band.x0 + 175; head(x, "GENERAL NOTES"); y = top - 12;
   const own = (docs.notes?.[disc] || []).map((t, i) => `${i + 4}. ${t}`);
-  const notes = ["1. Dimensions in millimetres; levels in metres above finished floor level (FFL ±0.00).", "2. Do not scale. Work to figured dimensions; report discrepancies to the designer.", "3. Concept design for a pilot (BIMja). Not for construction.", ...own,
-    "LOD 400 geometry; as-built (LOD 500) fields assumed, not field-verified."];
+  const notes = ["1. Dimensions in millimetres; levels in metres above finished floor level (FFL ±0.00).", "2. Do not scale. Work to figured dimensions; report discrepancies to the designer.", "3. Prepared with BIMja. Not for construction unless issued with an A (authorised) status.", ...own];
   for (const n of notes) for (const part of wrap(n, 96)) { items.push({ t: "text", at: [x, y], text: part, h: 2.5, layer: "BJ-TEXT" }); y -= 4.2; }
   // key plan: the site at a small scale, this building shaded and this part outlined
   x = band.x0 + 395; head(x, "KEY PLAN"); { const site = model.elements.find((e) => e.kind === "mass" && /EARTHWORKS|SITE/.test(e.layer || "") && e.outline); const zs = (model.data.zones || []).filter((q) => !q.parent);
