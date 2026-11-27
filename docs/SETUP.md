@@ -56,7 +56,7 @@ The MCP server is `mcp/bimja-mcp.mjs`. It runs in two modes.
 
 | Mode | Command | Use it for |
 |---|---|---|
-| **Attached** | `node mcp/bimja-mcp.mjs --app http://localhost:5173 --open` | Working with a person watching. The server opens the BIMja tab and bridges to it over a token-protected `ws://127.0.0.1` socket. Agent changes appear as proposals that you approve on screen. All commands work, including ones that need the 3D view. |
+| **Attached** | `node mcp/bimja-mcp.mjs --open` (defaults to http://localhost:5173) | Working with a person watching. The server opens the BIMja tab and bridges to it over a token-protected `ws://127.0.0.1` socket. Agent changes appear as proposals that you approve on screen. All commands work, including ones that need the 3D view. |
 | **Headless** | `node mcp/bimja-mcp.mjs --headless --apply` | Batch work with no browser: authoring, schedules, drawings, exports. Commands that need the 3D view (rendering, viewer screenshots, in-view clash display) return "unavailable". `--apply` applies agent writes directly. Leave it out to keep the propose-and-approve step. |
 
 For attached mode, start `npm run dev` first (step 1), so `http://localhost:5173` is serving. The server only accepts connections from `localhost:5173`, `127.0.0.1:5173` and `localhost:8099`, or from the URL given with `--app`.

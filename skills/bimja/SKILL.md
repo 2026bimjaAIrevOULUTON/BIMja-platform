@@ -5,7 +5,7 @@ description: Operate the BIMja platform (open-source web BIM) end to end from an
 
 # Operating BIMja
 
-BIMja is a static web app (https://2026bimjaairevouluton.github.io/BIMja-platform/, repo `2026bimjaAIrevOULUTON/BIMja-platform`) with one command layer. People (UI), agents (MCP) and scripts call **the same commands with the same arguments**, and every change lands in an attributed, undoable command log. If you can describe the work as commands, BIMja can do it; this skill is how to do that well.
+BIMja is a static web app that runs locally (`npm run dev` → http://localhost:5173; private repo `2026bimjaAIrevOULUTON/BIMja-platform`, setup in `docs/SETUP.md`) with one command layer. People (UI), agents (MCP) and scripts call **the same commands with the same arguments**, and every change lands in an attributed, undoable command log. If you can describe the work as commands, BIMja can do it; this skill is how to do that well.
 
 Read `references/commands.md` (all ~105 commands, args, examples, generated from the code) before your first call, and `references/workflows.md` for the recipe that matches the task. For drawings, also read `references/drawings.md`.
 

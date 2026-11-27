@@ -15,7 +15,7 @@ import { installCore } from "../src/core/handlers.js";
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf(`--${k}`); return i < 0 ? d : argv[i + 1] && !argv[i + 1].startsWith("--") ? argv[i + 1] : true; };
 const HEADLESS = !!opt("headless", false);
-const APP = String(opt("app", process.env.BIMJA_APP || "https://2026bimjaairevouluton.github.io/BIMja-platform/"));
+const APP = String(opt("app", process.env.BIMJA_APP || "http://localhost:5173/"));
 const PORT = Number(opt("port", process.env.BIMJA_PORT || 0));
 const APPLY = !!opt("apply", false);
 const ALLOWED_ORIGINS = new Set([new URL(APP).origin, "http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:8099"]);

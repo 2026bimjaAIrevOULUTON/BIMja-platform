@@ -1,6 +1,6 @@
 # BIMja: BIM in your browser
 
-**Live:** https://2026bimjaairevouluton.github.io/BIMja-platform/ · Status: [docs/STATUS.md](docs/STATUS.md) · Handover: [docs/HANDOVER.md](docs/HANDOVER.md)
+**Run:** locally on your PC (`npm run dev` → http://localhost:5173, see [docs/SETUP.md](docs/SETUP.md)) · Status: [docs/STATUS.md](docs/STATUS.md) · Handover: [docs/HANDOVER.md](docs/HANDOVER.md)
 
 BIMja is a static web app for BIM on open standards (IFC): model, coordinate, schedule (4D), cost (5D) and run a georeferenced digital twin, all in the browser. Your model is never uploaded. Every capability is one command, reachable from the UI, from `window.bimja`, and from AI agents over MCP (`node mcp/bimja-mcp.mjs`); agents propose changes and a person applies them.
 
