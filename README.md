@@ -1,8 +1,8 @@
-# BIMja: open BIM in your browser
+# BIMja: BIM in your browser
 
 **Live:** https://2026bimjaairevouluton.github.io/BIMja-platform/ · Status: [docs/STATUS.md](docs/STATUS.md) · Handover: [docs/HANDOVER.md](docs/HANDOVER.md)
 
-BIMja is a static web app for open BIM: model, coordinate, schedule (4D), cost (5D) and run a georeferenced digital twin, all in the browser. Your model is never uploaded. Every capability is one command, reachable from the UI, from `window.bimja`, and from AI agents over MCP (`node mcp/bimja-mcp.mjs`); agents propose changes and a person applies them.
+BIMja is a static web app for BIM on open standards (IFC): model, coordinate, schedule (4D), cost (5D) and run a georeferenced digital twin, all in the browser. Your model is never uploaded. Every capability is one command, reachable from the UI, from `window.bimja`, and from AI agents over MCP (`node mcp/bimja-mcp.mjs`); agents propose changes and a person applies them.
 
 | Area | What works | Checked against |
 |---|---|---|
@@ -15,6 +15,9 @@ BIMja is a static web app for open BIM: model, coordinate, schedule (4D), cost (
 | 5D | Unit rates on quantities, estimate + CSV, asset register, COBie 2.4 .xlsx | ifc5d quantities (0.5%); COBie structure check |
 | Geo + twin | EPSG CRS, IfcMapConversion, basemap/GeoJSON overlays; sensors bound to GlobalIds, simulated/WebSocket/MQTT feeds, alerts that select the element, history kept in IndexedDB | PROJ (pyproj) within 0.74 mm; real MQTT broker |
 | Agents | 66 commands with args, refusals and UI paths; log, undo, replay, attribution, stale-rev, locks, pause | Parity test |
+
+## Set up on a Windows PC and connect an agent
+See [docs/SETUP.md](docs/SETUP.md): run the app locally, connect Claude Code, Codex, Cursor, VS Code (Copilot) or Claude Desktop over MCP, and replicate the repo into a private enterprise organisation.
 
 ## Run locally
 ```bash
@@ -44,7 +47,7 @@ bimja.describe();                 // counts, storeys, issues, bbox
 ## Stack and licences
 - [web-ifc](https://github.com/ThatOpen/engine_web-ifc) (MPL-2.0): parses IFC and generates geometry, in WASM.
 - [three.js](https://threejs.org) (MIT): rendering.
-- BIMja code: MIT.
+- BIMja code: proprietary, all rights reserved (see [LICENSE](LICENSE)). Versions published before the licence change remain under MIT for those who received them.
 
 This is a clean-room project built on open standards (IFC). It contains no Autodesk code or formats. To bring in Revit projects, export IFC from Revit.
 

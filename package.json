@@ -15,7 +15,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "dependencies": {
     "delaunator": "5.1.0",
     "manifold-3d": "3.5.5",
@@ -31,5 +31,6 @@
   "type": "module",
   "bin": {
     "bimja-mcp": "mcp/bimja-mcp.mjs"
-  }
+  },
+  "private": true
 }

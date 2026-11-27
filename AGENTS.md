@@ -8,4 +8,4 @@ Codex finds it via `.codex/skills/bimja`; Cursor and Claude Code can read it fro
 To **change** BIMja's code: commands live in `src/commands/registry.js` (keep it complete — the parity test
 checks every command is reachable from the UI and `window.bimja`); run `npm test`; after adding or changing a
 command run `node scripts/gen-skill-commands.mjs` so `skills/bimja/references/commands.md` stays in sync
-(a test fails otherwise). Licence rules: MIT code; MPL-2.0/Apache-2.0 deps only; no AGPL; IfcOpenShell in CI only.
+(a test fails otherwise). Licence rules: BIMja code is proprietary (see LICENSE; do not add MIT/open-source notices to BIMja code); third-party deps MIT/ISC/MPL-2.0/Apache-2.0 only; no AGPL or GPL; IfcOpenShell in CI only. To set up a PC, connect an agent or replicate the repo into an enterprise organisation, follow docs/SETUP.md.
